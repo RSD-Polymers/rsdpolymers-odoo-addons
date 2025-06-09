@@ -1,0 +1,21 @@
+{
+    'name': 'RSD Polymer Project Module Customization',
+    'version': '1.0',
+    'category': 'Project',
+    'author': 'RSD Polymers',
+    'depends': ['project', 'web', 'hr_timesheet'],
+    'data': [
+        'security/ir.model.access.csv',
+        'views/project_task_views.xml',
+        'views/res_groups_view.xml',
+    ],
+    'assets': {  # Define your custom assets here
+        'web.assets_backend': [
+            'project_customization/static/src/js/project_task_state_selection_extend.js',
+        ],
+    },
+    'icon': 'project_customization/static/description/icon.png',
+    'installable': True,
+    'application': False,
+    'license': 'OEEL-1',
+}

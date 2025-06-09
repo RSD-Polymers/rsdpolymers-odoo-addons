@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_groups_form_inherit_hide_menu" model="ir.ui.view">
+        <field name="name">res.groups.form.inherit.menu.restrict</field>
+        <field name="model">res.groups</field>
+        <field name="inherit_id" ref="base.view_groups_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Restrict Specific Menu" invisible="is_admin">
+                    <field name="hide_menu_ids"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_menu_form_inherit_group_restrict" model="ir.ui.view">
+        <field name="name">ir.ui.menu.form.inherit.restrict.group</field>
+        <field name="model">ir.ui.menu</field>
+        <field name="inherit_id" ref="base.edit_menu_access"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Restrict Groups" name="restrict_groups">
+                    <field name="restrict_user_group_ids" widget="many2many_tags"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

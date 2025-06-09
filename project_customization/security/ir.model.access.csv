@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_task_checker,access_task_checker,project.model_project_task,base.group_checker,1,1,0,0
+access_task_assigner,access_task_assigner,project.model_project_task,base.group_assigner,1,1,0,0
