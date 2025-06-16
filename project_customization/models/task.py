@@ -1,14 +1,13 @@
 
-from odoo import models, fields, api
+from odoo import models, fields, api, exceptions
 from odoo.exceptions import ValidationError
 from datetime import date, datetime
-
 
 class ProjectTask(models.Model):
     _inherit = 'project.task'
 
     marks_obtained = fields.Float(string='Marks Obtained (out of 100)')
-    allowed_attempts = fields.Integer(string='Number of Allowed Attempts')
+    allowed_attempts = fields.Integer(string='Number of Allowed Attempts', default=1)
     user_ids = fields.Many2many('res.users', relation='project_task_user_rel', column1='task_id', column2='user_id',
                                 required=True, string='Assignees', context={'active_test': False}, tracking=True,
                                 domain="[('share', '=', False), ('active', '=', True)]")
@@ -39,19 +38,19 @@ class ProjectTask(models.Model):
         }
     )
 
+    @api.depends_context('uid')
     def _compute_is_checker_field(self):
+        user = self.env.user
+        has_checker_group = user.has_group("base.group_checker")
         for record in self:
-            if not record.env.user.has_group("base.group_checker"):
-                record.is_checker_field = False
-            else:
-                record.is_checker_field = True
+            record.is_checker_field = has_checker_group
 
+    @api.depends_context('uid')
     def _compute_is_assigner_field(self):
+        user = self.env.user
+        has_assigner_group = user.has_group("base.group_assigner")
         for record in self:
-            if not record.env.user.has_group("base.group_assigner"):
-                record.is_assigner_field = False
-            else:
-                record.is_assigner_field = True
+            record.is_assigner_field = has_assigner_group
 
     @api.depends_context('uid')  # Ensures recomputation if user changes
     def _compute_is_assignees_group_member(self):
@@ -84,3 +83,19 @@ class ProjectTask(models.Model):
         for task in self:
             if not task.checker_id:
                 raise ValidationError("You can't leave the Checker field empty.")
+
+    @api.constrains('allowed_attempts')
+    def _check_allowed_attempts(self):
+        for rec in self:
+            if rec.allowed_attempts <= 0:
+                raise exceptions.ValidationError("Number of Allowed Attempts can't be Zero.")
+            if rec.allowed_attempts > 5:
+                raise exceptions.ValidationError("Checkers can assign a maximum of Five allowed attempts.")
+
+    @api.constrains('marks_obtained')
+    def _check_marks_obtained_max_value(self):
+        for record in self:
+            if record.marks_obtained > 100:
+                raise ValidationError("Marks Obtained (out of 100) cannot exceed 100.")
+            if record.marks_obtained <= 0:
+                raise ValidationError("Marks Obtained (out of 100) cannot be Zero or Negative.")
