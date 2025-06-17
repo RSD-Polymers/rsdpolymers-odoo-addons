@@ -1,9 +1,11 @@
 import typing
 
 from odoo import models, fields, api, exceptions
-from odoo.api import ValuesType
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 from datetime import date, datetime
+import logging # Import the logging module
+
+_logger = logging.getLogger(__name__) # Initialize logger
 
 class ProjectTask(models.Model):
     _inherit = 'project.task'
@@ -103,10 +105,27 @@ class ProjectTask(models.Model):
                 raise ValidationError("Marks Obtained (out of 100) cannot be Zero or Negative.")
 
     def write(self, vals):
-        res = super(ProjectTask, self).write(vals)
+        # We need to get old_state for each task individually, BEFORE the super call updates them.
+        # Store a dictionary of old_states if 'state' is in vals.
+        # This loop must be done *before* the super() call to get the state before it's changed.
+        old_states = {}
+        if 'state' in vals:
+            for task in self:
+                old_states[task.id] = task.state
 
+        res = super(ProjectTask, self).write(vals) # Call original write method
+
+        # Now, iterate through the records *after* the write operation has happened.
+        # Check conditions for each task individually.
         if 'state' in vals and vals['state'] == '05_send_for_checking':
             for task in self:
-                task.allowed_attempts -= 1
-
+                # Check if the state was actually changed to '05_send_for_checking'
+                # and it was not already that state (using the stored old_state).
+                if old_states.get(task.id) != '05_send_for_checking':
+                    if task.allowed_attempts > 0:
+                        task.allowed_attempts -= 1 # This is the backend decrement
+                    else:
+                        # Optional: raise UserError here if you want to strictly prevent the state change
+                        # when attempts are 0.
+                        pass
         return res
