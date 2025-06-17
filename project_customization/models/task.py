@@ -1,5 +1,7 @@
+import typing
 
 from odoo import models, fields, api, exceptions
+from odoo.api import ValuesType
 from odoo.exceptions import ValidationError
 from datetime import date, datetime
 
@@ -99,3 +101,12 @@ class ProjectTask(models.Model):
                 raise ValidationError("Marks Obtained (out of 100) cannot exceed 100.")
             if record.marks_obtained <= 0:
                 raise ValidationError("Marks Obtained (out of 100) cannot be Zero or Negative.")
+
+    def write(self, vals):
+        res = super(ProjectTask, self).write(vals)
+
+        if 'state' in vals and vals['state'] == '05_send_for_checking':
+            for task in self:
+                task.allowed_attempts -= 1
+
+        return res
