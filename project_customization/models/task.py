@@ -42,6 +42,9 @@ class ProjectTask(models.Model):
         }
     )
 
+    # New field to indicate if the task is locked
+    is_locked = fields.Boolean(string="Is Locked", compute="_compute_is_locked", store=True)
+
     @api.depends_context('uid')
     def _compute_is_checker_field(self):
         user = self.env.user
@@ -104,28 +107,47 @@ class ProjectTask(models.Model):
             if record.marks_obtained <= 0:
                 raise ValidationError("Marks Obtained (out of 100) cannot be Zero or Negative.")
 
+    @api.depends('state')
+    def _compute_is_locked(self):
+        for task in self:
+            task.is_locked = (task.state == '03_approved')
+
     def write(self, vals):
         # We need to get old_state for each task individually, BEFORE the super call updates them.
-        # Store a dictionary of old_states if 'state' is in vals.
-        # This loop must be done *before* the super() call to get the state before it's changed.
         old_states = {}
-        if 'state' in vals:
-            for task in self:
-                old_states[task.id] = task.state
+        for task in self:
+            old_states[task.id] = task.state
 
-        res = super(ProjectTask, self).write(vals) # Call original write method
+            # Check for state changes from '03_approved' (Approved) to another state
+            if 'state' in vals:
+                new_state = vals['state']
+                for task in self:
+                    if old_states.get(task.id) == '03_approved' and new_state != '03_approved':
+                        # The task is currently 'Approved' and the user is trying to change it to something else.
+                        # Restrict this action.
+                        raise UserError("This task is already Approved and cannot be moved out of the 'Approved' state.")
 
-        # Now, iterate through the records *after* the write operation has happened.
-        # Check conditions for each task individually.
-        if 'state' in vals and vals['state'] == '05_send_for_checking':
-            for task in self:
-                # Check if the state was actually changed to '05_send_for_checking'
-                # and it was not already that state (using the stored old_state).
-                if old_states.get(task.id) != '05_send_for_checking':
-                    if task.allowed_attempts > 0:
-                        task.allowed_attempts -= 1 # This is the backend decrement
-                    else:
-                        # Optional: raise UserError here if you want to strictly prevent the state change
-                        # when attempts are 0.
-                        pass
+        res = super(ProjectTask, self).write(vals)  # Call original write method
+
+        # Check conditions for each task individually after the write operation.
+        for task in self:
+            # Handle decrementing allowed_attempts when state changes to '05_send_for_checking'
+            if 'state' in vals and vals['state'] == '05_send_for_checking' and old_states.get(
+                    task.id) != '05_send_for_checking':
+                if task.allowed_attempts > 0:
+                    task.allowed_attempts -= 1
+                else:
+                    # You might want to prevent the state change if attempts are 0.
+                    # This would require raising an error here before the write takes full effect.
+                    # Example: raise UserError("No allowed attempts left to send for checking.")
+                    pass
         return res
+
+    def unlink(self):
+        """
+        Prevents deletion of tasks that are in the '03_approved' state.
+        """
+        for task in self:
+            if task.state == '03_approved':
+                raise UserError("You cannot delete a task that is in 'Approved' state.")
+        return super(ProjectTask, self).unlink()
