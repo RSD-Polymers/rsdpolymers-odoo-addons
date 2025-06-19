@@ -45,6 +45,39 @@ class ProjectTask(models.Model):
     # New field to indicate if the task is locked
     is_locked = fields.Boolean(string="Is Locked", compute="_compute_is_locked", store=True)
 
+    # This computed field will be True if the current user should be able to edit
+    is_editable_to_user = fields.Boolean(
+        string="Is Editable by User",
+        compute='_compute_is_editable_by_user',
+        store=False,  # No need to store this in the database
+    )
+
+    @api.depends('user_ids', 'project_id')  # Add any fields that might influence assigner/assignee logic
+    def _compute_is_editable_by_user(self):
+        # Get the current user
+        user = self.env.user
+
+        # Get references to your custom groups
+        group_assigner = self.env.ref('base.group_assigner')  # Replace with your actual group external ID
+        group_assignee = self.env.ref('base.group_assignees')  # Replace with your actual group external ID
+
+        for task in self:
+            # Check if the user is in the Assigner group
+            is_user_assigner = user.has_group('base.group_assigner')
+
+            # Check if the user is in the Assignee group
+            is_user_assignee = user.has_group('base.group_assignees')
+
+            # Your logic: If the user is an Assigner, they can edit.
+            # Otherwise, if they are only an Assignee, they cannot edit.
+            if is_user_assigner:
+                task.is_editable_to_user = True
+            elif is_user_assignee:
+                task.is_editable_to_user = False
+            else:
+                # Default case for users who are neither Assigner nor Assignee
+                task.is_editable_to_user = False  # Or True, depending on your default policy
+
     @api.depends_context('uid')
     def _compute_is_checker_field(self):
         user = self.env.user
