@@ -1,5 +1,3 @@
-import typing
-
 from odoo import models, fields, api, exceptions
 from odoo.exceptions import ValidationError, UserError
 from datetime import date, datetime
@@ -33,7 +31,7 @@ class ProjectTask(models.Model):
     # Define the 'state' field to extend its selection options
     state = fields.Selection(
         selection_add=[
-            ('05_send_for_checking', 'Send for Checking'),  # Your new custom state
+            ('05_send_for_checking', 'Send for Checking'),
         ],
         ondelete={
             # This specifies what happens to records if '05_send_for_checking' is ever removed.
