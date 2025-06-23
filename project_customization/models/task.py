@@ -1,9 +1,10 @@
 from odoo import models, fields, api, exceptions
 from odoo.exceptions import ValidationError, UserError
 from datetime import date, datetime
-import logging # Import the logging module
+import logging  # Import the logging module
 
-_logger = logging.getLogger(__name__) # Initialize logger
+_logger = logging.getLogger(__name__)  # Initialize logger
+
 
 class ProjectTask(models.Model):
     _inherit = 'project.task'
@@ -50,7 +51,31 @@ class ProjectTask(models.Model):
         store=False,  # No need to store this in the database
     )
 
-    @api.depends('user_ids', 'project_id')  # Add any fields that might influence assigner/assignee logic
+    # New fields for accepted/rejected status
+    is_accepted = fields.Boolean(string="Accepted", default=False, copy=False)
+    is_rejected = fields.Boolean(string="Rejected", default=False, copy=False)
+    rejection_remarks = fields.Text(string="Rejection Remarks", readonly=True)
+
+    can_assignee_accept_reject = fields.Boolean(
+        string="Can Assignee Accept/Reject",
+        compute="_compute_can_assignee_accept_reject",
+        store=False,
+    )
+
+    @api.depends('state', 'user_ids', 'is_accepted', 'is_rejected', 'is_assignees_group_member')
+    def _compute_can_assignee_accept_reject(self):
+        for task in self:
+            is_assignee_of_task = self.env.user in task.user_ids
+
+            task.can_assignee_accept_reject = (
+                    is_assignee_of_task and
+                    task.is_assignees_group_member and
+                    task.state in ('04_waiting_normal')
+                    and not task.is_accepted
+                    and not task.is_rejected
+            )
+
+    @api.depends('user_ids', 'project_id', 'is_locked')  # Add any fields that might influence assigner/assignee logic
     def _compute_is_editable_by_user(self):
         # Get the current user
         user = self.env.user
@@ -135,7 +160,7 @@ class ProjectTask(models.Model):
         for record in self:
             if record.marks_obtained > 100:
                 raise ValidationError("Marks Obtained (out of 100) cannot exceed 100.")
-            if record.marks_obtained <= 0:
+            if record.marks_obtained < 0:
                 raise ValidationError("Marks Obtained (out of 100) cannot be Zero or Negative.")
 
     @api.depends('state')
@@ -156,7 +181,8 @@ class ProjectTask(models.Model):
                     if old_states.get(task.id) == '03_approved' and new_state != '03_approved':
                         # The task is currently 'Approved' and the user is trying to change it to something else.
                         # Restrict this action.
-                        raise UserError("This task is already Approved and cannot be moved out of the 'Approved' state.")
+                        raise UserError(
+                            "This task is already Approved and cannot be moved out of the 'Approved' state.")
 
         res = super(ProjectTask, self).write(vals)  # Call original write method
 
@@ -182,3 +208,120 @@ class ProjectTask(models.Model):
             if task.state == '03_approved':
                 raise UserError("You cannot delete a task that is in 'Approved' state.")
         return super(ProjectTask, self).unlink()
+
+    def action_accept_task(self):
+        """
+        Action for the 'Accept' button.
+        Marks the task as 'Accepted'.
+        """
+        self.ensure_one()
+        if self.env.user not in self.user_ids:
+            raise UserError("You are not an assignee of this task.")
+        if not self.env.user.has_group('base.group_assignees'):
+            raise UserError("You do not have the necessary permissions to accept this task.")
+
+        # Check if already accepted or rejected
+        if self.is_accepted:
+            raise UserError("This task has already been accepted.")
+        if self.is_rejected:
+            raise UserError("This task has already been rejected. Please correct it first.")
+
+        # Ensure the task is in a state where it can be accepted
+        if self.state not in '04_waiting_normal':
+            raise UserError("This task cannot be accepted in its current state.")
+
+        self.write(
+            {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False, 'state': '01_in_progress'})  # Clear remarks on acceptance
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'project.task',
+            'view_mode': 'form',
+            'res_id': self.id,  # The ID of the current task
+            'target': 'current',  # Open in the current window/tab
+            'flags': {'action_texts': False},  # Optional: helps prevent extra text on the action
+        }
+
+    def action_reject_task(self):
+        """
+        Action for the 'Reject' button.
+        Opens a wizard to enter rejection remarks.
+        """
+        self.ensure_one()
+        if self.env.user not in self.user_ids:
+            raise UserError("You are not an assignee of this task.")
+        if not self.env.user.has_group('base.group_assignees'):
+            raise UserError("You do not have the necessary permissions to reject this task.")
+
+        # Check if already accepted or rejected
+        if self.is_accepted:
+            raise UserError("This task has already been accepted. You cannot reject an accepted task.")
+        if self.is_rejected:
+            raise UserError("This task has already been rejected.")
+
+        # # Ensure the task is in a state where it can be rejected
+        # if self.state not in ('1_done', '05_send_for_checking'):
+        #     raise UserError("This task cannot be rejected in its current state.")
+
+        return {
+            'name': 'Reject Task',
+            'type': 'ir.actions.act_window',
+            'res_model': 'project.task.reject.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_task_id': self.id},
+        }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        _logger.info(f"Custom create method called with vals_list: {vals_list}")
+
+        # Ensure vals_list is always a list for uniform processing
+        if isinstance(vals_list, dict):
+            vals_list = [vals_list]
+
+        for vals in vals_list:
+            # Check if 'state' is present in vals, AND if it's NOT already '04_waiting_normal'
+            # This ensures we only override if it's different from our target default
+            if 'state' in vals and vals['state'] != '04_waiting_normal':
+                _logger.info(f"Overriding provided state '{vals['state']}' to '04_waiting_normal'.")
+                vals['state'] = '04_waiting_normal'
+            elif 'state' not in vals:
+                # If 'state' is not in vals at all, then set our default
+                vals['state'] = '04_waiting_normal'
+                _logger.info(f"Setting default state to '04_waiting_normal' as it was not provided.")
+            else:
+                # If 'state' is already '04_waiting_normal', do nothing
+                _logger.info(f"State '{vals['state']}' is already '04_waiting_normal'. No override needed.")
+
+        # Call the original create method
+        tasks = super(ProjectTask, self).create(vals_list)
+        return tasks
+
+    def _inverse_state(self):
+        """
+        Custom inverse method for the 'state' field.
+        Applies validation rules before state changes are committed.
+        """
+        for task in self:
+            # Get the original state before the write operation
+            # This requires getting the original value before the current transaction's changes
+            # are committed. A common pattern for this is to use a `write` override,
+            # or ensure you are comparing against the *previous* value for validation.
+
+            # Simplified approach for this inverse: check the new value and existing conditions
+            # The 'state' field itself is being set on 'task', so task.state already has the new value.
+
+            _logger.info(
+                f"Task {task.name} - Inverse state called. Current state: {task.state}, Is Accepted: {task.is_accepted}")
+
+            # Check if the task is being transitioned TO '05_send_for_checking'
+            # AND if the task has NOT been accepted yet.
+            if task.state == '05_send_for_checking' and not task.is_accepted:
+                # Check if the current user is an assignee attempting this transition
+                # This check ensures the restriction applies to assignees.
+                is_assignee_of_task = self.env.user in task.user_ids
+                if is_assignee_of_task and self.env.user.has_group('base.group_assignees'):
+                    raise UserError("You must accept the task before sending it for checking.")
+
+            pass  # No explicit assignment needed if 'state' is the primary stored field

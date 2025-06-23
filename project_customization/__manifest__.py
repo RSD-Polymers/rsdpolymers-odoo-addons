@@ -8,6 +8,7 @@
         'security/ir.model.access.csv',
         'views/project_task_views.xml',
         'views/res_groups_view.xml',
+        'views/project_task_reject_wizard_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

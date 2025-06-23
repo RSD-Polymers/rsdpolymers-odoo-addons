@@ -17,9 +17,20 @@
 
                 <field name="marks_obtained" string="Marks Obtained (out of 100)"
                        readonly="(is_checker_field == False and not is_editable_to_user) or is_locked"/>
-                <field name="allowed_attempts" readonly="(not (is_assigner_field or is_checker_field or is_editable_to_user)) or is_locked"
+                <field name="allowed_attempts"
+                       readonly="(not (is_assigner_field or is_checker_field or is_editable_to_user)) or is_locked"
                        colspan="2"/>
             </xpath>
+
+            <xpath expr="//header" position="inside">
+                <button name="action_accept_task" type="object" string="Accept"
+                        class="oe_highlight"
+                        invisible="not can_assignee_accept_reject"/>
+                <button name="action_reject_task" type="object" string="Reject"
+                        class="btn-secondary"
+                        invisible="not can_assignee_accept_reject"/>
+            </xpath>
+
             <xpath expr="//field[@name='date_deadline']" position="attributes">
                 <attribute name="readonly">not is_editable_to_user or is_locked</attribute>
             </xpath>
@@ -45,6 +56,9 @@
             </xpath>
             <xpath expr="//h1/div/field[@name='priority']" position="attributes">
                 <attribute name="readonly">not is_editable_to_user or is_locked</attribute>
+            </xpath>
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="rejection_remarks" invisible="not is_rejected"/>
             </xpath>
 
             <!-- Set readonly="is_locked" on all fields inside notebook pages -->
