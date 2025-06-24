@@ -318,6 +318,8 @@ class ProjectTask(models.Model):
             if task.state == '05_send_for_checking' and not task.is_accepted:
                 # Check if the current user is an assignee attempting this transition
                 # This check ensures the restriction applies to assignees.
+                if task.is_rejected:
+                    raise UserError("This task is in Rejected state.")
                 is_assignee_of_task = self.env.user in task.user_ids
                 if is_assignee_of_task and self.env.user.has_group('base.group_assignees'):
                     raise UserError("You must accept the task before sending it for checking.")
