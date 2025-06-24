@@ -1,6 +1,6 @@
-from odoo import models, fields, api, exceptions
+from odoo import models, fields, api, exceptions, _
 from odoo.exceptions import ValidationError, UserError
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import logging  # Import the logging module
 
 _logger = logging.getLogger(__name__)  # Initialize logger
@@ -169,34 +169,44 @@ class ProjectTask(models.Model):
             task.is_locked = (task.state == '03_approved')
 
     def write(self, vals):
-        # We need to get old_state for each task individually, BEFORE the super call updates them.
-        old_states = {}
-        for task in self:
-            old_states[task.id] = task.state
+        # Store original values of tasks before the write operation
+        # This is crucial for checking if the task *was* already rejected/cancelled.
+        original_values = {
+            task.id: {'is_rejected': task.is_rejected, 'state': task.state}
+            for task in self
+        }
 
-            # Check for state changes from '03_approved' (Approved) to another state
+        # New Validation: Prevent changes if the task is already rejected OR in '1_canceled' state
+        for task in self:
+            original_is_rejected = original_values[task.id]['is_rejected']
+            original_state = original_values[task.id]['state']
+
+            # If the task was already rejected OR in '1_canceled' state
+            if original_is_rejected or original_state == '1_canceled':
+                # Check if there are any actual changes being attempted
+                # If vals is not empty and it's not just a read or context change
+                if vals and any(field in vals for field in self._fields.keys()): # Check if any of the vals keys correspond to actual fields
+                    raise UserError(_("This task is already rejected & it's in cancelled state. You can not modify it."))
+
+            # Existing Validation for Approved state
             if 'state' in vals:
                 new_state = vals['state']
-                for task in self:
-                    if old_states.get(task.id) == '03_approved' and new_state != '03_approved':
-                        # The task is currently 'Approved' and the user is trying to change it to something else.
-                        # Restrict this action.
-                        raise UserError(
-                            "This task is already Approved and cannot be moved out of the 'Approved' state.")
+                if original_state == '03_approved' and new_state != '03_approved':
+                    raise UserError(_("This task is already Approved and cannot be moved out of the 'Approved' state."))
 
-        res = super(ProjectTask, self).write(vals)  # Call original write method
+        # Call the original write method
+        res = super(ProjectTask, self).write(vals)
 
-        # Check conditions for each task individually after the write operation.
+        # Existing: Check conditions for each task individually after the write operation.
         for task in self:
             # Handle decrementing allowed_attempts when state changes to '05_send_for_checking'
-            if 'state' in vals and vals['state'] == '05_send_for_checking' and old_states.get(
-                    task.id) != '05_send_for_checking':
+            if 'state' in vals and vals['state'] == '05_send_for_checking' and original_values[task.id].get('state') != '05_send_for_checking':
                 if task.allowed_attempts > 0:
                     task.allowed_attempts -= 1
                 else:
-                    # You might want to prevent the state change if attempts are 0.
-                    # This would require raising an error here before the write takes full effect.
-                    # Example: raise UserError("No allowed attempts left to send for checking.")
+                    # Consider making this a ValidationError or UserError BEFORE the write
+                    # to prevent inconsistent state. For now, it's a pass as per your original.
+                    _logger.warning(f"Task {task.name} attempts exhausted, but still transitioned to 'Send For Checking'.")
                     pass
         return res
 
@@ -325,3 +335,49 @@ class ProjectTask(models.Model):
                     raise UserError("You must accept the task before sending it for checking.")
 
             pass  # No explicit assignment needed if 'state' is the primary stored field
+
+    @api.model
+    def _cron_auto_reject_unaccepted_tasks(self):
+        _logger.info("Cron job: Checking for unaccepted tasks...")
+
+        # Get the current UTC time using Odoo's Datetime field helper
+        now_utc = fields.Datetime.now()
+        # Calculate the threshold time: 48 hours ago from now (UTC)
+        threshold_time = now_utc - timedelta(hours=48)
+
+        # Find tasks that meet the criteria:
+        # 1. Are in the 'Waiting' state ('04_waiting_normal')
+        # 2. Have NOT been accepted (is_accepted = False)
+        # 3. Were created more than 48 hours ago
+        tasks_to_reject = self.search([
+            ('state', '=', '04_waiting_normal'),
+            ('is_accepted', '=', False),
+            ('create_date', '<=', threshold_time),
+        ])
+
+        # Add these lines for debugging and logging
+        _logger.info(f"Search query returned: {tasks_to_reject}")
+        _logger.info(f"Type of tasks_to_reject: {type(tasks_to_reject)}")
+        _logger.info(f"Number of tasks found: {len(tasks_to_reject)}")
+
+        if tasks_to_reject:
+            _logger.info(f"Found {len(tasks_to_reject)} tasks to auto-reject.")
+            for task in tasks_to_reject:
+                # Update the task's status to rejected and change its state
+                task.write({
+                    'is_rejected': True,
+                    'is_accepted': False,  # Ensure it's explicitly False
+                    'rejection_remarks': _("Task automatically rejected: Not accepted by assignee within 48 hours."),
+                    'state': '1_canceled',
+                })
+                _logger.info(f"Task '{task.name}' (ID: {task.id}) auto-rejected.")
+
+                # Optionally, post a message on the task's chatter for visibility
+                task.message_post(
+                    body=_("Task automatically marked as rejected because it was not accepted within 48 hours."),
+                    subject=_("Task Auto-Rejection Notification"),
+                    # You can add specific partners to notify if desired:
+                    # partner_ids=[task.user_id.partner_id.id] if task.user_id else [],
+                )
+        else:
+            _logger.info("No unaccepted tasks found requiring auto-rejection.")
