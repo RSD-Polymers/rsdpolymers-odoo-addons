@@ -15,6 +15,12 @@ patch(ProjectTaskStateSelection.prototype, {
         this.icons['05_send_for_checking'] = "fa fa-lg fa-paper-plane";
         this.colorIcons['05_send_for_checking'] = "o_status_warning";
         this.colorButton['05_send_for_checking'] = "btn-outline-warning";
+
+        // --- NEW ICONS/COLORS FOR '06_rejected' ---
+        this.icons['06_rejected'] = "fa fa-lg fa-times-circle"; // A cross icon for rejected
+        this.colorIcons['06_rejected'] = "text-danger";         // Red color
+        this.colorButton['06_rejected'] = "btn-outline-danger"; // Red button style
+        // --- END NEW ---
     },
 
     get options() {
@@ -28,6 +34,21 @@ patch(ProjectTaskStateSelection.prototype, {
         } else {
             originalOptions.push(newState);
         }
+
+        // --- ADD THE NEW '07_rejected' STATE TO THE OPTIONS ---
+        // Find a suitable place to insert it. For now, let's just add it at the end
+        // if it's not already there, or after '1_canceled'.
+        const rejectedState = ['06_rejected', _t('Rejected')]; // Use _t for translatability
+        const canceledIndex = originalOptions.findIndex(option => option[0] === '1_canceled');
+
+        if (canceledIndex !== -1) {
+            // Insert after '1_canceled'
+            originalOptions.splice(canceledIndex + 1, 0, rejectedState);
+        } else {
+            // Otherwise, just add it to the end
+            originalOptions.push(rejectedState);
+        }
+        // --- END ADDING '07_rejected' ---
 
         const isAssigneeUser = this.props.record.data.is_assignees_group_member;
 

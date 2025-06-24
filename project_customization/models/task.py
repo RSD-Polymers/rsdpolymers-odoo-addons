@@ -33,11 +33,13 @@ class ProjectTask(models.Model):
     state = fields.Selection(
         selection_add=[
             ('05_send_for_checking', 'Send for Checking'),
+            ('06_rejected', 'Rejected'),
         ],
         ondelete={
             # This specifies what happens to records if '05_send_for_checking' is ever removed.
             # 'set 1_done' means tasks in this state will revert to 'Done'.
             '05_send_for_checking': 'set 1_done',
+            '06_rejected': 'set 1_done',
         }
     )
 
@@ -70,7 +72,7 @@ class ProjectTask(models.Model):
             task.can_assignee_accept_reject = (
                     is_assignee_of_task and
                     task.is_assignees_group_member and
-                    task.state in ('04_waiting_normal')
+                    task.state in ('01_in_progress')
                     and not task.is_accepted
                     and not task.is_rejected
             )
@@ -80,26 +82,24 @@ class ProjectTask(models.Model):
         # Get the current user
         user = self.env.user
 
-        # Get references to your custom groups
-        group_assigner = self.env.ref('base.group_assigner')  # Replace with your actual group external ID
-        group_assignee = self.env.ref('base.group_assignees')  # Replace with your actual group external ID
+        is_user_admin = user.has_group('base.group_system')
+        is_user_assigner = user.has_group('base.group_assigner') # REMEMBER TO REPLACE THIS
+        is_user_assignee = user.has_group('base.group_assignees') # REMEMBER TO REPLACE THIS
 
         for task in self:
-            # Check if the user is in the Assigner group
-            is_user_assigner = user.has_group('base.group_assigner')
-
-            # Check if the user is in the Assignee group
-            is_user_assignee = user.has_group('base.group_assignees')
-
-            # Your logic: If the user is an Assigner, they can edit.
-            # Otherwise, if they are only an Assignee, they cannot edit.
-            if is_user_assigner:
+            # Admins can always edit, overriding other restrictions
+            if is_user_admin:
                 task.is_editable_to_user = True
+            # If not admin, check Assigner
+            elif is_user_assigner:
+                task.is_editable_to_user = True
+            # If not admin or assigner, check Assignee
             elif is_user_assignee:
-                task.is_editable_to_user = False
+                task.is_editable_to_user = False  # Assignees cannot edit based on your original logic
             else:
-                # Default case for users who are neither Assigner nor Assignee
-                task.is_editable_to_user = False  # Or True, depending on your default policy
+                # Default case for users who are neither Admin, Assigner, nor Assignee
+                # Set this based on your default policy for other users
+                task.is_editable_to_user = False
 
     @api.depends_context('uid')
     def _compute_is_checker_field(self):
@@ -132,6 +132,10 @@ class ProjectTask(models.Model):
         Ensures comparison is always between datetime.date objects.
         """
         for task in self:
+
+            if not task.date_deadline:
+                raise ValidationError("The Deadline field cannot be empty. Please enter it!!")
+
             if task.date_deadline:
                 # Ensure today's date is a datetime.date object
                 today_date = date.today()
@@ -169,45 +173,51 @@ class ProjectTask(models.Model):
             task.is_locked = (task.state == '03_approved')
 
     def write(self, vals):
-        # Store original values of tasks before the write operation
-        # This is crucial for checking if the task *was* already rejected/cancelled.
-        original_values = {
-            task.id: {'is_rejected': task.is_rejected, 'state': task.state}
-            for task in self
-        }
+        # Retrieve the flag from the environment context
+        is_action_specific_write = self.env.context.get('is_action_specific_task_op', False) # Use a more descriptive name for clarity
 
-        # New Validation: Prevent changes if the task is already rejected OR in '1_canceled' state
+        # Your logging lines
+        _logger.info(f"*** WRITE METHOD STARTED for Task IDs: {self.ids} ***")
+        _logger.info(f"Incoming 'vals' for write: {vals}")
+        original_vals = {task.id: {'is_accepted': task.is_accepted, 'is_rejected': task.is_rejected, 'state': task.state} for task in self}
+        _logger.info(f"Original values from ORM (self object) at start of write: {original_vals}")
+        _logger.info(f"is_action_specific_task_op (from context): {is_action_specific_write}") # Updated log name
+
         for task in self:
-            original_is_rejected = original_values[task.id]['is_rejected']
-            original_state = original_values[task.id]['state']
+            _logger.info(f"--- Processing Task ID: {task.id} ---")
+            original_state = original_vals[task.id]['state']
+            original_is_rejected = original_vals[task.id]['is_rejected']
+            _logger.info(f"Task {task.id}: original_state={original_state}, original_is_rejected={original_is_rejected}")
 
-            # If the task was already rejected OR in '1_canceled' state
-            if original_is_rejected or original_state == '1_canceled':
-                # Check if there are any actual changes being attempted
-                # If vals is not empty and it's not just a read or context change
-                if vals and any(field in vals for field in self._fields.keys()): # Check if any of the vals keys correspond to actual fields
-                    raise UserError(_("This task is already rejected & it's in cancelled state. You can not modify it."))
+            # VALIDATION LOGIC:
+            # 1. Allow Admins to bypass any state-based restrictions for writes.
+            if self.env.user.has_group('base.group_system'):
+                _logger.info(f"Task {task.id}: Admin bypass enabled. Skipping modification validation.")
+                pass # Admin can proceed, no blocking needed here
+            # 2. If the task is already in a 'rejected' state OR `is_rejected` is True
+            #    AND this is NOT an explicit action's write (is_action_specific_task_op = False)
+            elif (original_state == '06_rejected' or original_is_rejected):
+                _logger.info(f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification.")
 
-            # Existing Validation for Approved state
-            if 'state' in vals:
-                new_state = vals['state']
-                if original_state == '03_approved' and new_state != '03_approved':
-                    raise UserError(_("This task is already Approved and cannot be moved out of the 'Approved' state."))
+                # Check if the current write is attempting to un-reject the task
+                is_unrejecting = ('is_rejected' in vals and vals['is_rejected'] is False)
+                # Check if the current write is attempting to change state away from rejected
+                is_changing_from_rejected_state = ('state' in vals and vals['state'] != '06_rejected')
 
-        # Call the original write method
-        res = super(ProjectTask, self).write(vals)
-
-        # Existing: Check conditions for each task individually after the write operation.
-        for task in self:
-            # Handle decrementing allowed_attempts when state changes to '05_send_for_checking'
-            if 'state' in vals and vals['state'] == '05_send_for_checking' and original_values[task.id].get('state') != '05_send_for_checking':
-                if task.allowed_attempts > 0:
-                    task.allowed_attempts -= 1
+                # If it's the specific action (context flag) OR it's trying to un-reject/change state from rejected, allow it.
+                if is_action_specific_write or is_unrejecting or is_changing_from_rejected_state:
+                    _logger.info(f"Task {task.id}: Allowing modification due to action-specific write or un-reject/state change.")
+                    pass # Allow the write
                 else:
-                    # Consider making this a ValidationError or UserError BEFORE the write
-                    # to prevent inconsistent state. For now, it's a pass as per your original.
-                    _logger.warning(f"Task {task.name} attempts exhausted, but still transitioned to 'Send For Checking'.")
-                    pass
+                    # BLOCK if it's already rejected and not an un-reject/state change action, and not admin
+                    _logger.warning(f"Task {task.id}: Blocking modification. Task is in 'Rejected' state and no un-reject/re-rejection action detected. vals={vals}")
+                    raise UserError(_("This task is in a 'Rejected' state and cannot be modified."))
+
+            # Add similar logic for 'is_locked' if you have a separate lock mechanism that blocks modification.
+
+        # Proceed with the original write operation after all checks
+        res = super(ProjectTask, self).write(vals)
+        _logger.info(f"Task {self.name} - Write completed. Current state: {self.state}, Is Accepted: {self.is_accepted}")
         return res
 
     def unlink(self):
@@ -237,11 +247,16 @@ class ProjectTask(models.Model):
             raise UserError("This task has already been rejected. Please correct it first.")
 
         # Ensure the task is in a state where it can be accepted
-        if self.state not in '04_waiting_normal':
+        if self.state not in '01_in_progress':
             raise UserError("This task cannot be accepted in its current state.")
 
         self.write(
-            {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False, 'state': '01_in_progress'})  # Clear remarks on acceptance
+            {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False})  # Clear remarks on acceptance
+
+        self.message_post(
+            body=_("Task has been **Accepted**"),
+            subject=_("Task Acceptance")
+        )
 
         return {
             'type': 'ir.actions.act_window',
@@ -253,25 +268,24 @@ class ProjectTask(models.Model):
         }
 
     def action_reject_task(self):
-        """
-        Action for the 'Reject' button.
-        Opens a wizard to enter rejection remarks.
-        """
         self.ensure_one()
         if self.env.user not in self.user_ids:
             raise UserError("You are not an assignee of this task.")
         if not self.env.user.has_group('base.group_assignees'):
             raise UserError("You do not have the necessary permissions to reject this task.")
 
-        # Check if already accepted or rejected
         if self.is_accepted:
             raise UserError("This task has already been accepted. You cannot reject an accepted task.")
-        if self.is_rejected:
-            raise UserError("This task has already been rejected.")
+        # Ensure that if it's already in the '06_rejected' state, you cannot reject it again
+        # This prevents opening the wizard if it's already fully rejected.
+        if self.state == '06_rejected': # <--- UPDATED: Check for '06_rejected'
+            raise UserError(_("This task is already in 'Rejected' state."))
+        if self.is_rejected and self.state != '06_rejected': # This case should ideally not happen if state aligns with is_rejected
+             raise UserError("This task has already been rejected (flag is true).")
 
-        # # Ensure the task is in a state where it can be rejected
-        # if self.state not in ('1_done', '05_send_for_checking'):
-        #     raise UserError("This task cannot be rejected in its current state.")
+        # Ensure the task is in a state where it can be rejected
+        if self.state in ('1_done', '05_send_for_checking'):
+            raise UserError("This task cannot be rejected in its current state.")
 
         return {
             'name': 'Reject Task',
@@ -281,32 +295,6 @@ class ProjectTask(models.Model):
             'target': 'new',
             'context': {'default_task_id': self.id},
         }
-
-    @api.model_create_multi
-    def create(self, vals_list):
-        _logger.info(f"Custom create method called with vals_list: {vals_list}")
-
-        # Ensure vals_list is always a list for uniform processing
-        if isinstance(vals_list, dict):
-            vals_list = [vals_list]
-
-        for vals in vals_list:
-            # Check if 'state' is present in vals, AND if it's NOT already '04_waiting_normal'
-            # This ensures we only override if it's different from our target default
-            if 'state' in vals and vals['state'] != '04_waiting_normal':
-                _logger.info(f"Overriding provided state '{vals['state']}' to '04_waiting_normal'.")
-                vals['state'] = '04_waiting_normal'
-            elif 'state' not in vals:
-                # If 'state' is not in vals at all, then set our default
-                vals['state'] = '04_waiting_normal'
-                _logger.info(f"Setting default state to '04_waiting_normal' as it was not provided.")
-            else:
-                # If 'state' is already '04_waiting_normal', do nothing
-                _logger.info(f"State '{vals['state']}' is already '04_waiting_normal'. No override needed.")
-
-        # Call the original create method
-        tasks = super(ProjectTask, self).create(vals_list)
-        return tasks
 
     def _inverse_state(self):
         """
@@ -350,7 +338,7 @@ class ProjectTask(models.Model):
         # 2. Have NOT been accepted (is_accepted = False)
         # 3. Were created more than 48 hours ago
         tasks_to_reject = self.search([
-            ('state', '=', '04_waiting_normal'),
+            ('state', '=', '01_in_progress'),
             ('is_accepted', '=', False),
             ('create_date', '<=', threshold_time),
         ])
@@ -368,7 +356,7 @@ class ProjectTask(models.Model):
                     'is_rejected': True,
                     'is_accepted': False,  # Ensure it's explicitly False
                     'rejection_remarks': _("Task automatically rejected: Not accepted by assignee within 48 hours."),
-                    'state': '1_canceled',
+                    'state': '06_rejected',
                 })
                 _logger.info(f"Task '{task.name}' (ID: {task.id}) auto-rejected.")
 

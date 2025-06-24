@@ -15,12 +15,19 @@ class ProjectTaskRefuseWizard(models.TransientModel):
         Confirms rejection and updates the task with remarks and sets the rejected flag.
         Also, clears the accepted flag if it was set.
         """
-        self.ensure_one()
+        active_id = self.env.context.get('active_id')
+        if not active_id:
+            raise UserError("No task selected for rejection.")
 
-        self.task_id.write({
+        task = self.env['project.task'].browse(active_id)
+        if not task:
+            raise UserError("Selected task not found.")
+
+        task.with_context(is_action_specific_task_op=True).write({
             'is_rejected': True,
-            'is_accepted': False,  # Ensure it's not accepted if rejected
-            'rejection_remarks': self.rejection_reason,
+            'is_accepted': False,  # Assuming rejection implies not accepted
+            'rejection_remarks': self.rejection_reason,  # Get remarks from the wizard field
+            'state': '06_rejected',
         })
 
         # It's usually better to post a message to the task's chatter
