@@ -5,6 +5,7 @@ import { ProjectTaskStateSelection } from "@project/components/project_task_stat
 import { useService } from "@web/core/utils/hooks";
 import { browser } from "@web/core/browser/browser";
 import { _t } from "@web/core/l10n/translation"; // <--- ADD THIS IMPORT IF NOT ALREADY THERE AND USE DIRECTLY
+import { formatSelection } from "@web/views/fields/formatters";
 
 patch(ProjectTaskStateSelection.prototype, {
     setup() {
@@ -21,6 +22,17 @@ patch(ProjectTaskStateSelection.prototype, {
         this.colorIcons['06_rejected'] = "text-danger";         // Red color
         this.colorButton['06_rejected'] = "btn-outline-danger"; // Red button style
         // --- END NEW ---
+    },
+
+    get label() {
+        // Access the original selection directly from the field definition,
+        // which contains all possible state values and their labels.
+        const fullSelection = this.props.record.fields[this.props.name].selection;
+
+        // Use formatSelection with the complete list to ensure the label is found.
+        return formatSelection(this.currentValue, {
+            selection: fullSelection,
+        });
     },
 
     get options() {

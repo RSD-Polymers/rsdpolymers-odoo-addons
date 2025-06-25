@@ -173,15 +173,13 @@ class ProjectTask(models.Model):
             task.is_locked = (task.state == '03_approved')
 
     def write(self, vals):
-        # Retrieve the flag from the environment context
-        is_action_specific_write = self.env.context.get('is_action_specific_task_op', False) # Use a more descriptive name for clarity
+        is_action_specific_write = self.env.context.get('is_action_specific_task_op', False)
 
-        # Your logging lines
         _logger.info(f"*** WRITE METHOD STARTED for Task IDs: {self.ids} ***")
         _logger.info(f"Incoming 'vals' for write: {vals}")
         original_vals = {task.id: {'is_accepted': task.is_accepted, 'is_rejected': task.is_rejected, 'state': task.state} for task in self}
         _logger.info(f"Original values from ORM (self object) at start of write: {original_vals}")
-        _logger.info(f"is_action_specific_task_op (from context): {is_action_specific_write}") # Updated log name
+        _logger.info(f"is_action_specific_task_op (from context): {is_action_specific_write}")
 
         for task in self:
             _logger.info(f"--- Processing Task ID: {task.id} ---")
@@ -193,29 +191,41 @@ class ProjectTask(models.Model):
             # 1. Allow Admins to bypass any state-based restrictions for writes.
             if self.env.user.has_group('base.group_system'):
                 _logger.info(f"Task {task.id}: Admin bypass enabled. Skipping modification validation.")
-                pass # Admin can proceed, no blocking needed here
+                pass
             # 2. If the task is already in a 'rejected' state OR `is_rejected` is True
-            #    AND this is NOT an explicit action's write (is_action_specific_task_op = False)
-            elif (original_state == '06_rejected' or original_is_rejected):
+            elif original_state == '06_rejected' or original_is_rejected:
                 _logger.info(f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification.")
-
-                # Check if the current write is attempting to un-reject the task
                 is_unrejecting = ('is_rejected' in vals and vals['is_rejected'] is False)
-                # Check if the current write is attempting to change state away from rejected
                 is_changing_from_rejected_state = ('state' in vals and vals['state'] != '06_rejected')
 
-                # If it's the specific action (context flag) OR it's trying to un-reject/change state from rejected, allow it.
                 if is_action_specific_write or is_unrejecting or is_changing_from_rejected_state:
                     _logger.info(f"Task {task.id}: Allowing modification due to action-specific write or un-reject/state change.")
-                    pass # Allow the write
+                    pass
                 else:
-                    # BLOCK if it's already rejected and not an un-reject/state change action, and not admin
                     _logger.warning(f"Task {task.id}: Blocking modification. Task is in 'Rejected' state and no un-reject/re-rejection action detected. vals={vals}")
                     raise UserError(_("This task is in a 'Rejected' state and cannot be modified."))
 
-            # Add similar logic for 'is_locked' if you have a separate lock mechanism that blocks modification.
+            # NEW VALIDATION: Prevent changes if the task is '03_approved'
+            elif original_state == '03_approved':
+                _logger.info(f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification from Approved.")
+                # Allow specific changes from 'approved' if needed, for example, if an "Unapprove" or "Re-open" action exists.
+                # Otherwise, block all state changes from approved.
 
-        # Proceed with the original write operation after all checks
+                # Example: If you want to allow changing state to '1_done' from '03_approved', you could add:
+                # if 'state' in vals and vals['state'] == '1_done':
+                #    _logger.info(f"Task {task.id}: Allowing transition from Approved to Done.")
+                #    pass
+                # else:
+                # Block all other modifications if it's approved and not an admin or specific action.
+                if not is_action_specific_write: # You might have an 'unapprove' action that uses this context flag
+                    # If the 'state' field is being changed AND the new state is NOT '03_approved'
+                    if 'state' in vals and vals['state'] != '03_approved':
+                        _logger.warning(f"Task {task.id}: Blocking modification. Task is in 'Approved' state and state change detected. vals={vals}")
+                        raise UserError(_("This task is in an 'Approved' state and its state cannot be changed."))
+                    # You might also want to prevent changes to other critical fields if approved, e.g.,
+                    # if any(f in vals for f in ['user_ids', 'project_id']) and not is_action_specific_write:
+                    #     raise UserError(_("This task is approved and cannot be modified."))
+
         res = super(ProjectTask, self).write(vals)
         _logger.info(f"Task {self.name} - Write completed. Current state: {self.state}, Is Accepted: {self.is_accepted}")
         return res
