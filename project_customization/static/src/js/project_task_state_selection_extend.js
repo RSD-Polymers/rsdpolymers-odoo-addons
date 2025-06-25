@@ -65,7 +65,7 @@ patch(ProjectTaskStateSelection.prototype, {
         const isAssigneeUser = this.props.record.data.is_assignees_group_member;
 
         if (isAssigneeUser) {
-            const statesToHideForAssignee = ['1_done', '1_canceled', '03_approved'];
+            const statesToHideForAssignee = ['1_done', '1_canceled', '03_approved', '06_rejected'];
             originalOptions = originalOptions.filter(option =>
                 !statesToHideForAssignee.includes(option[0])
             );
