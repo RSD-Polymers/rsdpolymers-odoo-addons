@@ -71,6 +71,21 @@ class ProjectTask(models.Model):
         store=False,  # Not stored in DB as it's dynamic and user-specific
     )
 
+    # New Validation to check marks_obtained field while approving the task
+    @api.constrains('state', 'marks_obtained')
+    def _check_marks_obtained_on_approval(self):
+        """
+        Ensures 'Marks Obtained' is filled with a positive value when the task is approved.
+        """
+        for task in self:
+            _logger.info(f"Checking marks_obtained for task {task.name} (ID: {task.id}) on state change to {task.state}")
+            # If the task is being transitioned to the 'Approved' state
+            if task.state == '03_approved':
+                # Check if marks_obtained is empty (False) or zero/negative
+                if not task.marks_obtained or task.marks_obtained <= 0:
+                    _logger.warning(f"Validation failed for task {task.id}: marks_obtained is {task.marks_obtained} when state is {task.state}")
+                    raise ValidationError(_("Marks Obtained must be entered and be greater than Zero before marking the task as Approved."))
+
     @api.depends('checker_id')  # Recompute if the assigned checker changes
     @api.depends_context('uid')  # Recompute if the logged-in user changes
     def _compute_is_current_user_the_task_checker(self):
@@ -169,8 +184,8 @@ class ProjectTask(models.Model):
     @api.constrains('allowed_attempts')
     def _check_allowed_attempts(self):
         for rec in self:
-            if rec.allowed_attempts <= 0:
-                raise exceptions.ValidationError("Number of Allowed Attempts can't be Zero.")
+            if rec.allowed_attempts < 0:
+                raise exceptions.ValidationError("Number of Allowed Attempts cannot be negative.")
             if rec.allowed_attempts > 5:
                 raise exceptions.ValidationError("Checkers can assign a maximum of Five allowed attempts.")
 
@@ -201,6 +216,22 @@ class ProjectTask(models.Model):
             original_state = original_vals[task.id]['state']
             original_is_rejected = original_vals[task.id]['is_rejected']
             _logger.info(f"Task {task.id}: original_state={original_state}, original_is_rejected={original_is_rejected}")
+
+            # --- NEW VALIDATION LOGIC FOR 'SEND FOR CHECKING' STATE ---
+            if 'state' in vals and vals['state'] == '05_send_for_checking':
+                # 1. Restrict if no attempts left BEFORE checking assignee or decrementing
+                if task.allowed_attempts <= 0:
+                    _logger.warning(f"Task {task.id}: Blocking state change to 'Send for Checking'. Allowed attempts are {task.allowed_attempts}.")
+                    raise UserError(_("Cannot send for checking: Number of allowed attempts are exhausted for this task."))
+
+                # 2. Check if the current user is an assignee of the task
+                if self.env.user not in task.user_ids:
+                    _logger.warning(f"Task {task.id}: Blocking state change to 'Send for Checking'. Current user {self.env.user.name} is not an assignee.")
+                    raise UserError(_("You are not the right person to do Send For Checking. Only an assignee of this task can set its state to 'Send for Checking'."))
+                # 3. Decrement allowed_attempts when sending for checking
+                task.allowed_attempts -= 1
+                _logger.info(f"Task {task.id}: Decremented allowed_attempts to {task.allowed_attempts} due to state change to 'Send for Checking'.")
+                # --- END 'SEND FOR CHECKING' LOGIC ---
 
             # VALIDATION LOGIC:
             # 1. Allow Admins to bypass any state-based restrictions for writes.
@@ -260,6 +291,9 @@ class ProjectTask(models.Model):
         Marks the task as 'Accepted'.
         """
         self.ensure_one()
+        if self.allowed_attempts <= 0:
+            raise UserError(_("Cannot accept this task: No allowed attempts remaining."))
+
         if self.env.user not in self.user_ids:
             raise UserError("You are not an assignee of this task.")
         if not self.env.user.has_group('base.group_assignees'):
