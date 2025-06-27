@@ -11,6 +11,7 @@ patch(ProjectTaskStateSelection.prototype, {
     setup() {
         super.setup();
         this.notification = useService("notification");
+        this.action = useService("view");
 
         // Your custom icon/color definitions for '05_send_for_checking'
         this.icons['05_send_for_checking'] = "fa fa-lg fa-paper-plane";
@@ -78,24 +79,48 @@ patch(ProjectTaskStateSelection.prototype, {
         console.log(`--- updateRecord called with: ${newValue} ---`);
         const oldState = this.props.record.data.state;
 
-        const result = await super.updateRecord(newValue);
+        try {
+            // Attempt to update the record on the server
+            // If a server-side ValidationError or UserError occurs, this line will throw an exception.
+            const result = await super.updateRecord(newValue);
 
-        if (newValue === '05_send_for_checking' && oldState !== '05_send_for_checking') {
-            await browser.setTimeout(100);
+            // This block will only execute if the 'super.updateRecord' call was successful.
+            if (newValue === '05_send_for_checking' && oldState !== '05_send_for_checking') {
+                // Introduce a small delay and then force a record load to ensure data is fresh.
+                // This might be redundant if the 'reload_views' is triggered on error, but good for success path.
+                await browser.setTimeout(100);
+                await this.props.record.load();
+
+                const attemptsLeft = this.props.record.data.allowed_attempts;
+
+                this.notification.add(
+                    _t(`You have ${attemptsLeft} attempts remaining.`),
+                    {
+                        title: _t("Attempts Remaining"),
+                        type: attemptsLeft > 0 ? "warning" : "danger",
+                        sticky: false,
+                    }
+                );
+            }
+            return result; // Return the result if successful
+        } catch (error) {
+            console.error("Error during state update (caught in component patch):", error);
+            console.log("Entering component's catch block. Reverting UI, reloading record, and re-throwing error for global handler.");
+
+            // 1. Immediately revert the UI field's value to its old state.
+            // This ensures the dropdown visually snaps back to the correct value.
+            this.props.record.data.state = oldState;
+
+            // 2. Load the record from the server to ensure all fields, especially
+            // computed ones, are synchronized with the backend's true state.
             await this.props.record.load();
 
-            const attemptsLeft = this.props.record.data.allowed_attempts;
-
-            this.notification.add(
-                _t(`You have ${attemptsLeft} attempts remaining.`),
-                {
-                    title: _t("Attempts Remaining"),
-                    type: attemptsLeft > 0 ? "warning" : "danger",
-                    sticky: false,
-                }
-            );
+            // 3. Re-throw the error. This is crucial. Odoo's global error handler
+            // will catch this error and display the standard Odoo pop-up dialog
+            // (like the one in your screenshot) with the server's error message.
+            // The record will already be reloaded and the UI reverted by this point.
+            throw error;
         }
-        return result;
     },
 
     /**
