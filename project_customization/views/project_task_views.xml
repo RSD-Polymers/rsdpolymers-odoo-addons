@@ -16,7 +16,7 @@
                 <field name="is_locked" invisible="1"/>
 
                 <field name="marks_obtained" string="Marks Obtained (out of 100)"
-                       readonly="(is_checker_field == False and not is_editable_to_user) or is_locked"/>
+                       readonly="is_locked or is_current_user_the_task_checker == False"/>
                 <field name="allowed_attempts"
                        readonly="(not (is_assigner_field or is_checker_field or is_editable_to_user)) or is_locked"
                        colspan="2"/>

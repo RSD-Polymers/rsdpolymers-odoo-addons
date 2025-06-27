@@ -97,4 +97,11 @@ patch(ProjectTaskStateSelection.prototype, {
         }
         return result;
     },
+
+    /**
+     * Getter to determine if the field should be disabled for UI interaction due to approved or rejected.
+     */
+    get isDisabledState() {
+        return this.currentValue === '03_approved' || this.currentValue === '06_rejected';
+    },
 });

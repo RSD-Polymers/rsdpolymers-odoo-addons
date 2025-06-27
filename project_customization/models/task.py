@@ -64,6 +64,21 @@ class ProjectTask(models.Model):
         store=False,
     )
 
+    # --- NEW COMPUTED FIELD FOR SPECIFIC CHECKER ACCESS ---
+    is_current_user_the_task_checker = fields.Boolean(
+        string="Current User is Task's Checker",
+        compute="_compute_is_current_user_the_task_checker",
+        store=False,  # Not stored in DB as it's dynamic and user-specific
+    )
+
+    @api.depends('checker_id')  # Recompute if the assigned checker changes
+    @api.depends_context('uid')  # Recompute if the logged-in user changes
+    def _compute_is_current_user_the_task_checker(self):
+        current_user_id = self.env.user.id
+        for task in self:
+            # Check if a checker is assigned AND if the assigned checker's ID matches the current user's ID
+            task.is_current_user_the_task_checker = (task.checker_id and task.checker_id.id == current_user_id)
+
     @api.depends('state', 'user_ids', 'is_accepted', 'is_rejected', 'is_assignees_group_member')
     def _compute_can_assignee_accept_reject(self):
         for task in self:

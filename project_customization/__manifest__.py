@@ -14,6 +14,7 @@
     'assets': {
         'web.assets_backend': [
             'project_customization/static/src/js/project_task_state_selection_extend.js',
+            'project_customization/static/src/xml/project_task_state_selection_extend_custom.xml',
         ],
     },
     'icon': 'project_customization/static/description/icon.png',
