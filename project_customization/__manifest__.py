@@ -1,5 +1,6 @@
 {
     'name': 'RSD Polymer Project Module Customization',
+    'icon': '/project_customization/static/description/icon.png',
     'version': '1.0',
     'category': 'Project',
     'author': 'RSD Polymers',
@@ -17,7 +18,6 @@
             'project_customization/static/src/xml/project_task_state_selection_extend_custom.xml',
         ],
     },
-    'icon': 'project_customization/static/description/icon.png',
     'installable': True,
     'application': False,
     'license': 'OEEL-1',

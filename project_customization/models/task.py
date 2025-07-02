@@ -102,7 +102,7 @@ class ProjectTask(models.Model):
             task.can_assignee_accept_reject = (
                     is_assignee_of_task and
                     task.is_assignees_group_member and
-                    task.state in ('01_in_progress')
+                    task.state in ('04_waiting_normal')
                     and not task.is_accepted
                     and not task.is_rejected
             )
@@ -202,12 +202,34 @@ class ProjectTask(models.Model):
         for task in self:
             task.is_locked = (task.state == '03_approved')
 
+    @api.model
+    def create(self, vals):
+        """
+        Overrides the create method to ensure the default state is '04_waiting_normal'
+        when a new task is created, overriding the default '01_in_progress' if present.
+        """
+        _logger.info(f"*** CREATE METHOD STARTED for ProjectTask ***")
+        _logger.info(f"Incoming 'vals' for create: {vals}")
+
+        # Check if 'state' is not provided OR if it's explicitly '01_in_progress' (Odoo's default for new tasks)
+        # If it's '01_in_progress', we assume it's the unwanted default and override it.
+        if 'state' not in vals or vals.get('state') == '01_in_progress':
+            vals['state'] = '04_waiting_normal'
+            _logger.info(f"Overriding state to: {vals['state']} (was not provided or was '01_in_progress')")
+        else:
+            _logger.info(f"State already provided in vals and is not '01_in_progress': {vals['state']}")
+
+        # Call the original create method with the (potentially modified) vals
+        task = super(ProjectTask, self).create(vals)
+        _logger.info(f"Task '{task.name}' (ID: {task.id}) created with state: {task.state}")
+        return task
+
     def write(self, vals):
         is_action_specific_write = self.env.context.get('is_action_specific_task_op', False)
 
         _logger.info(f"*** WRITE METHOD STARTED for Task IDs: {self.ids} ***")
         _logger.info(f"Incoming 'vals' for write: {vals}")
-        original_vals = {task.id: {'is_accepted': task.is_accepted, 'is_rejected': task.is_rejected, 'state': task.state} for task in self}
+        original_vals = {task.id: {'is_accepted': task.is_accepted, 'is_rejected': task.is_rejected, 'state': task.state, 'allowed_attempts': task.allowed_attempts} for task in self}
         _logger.info(f"Original values from ORM (self object) at start of write: {original_vals}")
         _logger.info(f"is_action_specific_task_op (from context): {is_action_specific_write}")
 
@@ -219,6 +241,11 @@ class ProjectTask(models.Model):
 
             # --- NEW VALIDATION LOGIC FOR 'SEND FOR CHECKING' STATE ---
             if 'state' in vals and vals['state'] == '05_send_for_checking':
+                # Check if the task has been accepted BEFORE allowing 'Send for Checking'
+                if not task.is_accepted:
+                    _logger.warning(f"Task {task.id}: Blocking state change to 'Send for Checking'. Task has not been accepted yet.")
+                    raise UserError(_("You must accept the task before sending it for checking."))
+
                 # 1. Restrict if no attempts left BEFORE checking assignee or decrementing
                 if task.allowed_attempts <= 0:
                     _logger.warning(f"Task {task.id}: Blocking state change to 'Send for Checking'. Allowed attempts are {task.allowed_attempts}.")
@@ -273,7 +300,9 @@ class ProjectTask(models.Model):
                     #     raise UserError(_("This task is approved and cannot be modified."))
 
         res = super(ProjectTask, self).write(vals)
-        _logger.info(f"Task {self.name} - Write completed. Current state: {self.state}, Is Accepted: {self.is_accepted}")
+        for task_rec in self:
+            _logger.info(
+                f"Task {task_rec.name} (ID: {task_rec.id}) - Write completed. Current state: {task_rec.state}, Is Accepted: {task_rec.is_accepted}")
         return res
 
     def unlink(self):
@@ -288,7 +317,7 @@ class ProjectTask(models.Model):
     def action_accept_task(self):
         """
         Action for the 'Accept' button.
-        Marks the task as 'Accepted'.
+        Marks the task as 'Accepted' and changes state to 'In Progress'.
         """
         self.ensure_one()
         if self.allowed_attempts <= 0:
@@ -306,14 +335,15 @@ class ProjectTask(models.Model):
             raise UserError("This task has already been rejected. Please correct it first.")
 
         # Ensure the task is in a state where it can be accepted
-        if self.state not in '01_in_progress':
+        if self.state not in '04_waiting_normal':
             raise UserError("This task cannot be accepted in its current state.")
 
         self.write(
-            {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False})  # Clear remarks on acceptance
+            {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False, 'state': '01_in_progress'})  # Clear remarks on acceptance
+        _logger.info(f"Task {self.name} accepted. State changed to 'In Progress'.")
 
         self.message_post(
-            body=_("Task has been **Accepted**"),
+            body=_("Task has been **Accepted** and moved to 'In Progress'."),
             subject=_("Task Acceptance")
         )
 
@@ -357,33 +387,15 @@ class ProjectTask(models.Model):
 
     def _inverse_state(self):
         """
-        Custom inverse method for the 'state' field.
-        Applies validation rules before state changes are committed.
+        Original _inverse_state method. The validation for '05_send_for_checking'
+        has been moved to the 'write' method for centralized control.
+        This method can be removed if no other logic relies on it.
         """
-        for task in self:
-            # Get the original state before the write operation
-            # This requires getting the original value before the current transaction's changes
-            # are committed. A common pattern for this is to use a `write` override,
-            # or ensure you are comparing against the *previous* value for validation.
-
-            # Simplified approach for this inverse: check the new value and existing conditions
-            # The 'state' field itself is being set on 'task', so task.state already has the new value.
-
-            _logger.info(
-                f"Task {task.name} - Inverse state called. Current state: {task.state}, Is Accepted: {task.is_accepted}")
-
-            # Check if the task is being transitioned TO '05_send_for_checking'
-            # AND if the task has NOT been accepted yet.
-            if task.state == '05_send_for_checking' and not task.is_accepted:
-                # Check if the current user is an assignee attempting this transition
-                # This check ensures the restriction applies to assignees.
-                if task.is_rejected:
-                    raise UserError("This task is in Rejected state.")
-                is_assignee_of_task = self.env.user in task.user_ids
-                if is_assignee_of_task and self.env.user.has_group('base.group_assignees'):
-                    raise UserError("You must accept the task before sending it for checking.")
-
-            pass  # No explicit assignment needed if 'state' is the primary stored field
+        # The validation for '05_send_for_checking' and not task.is_accepted
+        # has been moved to the 'write' method.
+        # This _inverse_state method can now be simplified or removed if no other
+        # inverse logic is required for the 'state' field.
+        pass
 
     @api.model
     def _cron_auto_reject_unaccepted_tasks(self):
