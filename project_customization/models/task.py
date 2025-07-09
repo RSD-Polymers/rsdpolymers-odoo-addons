@@ -203,26 +203,35 @@ class ProjectTask(models.Model):
             task.is_locked = (task.state == '03_approved')
 
     @api.model
-    def create(self, vals):
+    def create(self, vals_list):
         """
         Overrides the create method to ensure the default state is '04_waiting_normal'
         when a new task is created, overriding the default '01_in_progress' if present.
         """
         _logger.info(f"*** CREATE METHOD STARTED for ProjectTask ***")
-        _logger.info(f"Incoming 'vals' for create: {vals}")
+        _logger.info(f"Incoming 'vals_list' for create: {vals_list}")
+        # Ensure vals_list is always a list, even if a single dict is passed (for robustness)
+        if not isinstance(vals_list, list):
+            vals_list = [vals_list]
 
+        modified_vals_list = []
+        for vals in vals_list:
+            # Create a mutable copy of the dictionary to modify
+            current_vals = dict(vals)
         # Check if 'state' is not provided OR if it's explicitly '01_in_progress' (Odoo's default for new tasks)
         # If it's '01_in_progress', we assume it's the unwanted default and override it.
-        if 'state' not in vals or vals.get('state') == '01_in_progress':
-            vals['state'] = '04_waiting_normal'
-            _logger.info(f"Overriding state to: {vals['state']} (was not provided or was '01_in_progress')")
+        if 'state' not in current_vals or current_vals.get('state') == '01_in_progress':
+            current_vals['state'] = '04_waiting_normal'
+            _logger.info(f"Overriding state to: {current_vals['state']} (was not provided or was '01_in_progress')")
         else:
-            _logger.info(f"State already provided in vals and is not '01_in_progress': {vals['state']}")
+            _logger.info(f"State already provided in vals and is not '01_in_progress': {current_vals['state']}")
 
+        modified_vals_list.append(current_vals)
         # Call the original create method with the (potentially modified) vals
-        task = super(ProjectTask, self).create(vals)
-        _logger.info(f"Task '{task.name}' (ID: {task.id}) created with state: {task.state}")
-        return task
+        tasks = super(ProjectTask, self).create(modified_vals_list)
+        for task in tasks:
+            _logger.info(f"Task '{task.name}' (ID: {task.id}) created with state: {task.state}")
+        return tasks  # <--- Return the recordset of created tasks
 
     def write(self, vals):
         is_action_specific_write = self.env.context.get('is_action_specific_task_op', False)
@@ -338,6 +347,19 @@ class ProjectTask(models.Model):
         if self.state not in '04_waiting_normal':
             raise UserError("This task cannot be accepted in its current state.")
 
+        # Calculate the 48-hour threshold from the task's creation date
+        threshold_time = self.create_date + timedelta(hours=48)
+        now_utc = fields.Datetime.now()
+
+        _logger.info(
+            f"Task {self.id} - Create Date: {self.create_date}, Threshold: {threshold_time}, Current Time: {now_utc}")
+
+        # If the current time is past the 48-hour threshold, restrict acceptance.
+        if now_utc > threshold_time:
+            # IMPORTANT: We only raise an error here. We DO NOT change the state to 'rejected'.
+            # The cron job is responsible for that actual state transition.
+            raise UserError(_("This task cannot be accepted as the 48-hour acceptance window has expired."))
+
         self.write(
             {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False, 'state': '01_in_progress'})  # Clear remarks on acceptance
         _logger.info(f"Task {self.name} accepted. State changed to 'In Progress'.")
@@ -411,7 +433,7 @@ class ProjectTask(models.Model):
         # 2. Have NOT been accepted (is_accepted = False)
         # 3. Were created more than 48 hours ago
         tasks_to_reject = self.search([
-            ('state', '=', '01_in_progress'),
+            ('state', '=', '04_waiting_normal'),
             ('is_accepted', '=', False),
             ('create_date', '<=', threshold_time),
         ])
