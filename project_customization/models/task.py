@@ -202,7 +202,7 @@ class ProjectTask(models.Model):
         for task in self:
             task.is_locked = (task.state == '03_approved')
 
-    @api.model
+
     def create(self, vals_list):
         """
         Overrides the create method to ensure the default state is '04_waiting_normal'
