@@ -12,6 +12,10 @@ class ResGroups(models.Model):
         compute='_get_is_admin', string="Is Admin Group",
         help='Check if this is the Administrator group.')
 
+    is_checker = fields.Boolean(
+        compute='_compute_is_checker', string="Is Checker Group",
+        help='Check if this is the Checker group.')
+
     def write(self, vals):
         old_hide_menu_map = {record.id: record.hide_menu_ids for record in self}
         res = super().write(vals)
@@ -31,6 +35,11 @@ class ResGroups(models.Model):
         for rec in self:
             rec.is_admin = (rec == admin_group)
 
+    def _compute_is_checker(self):
+        checker_group = self.env.ref('base.group_checker', raise_if_not_found=False)
+        for rec in self:
+            rec.is_checker = (rec == checker_group)
+
 
 class IrUiMenu(models.Model):
     _inherit = 'ir.ui.menu'
@@ -43,6 +52,8 @@ class IrUiMenu(models.Model):
     def _filter_visible_menus(self):
         menus = super()._filter_visible_menus()
         if self.env.user.has_group('base.group_system'):
+            return menus
+        if self.env.user.has_group('base.group_checker'):
             return menus
         user_group_ids = set(self.env.user.groups_id.ids)
         return menus.filtered(
