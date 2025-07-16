@@ -489,3 +489,21 @@ class ProjectTask(models.Model):
                 )
         else:
             _logger.info("No unaccepted tasks found requiring auto-rejection.")
+
+    def _search(self, *args, **kwargs):
+
+        original_domain = args[0] if args else []
+        # Get the current user's department
+        current_user_department_id = self.env.user.employee_ids.department_id.id
+
+        # If the current user has a department and is not an administrator,
+        # add the department filter
+        if current_user_department_id and not self.env.user.has_group('base.group_system'):
+            department_filter_domain = [('user_ids.employee_ids.department_id', '=', current_user_department_id)]
+            new_domain = department_filter_domain + original_domain
+        else:
+            new_domain = original_domain
+
+        new_args_tuple = (new_domain,) + args[1:] if args else (new_domain,)
+
+        return super()._search(*new_args_tuple, **kwargs)
