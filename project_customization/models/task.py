@@ -94,18 +94,35 @@ class ProjectTask(models.Model):
             # Check if a checker is assigned AND if the assigned checker's ID matches the current user's ID
             task.is_current_user_the_task_checker = (task.checker_id and task.checker_id.id == current_user_id)
 
-    @api.depends('state', 'user_ids', 'is_accepted', 'is_rejected', 'is_assignees_group_member')
+    @api.depends('state', 'user_ids', 'is_accepted', 'is_rejected', 'is_assignees_group_member', 'is_current_user_the_task_checker')
     def _compute_can_assignee_accept_reject(self):
-        for task in self:
-            is_assignee_of_task = self.env.user in task.user_ids
+        user = self.env.user
 
-            task.can_assignee_accept_reject = (
-                    is_assignee_of_task and
-                    task.is_assignees_group_member and
-                    task.state in ('04_waiting_normal')
-                    and not task.is_accepted
-                    and not task.is_rejected
+        is_user_in_assignees_group = user.has_group('base.group_assignees')
+        is_user_in_checker_group = user.has_group('base.group_checker')
+
+        for task in self:
+            is_current_user_assigned_to_task = user in task.user_ids
+
+            can_perform_action = False
+
+            # Common conditions that must be met for either role
+            common_state_conditions = (
+                    task.state in ('04_waiting_normal') and
+                    not task.is_accepted and
+                    not task.is_rejected
             )
+
+            if is_current_user_assigned_to_task and common_state_conditions:
+                # Scenario 1: User is a direct assignee of the task AND is in the 'assignees' group
+                if is_user_in_assignees_group:
+                    can_perform_action = True
+                # Scenario 2: User is a direct assignee of the task AND is in the 'checker' group
+                # This explicitly handles your new requirement: checker assigned to task sees buttons.
+                elif is_user_in_checker_group:
+                    can_perform_action = True
+
+            task.can_assignee_accept_reject = can_perform_action
 
     @api.depends('user_ids', 'project_id', 'is_locked')  # Add any fields that might influence assigner/assignee logic
     def _compute_is_editable_by_user(self):
@@ -115,20 +132,28 @@ class ProjectTask(models.Model):
         is_user_admin = user.has_group('base.group_system')
         is_user_assigner = user.has_group('base.group_assigner') # REMEMBER TO REPLACE THIS
         is_user_assignee = user.has_group('base.group_assignees') # REMEMBER TO REPLACE THIS
+        is_user_checker = user.has_group('base.group_checker')
 
         for task in self:
-            # Admins can always edit, overriding other restrictions
+            # Rule 1: Admins can always edit
             if is_user_admin:
                 task.is_editable_to_user = True
-            # If not admin, check Assigner
+            # Rule 2: Users in the 'Assigner' group (who assign tasks) can edit
             elif is_user_assigner:
                 task.is_editable_to_user = True
-            # If not admin or assigner, check Assignee
+            # Rule 3: Users in the 'Checker' group (who check tasks) can edit
+            # This is the new rule that was missing!
+            elif is_user_checker:
+                task.is_editable_to_user = True
+            # Rule 4: If the user is in the 'Assignees' group, they cannot edit (as per your requirement)
             elif is_user_assignee:
-                task.is_editable_to_user = False  # Assignees cannot edit based on your original logic
+                task.is_editable_to_user = False
+            # Rule 5: If the current user is a direct assignee of THIS task (in user_ids)
+            # but is not an admin, assigner, or checker group member
+            elif user in task.user_ids:
+                task.is_editable_to_user = False  # Still cannot edit if just an assignee
             else:
-                # Default case for users who are neither Admin, Assigner, nor Assignee
-                # Set this based on your default policy for other users
+                # Default case for any other user
                 task.is_editable_to_user = False
 
     @api.depends_context('uid')
