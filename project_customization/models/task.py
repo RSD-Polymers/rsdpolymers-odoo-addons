@@ -493,14 +493,46 @@ class ProjectTask(models.Model):
     def _search(self, *args, **kwargs):
 
         original_domain = args[0] if args else []
+        current_user = self.env.user
         # Get the current user's department
         current_user_department_id = self.env.user.employee_ids.department_id.id
+
+        nilesh_bagwe_user = self.env['res.users'].search([('login', '=', 'nilesh@rsdpolymers.com')], limit=1)
+
+        new_domain = []
 
         # If the current user has a department and is not an administrator,
         # add the department filter
         if current_user_department_id and not self.env.user.has_group('base.group_system'):
-            department_filter_domain = [('user_ids.employee_ids.department_id', '=', current_user_department_id)]
-            new_domain = department_filter_domain + original_domain
+            if nilesh_bagwe_user and current_user == nilesh_bagwe_user:
+                qc_department = self.env.ref('hr.dep_qc', raise_if_not_found=False)
+                qa_department = self.env.ref('hr.dep_qa', raise_if_not_found=False)
+                store_department = self.env.ref('hr.dep_store', raise_if_not_found=False)
+
+                department_ids_for_nilesh = []
+                if qc_department:
+                    department_ids_for_nilesh.append(qc_department.id)
+                if qa_department:
+                    department_ids_for_nilesh.append(qa_department.id)
+                if store_department:
+                    department_ids_for_nilesh.append(store_department.id)
+
+                if current_user_department_id:
+                    department_ids_for_nilesh.append(current_user_department_id)
+
+                # Ensure unique department IDs
+                department_ids_for_nilesh = list(set(department_ids_for_nilesh))
+
+                if department_ids_for_nilesh:
+                    department_filter_domain = [
+                        ('user_ids.employee_ids.department_id', 'in', department_ids_for_nilesh)]
+                    new_domain = department_filter_domain + original_domain
+                else:
+                    new_domain = original_domain
+            else:
+                # Regular user: filter by their assigned department
+                department_filter_domain = [('user_ids.employee_ids.department_id', '=', current_user_department_id)]
+                new_domain = department_filter_domain + original_domain
         else:
             new_domain = original_domain
 
