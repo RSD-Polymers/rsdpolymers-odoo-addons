@@ -491,51 +491,89 @@ class ProjectTask(models.Model):
             _logger.info("No unaccepted tasks found requiring auto-rejection.")
 
     def _search(self, *args, **kwargs):
+        # Extract the original domain passed to this search method.
+        original_domain = args[0] if args and isinstance(args[0], list) else []
 
-        original_domain = args[0] if args else []
+        # Initialize the final domain that will be passed to super().
+        final_domain = []
+
         current_user = self.env.user
-        # Get the current user's department
-        current_user_department_id = self.env.user.employee_ids.department_id.id
 
-        nilesh_bagwe_user = self.env['res.users'].search([('login', '=', 'nilesh@rsdpolymers.com')], limit=1)
-
-        new_domain = []
-
-        # If the current user has a department and is not an administrator,
-        # add the department filter
-        if current_user_department_id and not self.env.user.has_group('base.group_system'):
-            if nilesh_bagwe_user and current_user == nilesh_bagwe_user:
-                qc_department = self.env.ref('hr.dep_qc', raise_if_not_found=False)
-                qa_department = self.env.ref('hr.dep_qa', raise_if_not_found=False)
-                store_department = self.env.ref('hr.dep_store', raise_if_not_found=False)
-
-                department_ids_for_nilesh = []
-                if qc_department:
-                    department_ids_for_nilesh.append(qc_department.id)
-                if qa_department:
-                    department_ids_for_nilesh.append(qa_department.id)
-                if store_department:
-                    department_ids_for_nilesh.append(store_department.id)
-
-                if current_user_department_id:
-                    department_ids_for_nilesh.append(current_user_department_id)
-
-                # Ensure unique department IDs
-                department_ids_for_nilesh = list(set(department_ids_for_nilesh))
-
-                if department_ids_for_nilesh:
-                    department_filter_domain = [
-                        ('user_ids.employee_ids.department_id', 'in', department_ids_for_nilesh)]
-                    new_domain = department_filter_domain + original_domain
-                else:
-                    new_domain = original_domain
-            else:
-                # Regular user: filter by their assigned department
-                department_filter_domain = [('user_ids.employee_ids.department_id', '=', current_user_department_id)]
-                new_domain = department_filter_domain + original_domain
+        # 1. Administrator Bypass:
+        # If the current user is an administrator, they see all tasks (no custom filter applied).
+        if current_user.has_group('base.group_system'):
+            final_domain = original_domain
         else:
-            new_domain = original_domain
+            # Determine the custom filter based on the current user's type and roles.
+            custom_filter = []
 
-        new_args_tuple = (new_domain,) + args[1:] if args else (new_domain,)
+            # 2. Identify 'nilesh@rsdpolymers.com' user specifically.
+            # Use .sudo() to ensure the search for this specific user is always allowed,
+            # regardless of the current user's access rights.
+            nilesh_bagwe_user = self.env['res.users'].sudo().search([('login', '=', 'nilesh@rsdpolymers.com')], limit=1)
 
+            if nilesh_bagwe_user and current_user == nilesh_bagwe_user:
+                # Specific logic for 'nilesh@rsdpolymers.com' user:
+                # Get the IDs of specific departments (QC, QA, Store).
+                # Handle cases where departments might not be found using raise_if_not_found=False.
+                qc_department_id = self.env.ref('hr.dep_qc', raise_if_not_found=False).id if self.env.ref('hr.dep_qc',
+                                                                                                          raise_if_not_found=False) else False
+                qa_department_id = self.env.ref('hr.dep_qa', raise_if_not_found=False).id if self.env.ref('hr.dep_qa',
+                                                                                                          raise_if_not_found=False) else False
+                store_department_id = self.env.ref('hr.dep_store', raise_if_not_found=False).id if self.env.ref(
+                    'hr.dep_store', raise_if_not_found=False) else False
+
+                # Collect valid department IDs into a list.
+                nilesh_specific_dept_ids = [did for did in [qc_department_id, qa_department_id, store_department_id] if
+                                            did]
+
+                # Construct the filter for 'nilesh@rsdpolymers.com' user:
+                # They see tasks assigned to them OR tasks where they are the checker
+                # OR tasks assigned to users in specific departments.
+                if nilesh_specific_dept_ids:  # Apply this specific filter only if the departments are found
+                    custom_filter = [
+                        '|',  # Main OR: (Personal Tasks for Nilesh) OR (Tasks in specific departments)
+                        '|',  # Inner OR for Personal Tasks: (Assigned to Nilesh) OR (Nilesh is Checker)
+                        ('user_ids', 'in', current_user.id),  # Task is assigned to the current user
+                        ('checker_id', '=', current_user.id),  # Using '=' for direct match with the checker_id field
+                        ('user_ids.employee_ids.department_id', 'in', nilesh_specific_dept_ids)
+                        # Tasks assigned to users in specific departments
+                    ]
+                else:
+                    # Fallback for 'nilesh@rsdpolymers.com' if specific departments are not found:
+                    # They only see tasks assigned to them OR where they are the checker.
+                    custom_filter = [
+                        '|',
+                        ('user_ids', 'in', current_user.id),
+                        ('checker_id', '=', current_user.id),  # Using '=' for direct match
+                    ]
+            else:
+                # 3. General Logic for Other Non-Admin Users (who are NOT 'nilesh@rsdpolymers.com'):
+                # As per your last instruction, these users only see tasks assigned to them
+                # OR where they are the checker, irrespective of their department.
+                custom_filter = [
+                    '|',  # OR condition
+                    ('user_ids', 'in', current_user.id),  # Task is assigned to the current user
+                    ('checker_id', '=', current_user.id),  # Using '=' for direct match
+                ]
+
+            # Now, combine the determined custom filter with the original domain.
+            # If there's a custom filter, it should be logically ANDed with the original domain.
+            if custom_filter:
+                if original_domain:
+                    # If both custom filter and original domain exist, combine them using '&'.
+                    final_domain = ['&'] + original_domain + custom_filter
+                else:
+                    # If only the custom filter exists (meaning the original domain was empty).
+                    final_domain = custom_filter
+            else:
+                # If no custom filter is applied (this case shouldn't be reached for non-admins
+                # as custom_filter is always built for them, but included for robustness),
+                # the final domain is simply the original domain.
+                final_domain = original_domain
+
+        # Reconstruct the *args tuple with the new final domain to pass to the super method.
+        # This ensures all original positional and keyword arguments are preserved.
+        new_args_tuple = (final_domain,) + args[1:] if args else (final_domain,)
         return super()._search(*new_args_tuple, **kwargs)
+
