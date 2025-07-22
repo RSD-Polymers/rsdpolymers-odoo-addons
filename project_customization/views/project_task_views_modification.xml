@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <record id="action_project_task_list_default" model="ir.actions.act_window">
+            <field name="name">Project Tasks (List Default)</field>
+            <field name="res_model">project.task</field>
+            <field name="view_mode">list,form,pivot,graph,calendar,activity</field>
+            <field name="domain">[('project_id', '=', active_id), ('display_in_project', '=', True)]</field>
+            <field name="context">{
+                'active_model': 'project.project',
+                'default_project_id': active_id,
+                'show_project_update': True,
+                'search_default_open_tasks': 1,
+                }
+            </field>
+            <field name="search_view_id" ref="project.view_task_search_form"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">No tasks found. Let's create one!</p>
+                <p>Keep track of the progress of your tasks from creation to completion.<br/>Collaborate efficiently by
+                    chatting in real-time or via email.
+                </p>
+            </field>
+        </record>
+
+
+        <record id="project_view_form_inherit_custom_tasks_button" model="ir.ui.view">
+            <field name="name">project.project.form.inherit.custom.tasks.button</field>
+            <field name="model">project.project</field>
+            <field name="inherit_id" ref="project.edit_project"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_view_tasks' and hasclass('oe_stat_button')]" position="attributes">
+                    <attribute name="type">action</attribute>
+                    <attribute name="name">%(project_customization.action_project_task_list_default)d</attribute>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="project_view_kanban_inherit_custom_tasks_links" model="ir.ui.view">
+            <field name="name">project.project.kanban.inherit.custom.tasks.links</field>
+            <field name="model">project.project</field>
+            <field name="inherit_id" ref="project.view_project_kanban"/>
+            <field name="arch" type="xml">
+                <xpath expr="//kanban[@action='action_view_tasks' and @type='object']" position="attributes">
+                    <attribute name="action">%(project_customization.action_project_task_list_default)d</attribute>
+                    <attribute name="type">action</attribute>
+                </xpath>
+
+                <xpath expr="//t[@t-name='menu']//div[@role='menuitem']/a[@name='action_view_tasks' and @type='object']"
+                       position="attributes">
+                    <attribute name="type">action</attribute>
+                    <attribute name="name">%(project_customization.action_project_task_list_default)d</attribute>
+                </xpath>
+
+                <xpath expr="//t[@t-name='card']//a[hasclass('o_project_kanban_box') and @name='action_view_tasks' and @type='object']"
+                       position="attributes">
+                    <attribute name="type">action</attribute>
+                    <attribute name="name">%(project_customization.action_project_task_list_default)d</attribute>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>
