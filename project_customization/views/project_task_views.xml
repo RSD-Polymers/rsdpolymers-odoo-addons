@@ -16,9 +16,9 @@
                 <field name="is_locked" invisible="1"/>
 
                 <field name="marks_obtained" string="Marks Obtained (out of 100)"
-                       readonly="is_locked or is_current_user_the_task_checker == False"/>
+                       readonly="is_editable_to_user == False or is_locked or is_current_user_the_task_checker == False"/>
                 <field name="allowed_attempts"
-                       readonly="(not (is_assigner_field or is_checker_field or is_editable_to_user)) or is_locked"
+                       readonly="is_editable_to_user == False or (not (is_assigner_field or is_checker_field)) or is_locked"
                        colspan="2"/>
             </xpath>
 
@@ -63,46 +63,46 @@
 
             <!-- Set readonly="is_locked" on all fields inside notebook pages -->
             <xpath expr="//page[@name='description_page']/field[@name='description']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='page_timesheets']/field[@name='timesheet_ids']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='sub_tasks_page']/field[@name='child_ids']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='parent_id']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='company_id']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='sequence']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='email_cc']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='displayed_image_id']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='date_assign']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='date_last_stage_update']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='working_hours_open']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='working_days_open']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='working_hours_close']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <xpath expr="//page[@name='extra_info']//field[@name='working_days_close']" position="attributes">
-                <attribute name="readonly">is_locked</attribute>
+                <attribute name="readonly">is_editable_to_user == False or is_locked</attribute>
             </xpath>
             <!-- Set readonly="is_locked" on all fields inside notebook pages -->
 

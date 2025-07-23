@@ -135,20 +135,29 @@ class ProjectTask(models.Model):
         is_user_checker = user.has_group('base.group_checker')
 
         for task in self:
-            # Rule 1: Admins can always edit
+            # Determine if the task is in an "editable" state based on the provided 'state' field values.
+            # '01_in_progress' and '04_waiting_normal' are the states that should allow editing.
+            is_in_editable_state = task.state in ['01_in_progress', '04_waiting_normal']
+
+            # Rule 1: If the task is NOT in an editable state, it's immediately not editable.
+            if not is_in_editable_state:
+                task.is_editable_to_user = False
+                continue  # Move to the next task
+
+            # Rule 2: Admins can always edit
             if is_user_admin:
                 task.is_editable_to_user = True
-            # Rule 2: Users in the 'Assigner' group (who assign tasks) can edit
+            # Rule 3: Users in the 'Assigner' group (who assign tasks) can edit
             elif is_user_assigner:
                 task.is_editable_to_user = True
-            # Rule 3: Users in the 'Checker' group (who check tasks) can edit
+            # Rule 4: Users in the 'Checker' group (who check tasks) can edit
             # This is the new rule that was missing!
             elif is_user_checker:
                 task.is_editable_to_user = True
-            # Rule 4: If the user is in the 'Assignees' group, they cannot edit (as per your requirement)
+            # Rule 5: If the user is in the 'Assignees' group, they cannot edit (as per your requirement)
             elif is_user_assignee:
                 task.is_editable_to_user = False
-            # Rule 5: If the current user is a direct assignee of THIS task (in user_ids)
+            # Rule 6: If the current user is a direct assignee of THIS task (in user_ids)
             # but is not an admin, assigner, or checker group member
             elif user in task.user_ids:
                 task.is_editable_to_user = False  # Still cannot edit if just an assignee

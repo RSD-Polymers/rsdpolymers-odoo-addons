@@ -82,5 +82,16 @@
             <field name="action" ref="project_customization.action_project_task_my_tasks_list_default"/>
         </record>
 
+        <record id="project_task_list_view_add_create_date" model="ir.ui.view">
+            <field name="name">project.task.list.view.add.create.date</field>
+            <field name="model">project.task</field>
+            <field name="inherit_id" ref="project.view_task_tree2"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='project_id']" position="after">
+                    <field name="create_date" string="Created On"/>
+                </xpath>
+            </field>
+        </record>
+
     </data>
 </odoo>
