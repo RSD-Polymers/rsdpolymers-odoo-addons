@@ -272,7 +272,9 @@ class ProjectTask(models.Model):
 
         _logger.info(f"*** WRITE METHOD STARTED for Task IDs: {self.ids} ***")
         _logger.info(f"Incoming 'vals' for write: {vals}")
-        original_vals = {task.id: {'is_accepted': task.is_accepted, 'is_rejected': task.is_rejected, 'state': task.state, 'allowed_attempts': task.allowed_attempts} for task in self}
+        original_vals = {
+            task.id: {'is_accepted': task.is_accepted, 'is_rejected': task.is_rejected, 'state': task.state,
+                      'allowed_attempts': task.allowed_attempts} for task in self}
         _logger.info(f"Original values from ORM (self object) at start of write: {original_vals}")
         _logger.info(f"is_action_specific_task_op (from context): {is_action_specific_write}")
 
@@ -280,67 +282,102 @@ class ProjectTask(models.Model):
             _logger.info(f"--- Processing Task ID: {task.id} ---")
             original_state = original_vals[task.id]['state']
             original_is_rejected = original_vals[task.id]['is_rejected']
-            _logger.info(f"Task {task.id}: original_state={original_state}, original_is_rejected={original_is_rejected}")
+            _logger.info(
+                f"Task {task.id}: original_state={original_state}, original_is_rejected={original_is_rejected}")
 
-            # --- NEW VALIDATION LOGIC FOR 'SEND FOR CHECKING' STATE ---
+            # --- VALIDATION LOGIC FOR TRANSITIONING *TO* '05_send_for_checking' STATE ---
             if 'state' in vals and vals['state'] == '05_send_for_checking':
-                # Check if the task has been accepted BEFORE allowing 'Send for Checking'
                 if not task.is_accepted:
-                    _logger.warning(f"Task {task.id}: Blocking state change to 'Send for Checking'. Task has not been accepted yet.")
+                    _logger.warning(
+                        f"Task {task.id}: Blocking state change to 'Send for Checking'. Task has not been accepted yet.")
                     raise UserError(_("You must accept the task before sending it for checking."))
 
-                # 1. Restrict if no attempts left BEFORE checking assignee or decrementing
                 if task.allowed_attempts <= 0:
-                    _logger.warning(f"Task {task.id}: Blocking state change to 'Send for Checking'. Allowed attempts are {task.allowed_attempts}.")
-                    raise UserError(_("Cannot send for checking: Number of allowed attempts are exhausted for this task."))
+                    _logger.warning(
+                        f"Task {task.id}: Blocking state change to 'Send for Checking'. Allowed attempts are {task.allowed_attempts}.")
+                    raise UserError(
+                        _("Cannot send for checking: Number of allowed attempts are exhausted for this task."))
 
-                # 2. Check if the current user is an assignee of the task
                 if self.env.user not in task.user_ids:
-                    _logger.warning(f"Task {task.id}: Blocking state change to 'Send for Checking'. Current user {self.env.user.name} is not an assignee.")
-                    raise UserError(_("You are not the right person to do Send For Checking. Only an assignee of this task can set its state to 'Send for Checking'."))
-                # 3. Decrement allowed_attempts when sending for checking
-                task.allowed_attempts -= 1
-                _logger.info(f"Task {task.id}: Decremented allowed_attempts to {task.allowed_attempts} due to state change to 'Send for Checking'.")
-                # --- END 'SEND FOR CHECKING' LOGIC ---
+                    _logger.warning(
+                        f"Task {task.id}: Blocking state change to 'Send for Checking'. Current user {self.env.user.name} is not an assignee.")
+                    raise UserError(
+                        _("You are not the right person to do Send For Checking. Only an assignee of this task can set its state to 'Send for Checking'."))
 
-            # VALIDATION LOGIC:
-            # 1. Allow Admins to bypass any state-based restrictions for writes.
-            if self.env.user.has_group('base.group_system'):
-                _logger.info(f"Task {task.id}: Admin bypass enabled. Skipping modification validation.")
+                task.allowed_attempts -= 1
+                _logger.info(
+                    f"Task {task.id}: Decremented allowed_attempts to {task.allowed_attempts} due to state change to 'Send for Checking'.")
+
+            # --- VALIDATION LOGIC FOR WHEN TASK IS *ALREADY IN* A SPECIFIC STATE ---
+            elif self.env.user.has_group('base.group_system'):
+                _logger.info(f"Task {task.id}: Admin bypass enabled. Skipping modification validation for non-admin.")
                 pass
-            # 2. If the task is already in a 'rejected' state OR `is_rejected` is True
             elif original_state == '06_rejected' or original_is_rejected:
-                _logger.info(f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification.")
+                _logger.info(
+                    f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification.")
                 is_unrejecting = ('is_rejected' in vals and vals['is_rejected'] is False)
                 is_changing_from_rejected_state = ('state' in vals and vals['state'] != '06_rejected')
 
                 if is_action_specific_write or is_unrejecting or is_changing_from_rejected_state:
-                    _logger.info(f"Task {task.id}: Allowing modification due to action-specific write or un-reject/state change.")
+                    _logger.info(
+                        f"Task {task.id}: Allowing modification due to action-specific write or un-reject/state change.")
                     pass
                 else:
-                    _logger.warning(f"Task {task.id}: Blocking modification. Task is in 'Rejected' state and no un-reject/re-rejection action detected. vals={vals}")
+                    _logger.warning(
+                        f"Task {task.id}: Blocking modification. Task is in 'Rejected' state and no un-reject/re-rejection action detected. vals={vals}")
                     raise UserError(_("This task is in a 'Rejected' state and cannot be modified."))
 
-            # NEW VALIDATION: Prevent changes if the task is '03_approved'
             elif original_state == '03_approved':
-                _logger.info(f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification from Approved.")
-                # Allow specific changes from 'approved' if needed, for example, if an "Unapprove" or "Re-open" action exists.
-                # Otherwise, block all state changes from approved.
-
-                # Example: If you want to allow changing state to '1_done' from '03_approved', you could add:
-                # if 'state' in vals and vals['state'] == '1_done':
-                #    _logger.info(f"Task {task.id}: Allowing transition from Approved to Done.")
-                #    pass
-                # else:
-                # Block all other modifications if it's approved and not an admin or specific action.
-                if not is_action_specific_write: # You might have an 'unapprove' action that uses this context flag
-                    # If the 'state' field is being changed AND the new state is NOT '03_approved'
+                _logger.info(
+                    f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification from Approved.")
+                if not is_action_specific_write:
                     if 'state' in vals and vals['state'] != '03_approved':
-                        _logger.warning(f"Task {task.id}: Blocking modification. Task is in 'Approved' state and state change detected. vals={vals}")
+                        _logger.warning(
+                            f"Task {task.id}: Blocking modification. Task is in 'Approved' state and state change detected. vals={vals}")
                         raise UserError(_("This task is in an 'Approved' state and its state cannot be changed."))
-                    # You might also want to prevent changes to other critical fields if approved, e.g.,
-                    # if any(f in vals for f in ['user_ids', 'project_id']) and not is_action_specific_write:
-                    #     raise UserError(_("This task is approved and cannot be modified."))
+                    elif any(field in vals for field in vals if
+                             field not in ['create_date', 'write_date', 'write_uid', 'display_name',
+                                           'activity_exception_decoration', 'activity_state', 'activity_summary',
+                                           'activity_ids', 'message_follower_ids', 'message_ids', 'message_is_follower',
+                                           'message_unread', 'message_unread_counter', 'portal_url', 'access_token',
+                                           'kanban_state_label', 'stage_id']):
+                        _logger.warning(
+                            f"Task {task.id}: Blocking modification of other fields. Task is in 'Approved' state. Vals: {vals}")
+                        raise UserError(
+                            _("This task is in an 'Approved' state and cannot be modified except by specific actions."))
+
+            # --- MODIFIED BLOCK FOR '05_send_for_checking' ---
+            elif original_state == '05_send_for_checking':
+                _logger.info(
+                    f"Task {task.id}: Original state is 'Send for Checking'. Checking permissions for modification by user {self.env.user.name}.")
+
+                # Define fields that are considered "safe" for Odoo's internal updates
+                # These typically include timestamp fields, activity-related fields, etc.
+                safe_fields = [
+                    'write_date', 'date_last_stage_update', 'activity_ids', 'activity_state',
+                    'activity_summary', 'message_follower_ids', 'message_ids', 'message_is_follower',
+                    'message_unread', 'message_unread_counter', 'portal_url', 'access_token',
+                    'kanban_state_label', 'stage_id'  # Stage_id is also often updated internally or by computed fields
+                ]
+
+                # Check if the current user is NOT the designated checker AND NOT an admin
+                if not task.is_current_user_the_task_checker and not self.env.user.has_group('base.group_system'):
+                    # If there are ANY fields in 'vals' that are NOT in our 'safe_fields' list,
+                    # AND the 'state' field itself is not the ONLY field being changed, then block the modification.
+                    # Note: The initial 'if' handles actual state changes TO '05_send_for_checking'.
+                    # This 'elif' handles writes WHEN task is ALREADY '05_send_for_checking'.
+                    # We check if 'vals' contains any keys that are not safe fields.
+                    if any(field not in safe_fields for field in vals):
+                        _logger.warning(
+                            f"Task {task.id}: Blocking modification of unsafe fields. User {self.env.user.name} is not the designated checker or admin, and task is 'Send for Checking'. Vals: {vals}")
+                        raise UserError(
+                            _("Only the designated Checker can make any changes once the task is in 'Send for Checking'."))
+                    else:
+                        _logger.info(
+                            f"Task {task.id}: Non-checker/non-admin user {self.env.user.name} is modifying only safe fields in 'Send for Checking'. Allowed. Vals: {vals}")
+                else:
+                    _logger.info(
+                        f"Task {task.id}: User {self.env.user.name} (Checker/Admin) is modifying task in 'Send for Checking'. Allowed.")
 
         res = super(ProjectTask, self).write(vals)
         for task_rec in self:
