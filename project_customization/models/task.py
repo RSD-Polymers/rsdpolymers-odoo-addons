@@ -327,20 +327,29 @@ class ProjectTask(models.Model):
                         f"Task {task.id}: Blocking modification. Task is in 'Rejected' state and no un-reject/re-rejection action detected. vals={vals}")
                     raise UserError(_("This task is in a 'Rejected' state and cannot be modified."))
 
+
             elif original_state == '03_approved':
                 _logger.info(
                     f"Task {task.id}: Original state is '{original_state}'. Checking conditions for modification from Approved.")
+                # Define fields that are considered "safe" for Odoo's internal updates when in '03_approved' state
+
+                safe_approved_fields = [
+                    'create_date', 'write_date', 'write_uid', 'display_name',
+                    'activity_exception_decoration', 'activity_state', 'activity_summary',
+                    'activity_ids', 'message_follower_ids', 'message_ids', 'message_is_follower',
+                    'message_unread', 'message_unread_counter', 'portal_url', 'access_token',
+                    'kanban_state_label', 'stage_id',
+                    'date_last_stage_update'  # ADD THIS FIELD HERE
+                ]
                 if not is_action_specific_write:
                     if 'state' in vals and vals['state'] != '03_approved':
                         _logger.warning(
                             f"Task {task.id}: Blocking modification. Task is in 'Approved' state and state change detected. vals={vals}")
                         raise UserError(_("This task is in an 'Approved' state and its state cannot be changed."))
+
                     elif any(field in vals for field in vals if
-                             field not in ['create_date', 'write_date', 'write_uid', 'display_name',
-                                           'activity_exception_decoration', 'activity_state', 'activity_summary',
-                                           'activity_ids', 'message_follower_ids', 'message_ids', 'message_is_follower',
-                                           'message_unread', 'message_unread_counter', 'portal_url', 'access_token',
-                                           'kanban_state_label', 'stage_id']):
+                             field not in safe_approved_fields):  # Use safe_approved_fields here
+
                         _logger.warning(
                             f"Task {task.id}: Blocking modification of other fields. Task is in 'Approved' state. Vals: {vals}")
                         raise UserError(
