@@ -653,8 +653,6 @@ class ProjectTask(models.Model):
         _logger.info("---------- END _search DEBUG ----------")
 
         # Pass all original args/kwargs to super, but replace the domain part
-        new_args = (final_domain,) + tuple(args[1:]) if len(args) > 1 else (final_domain,)
-        return super()._search(*new_args, offset=offset, limit=limit, order=order)
-
+        return super()._search(final_domain, offset=offset, limit=limit, order=order)
 
 
