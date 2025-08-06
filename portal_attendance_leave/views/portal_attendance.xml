@@ -1,0 +1,519 @@
+<odoo>
+
+    <!--    <template id="portal_template" inherit_id="website.layout" name="Template Header Default" active="True">-->
+    <!--    <xpath expr="//header//nav" position="inside">-->
+
+    <!--    </xpath>-->
+    <!--    </template>-->
+    <!-- Component Template -->
+    <template id="CheckInRoot" name="Check-In Root Component">
+        <div class="checkin-container owl">
+            <div class="checkin-header">
+            </div>
+
+            <div class="checkin-avatar">
+                <t t-esc="user.name[0] if user and user.name else 'U'"/>
+            </div>
+
+            <div class="checkin-username">
+                <t t-esc="user.name or 'User'"/>
+            </div>
+
+            <div class="checkin-welcome">Welcome!</div>
+
+            <t t-if="not user.attendance_state == 'checked_in'">
+                <form action="/checkin/do" method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <button type="submit" class="check-btn btn-check-in">
+                        <i class="fa fa-sign-in-alt"></i>
+                    </button>
+                </form>
+                <div class="checkin-text">Click to check in</div>
+
+                <t t-if="worked_hours">
+                    <div class="checkin-time">
+                        ⏱ Hours Worked: <strong><t t-esc="worked_hours"/></strong>
+                    </div>
+                </t>
+            </t>
+            <t t-else="">
+                <form action="/checkout/do" method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <button type="submit" class="check-btn btn-check-out">
+                        <i class="fa fa-sign-out-alt"></i>
+                    </button>
+                </form>
+                <div class="checkin-text">Click to check out</div>
+
+                <div class="checkin-time">
+                    ⏱ Hours Worked: <strong><t t-esc="worked_hours"/></strong>
+                </div>
+            </t>
+        </div>
+        <div class="action-buttons">
+            <a href="/" class="action-link">
+                <i class="fa fa-home"></i> Home
+            </a>
+            <a href="/my/attendance-list" class="action-link">
+                <i class="fa fa-calendar-check"></i> Show Attendance
+            </a>
+            <a href="/my/timeoff" class="action-link">
+                <i class="fa fa-calendar-minus"></i> Show Leaves
+            </a>
+        </div>
+    </template>
+
+    <!-- Page Template -->
+    <template id="checkin_screen_template" name="Employee Check-In Page">
+        <t t-call="website.layout">
+            <t t-set="title">Employee Check-In</t>
+
+            <!-- Style copied from your screenshot layout -->
+            <style>
+                body {
+                background-color: #e2a85f;
+                font-family: "Segoe UI", sans-serif;
+                }
+                .checkin-container {
+                width: 400px;
+                margin: 100px auto;
+                background: #fff7f0;
+                border-radius: 10px;
+                text-align: center;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+                position: relative;
+                padding-bottom: 30px;
+                }
+                .checkin-header {
+                height: 80px;
+                background: linear-gradient(to right, #8e8e9f, #b0a1a5);
+                position: relative;
+                }
+                .checkin-avatar {
+                position: absolute;
+                top: 40px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #6b3bd4;
+                color: white;
+                font-size: 30px;
+                width: 70px;
+                height: 70px;
+                border-radius: 50%;
+                line-height: 70px;
+                border: 4px solid white;
+                font-weight: bold;
+                }
+                .checkin-username {
+                margin-top: 50px;
+                font-size: 22px;
+                font-weight: 600;
+                color: #333;
+                }
+                .checkin-welcome {
+                font-size: 16px;
+                color: #444;
+                margin-bottom: 20px;
+                }
+                .check-btn {
+                border: none;
+                padding: 20px;
+                border-radius: 10px;
+                margin: 20px auto;
+                width: 100px;
+                height: 100px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background-color 0.3s;
+                cursor: pointer;
+                text-decoration: none;
+                }
+                .btn-check-in {
+                background-color: #32a852;
+                }
+                .btn-check-in:hover {
+                background-color: #2b9448;
+                }
+                .btn-check-out {
+                background-color: #d93d3d;
+                }
+                .btn-check-out:hover {
+                background-color: #b73131;
+                }
+                .check-btn i {
+                font-size: 40px;
+                color: white;
+                }
+                .checkin-text {
+                font-size: 14px;
+                color: #555;
+                }
+                .checkin-time {
+                font-size: 13px;
+                color: #333;
+                margin-top: 10px;
+                }
+                .action-buttons {
+                margin-top: 20px;
+                display: flex;
+                justify-content: center;
+                gap: 15px;
+                flex-wrap: wrap;
+                }
+
+                .action-link {
+                background-color: #ffffff;
+                border: 2px solid #6b3bd4;
+                color: #6b3bd4;
+                padding: 10px 16px;
+                font-size: 14px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+                }
+
+                .action-link:hover {
+                background-color: #6b3bd4;
+                color: #fff;
+                }
+
+            </style>
+
+            <!-- Component call -->
+            <t t-call="portal_attendance_leave.CheckInRoot"/>
+
+            <!-- Font Awesome icons -->
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+        </t>
+    </template>
+
+    <template id="attendance_list_template" name="My Attendance List">
+        <t t-call="website.layout">
+            <t t-set="title">My Attendance</t>
+
+            <style>
+                .attendance-container {
+                max-width: 900px;
+                margin: 40px auto;
+                padding: 20px;
+                background-color: #fffdf6;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                font-family: 'Segoe UI', sans-serif;
+                }
+                .attendance-container h2 {
+                text-align: center;
+                margin-bottom: 25px;
+                color: #333;
+                }
+                .attendance-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+                }
+                .attendance-table th,
+                .attendance-table td {
+                border: 1px solid #ccc;
+                padding: 10px;
+                text-align: center;
+                }
+                .attendance-table th {
+                background-color: #f4f4f4;
+                font-weight: bold;
+                }
+                .attendance-table tr:nth-child(even) {
+                background-color: #fafafa;
+                }
+                .action-buttons {
+                margin-top: 20px;
+                display: flex;
+                justify-content: center;
+                gap: 15px;
+                flex-wrap: wrap;
+                }
+
+                .action-link {
+                background-color: #ffffff;
+                border: 2px solid #6b3bd4;
+                color: #6b3bd4;
+                padding: 10px 16px;
+                font-size: 14px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+                }
+
+                .action-link:hover {
+                background-color: #6b3bd4;
+                color: #fff;
+                }
+
+            </style>
+
+            <div class="attendance-container">
+                <h2>My Attendance</h2>
+                <table class="attendance-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Worked Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="records" t-as="att">
+                            <tr>
+                                <td><t t-esc="att.check_in.date() if att.check_in else ''"/></td>
+                                <td><t t-esc="str(att.check_in) if att.check_in else '-'"/></td>
+                                <td><t t-esc="str(att.check_out) if att.check_out else '-'"/></td>
+                                <td>
+                                    <t t-if="att.check_in and att.check_out">
+                                        <t t-set="duration" t-value="att.check_out - att.check_in"/>
+                                        <t t-esc="int(duration.total_seconds() // 3600)"/>h
+                                        <t t-esc="int((duration.total_seconds() % 3600) // 60)"/>m
+                                    </t>
+                                    <t t-if="not att.check_out">-</t>
+                                </td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+            <div class="action-buttons">
+                <a href="/" class="action-link">
+                    <i class="fa fa-home"></i> Home
+                </a>
+                <a href="/my/attendance" class="action-link">
+                    <i class="fa fa-calendar-check"></i> Back to Check in/out
+                </a>
+                <a href="/my/timeoff" class="action-link">
+                    <i class="fa fa-calendar-minus"></i> Show Leaves
+                </a>
+            </div>
+
+        </t>
+    </template>
+
+    <template id="leave_list_template" name="My Leave List">
+        <t t-call="website.layout">
+            <t t-set="title">My Leave Requests</t>
+
+            <style>
+                .leave-container {
+                max-width: 900px;
+                margin: 40px auto;
+                padding: 20px;
+                background-color: #fefaff;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                font-family: 'Segoe UI', sans-serif;
+                }
+                .leave-container h2 {
+                text-align: center;
+                margin-bottom: 25px;
+                color: #333;
+                }
+                .leave-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+                }
+                .leave-table th,
+                .leave-table td {
+                border: 1px solid #ccc;
+                padding: 10px;
+                text-align: center;
+                }
+                .leave-table th {
+                background-color: #f0f0ff;
+                font-weight: bold;
+                }
+                .leave-table tr:nth-child(even) {
+                background-color: #fafafa;
+                }
+                .action-buttons {
+                margin-top: 20px;
+                display: flex;
+                justify-content: center;
+                gap: 15px;
+                flex-wrap: wrap;
+                }
+
+                .action-link {
+                background-color: #ffffff;
+                border: 2px solid #6b3bd4;
+                color: #6b3bd4;
+                padding: 10px 16px;
+                font-size: 14px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.3s ease;
+                }
+
+                .action-link:hover {
+                background-color: #6b3bd4;
+                color: #fff;
+                }
+
+                .modal-overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+                justify-content: center;
+                align-items: center;
+                }
+
+                .modal-box {
+                background: #fff;
+                padding: 25px 30px;
+                border-radius: 12px;
+                width: 420px;
+                margin: 100px auto;
+                position: relative;
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+                font-family: "Segoe UI", sans-serif;
+                }
+
+                .modal-title {
+                margin-top: 0;
+                margin-bottom: 15px;
+                font-size: 20px;
+                font-weight: 600;
+                text-align: center;
+                color: #333;
+                }
+
+                .form-input {
+                width: 100%;
+                padding: 8px 10px;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                margin-bottom: 15px;
+                font-size: 14px;
+                }
+
+                .modal-actions {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                }
+
+                .modal-btn {
+                padding: 8px 14px;
+                border-radius: 6px;
+                font-size: 14px;
+                text-decoration: none;
+                font-weight: 500;
+                border: none;
+                cursor: pointer;
+                }
+
+                .submit-btn {
+                background-color: #6b3bd4;
+                color: white;
+                border: 1px solid #6b3bd4;
+                }
+
+                .submit-btn:hover {
+                background-color: #5128a0;
+                }
+
+                .cancel-btn {
+                background-color: #eee;
+                color: #333;
+                border: 1px solid #ccc;
+                }
+
+                .cancel-btn:hover {
+                background-color: #ddd;
+                }
+
+            </style>
+
+            <div class="leave-container">
+                <h2>My Leave Requests</h2>
+                <table class="leave-table">
+                    <thead>
+                        <tr>
+                            <th>Leave Type</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Days</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-foreach="leaves" t-as="leave">
+                            <tr>
+                                <td><t t-esc="leave.holiday_status_id.name"/></td>
+                                <td><t t-esc="str(leave.request_date_from)"/></td>
+                                <td><t t-esc="str(leave.request_date_to)"/></td>
+                                <td><t t-esc="leave.duration_display"/></td>
+                                <td><t t-esc="leave.state.capitalize()"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+            <div class="action-buttons">
+                <a href="/" class="action-link">
+                    <i class="fa fa-home"></i> Home
+                </a>
+                <a href="/my/attendance" class="action-link">
+                    <i class="fa fa-calendar-check"></i> Back to Check in/out
+                </a>
+                <a href="#" class="action-link" onclick="document.getElementById('applyLeaveModal').style.display='block'">
+                    <i class="fa fa-calendar-minus"></i> Apply Leaves
+                </a>
+            </div>
+            <div id="applyLeaveModal" class="modal-overlay">
+                <div class="modal-box">
+                    <h3 class="modal-title">Apply for Leave</h3>
+                    <form method="POST" action="/my/timeoff/apply">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                        <label for="leave_type">Leave Type</label>
+                        <select name="leave_type_id" class="form-input">
+                            <t t-foreach="request.env['hr.leave.type'].sudo().search([])" t-as="type">
+                                <option t-att-value="type.id"><t t-esc="type.name"/></option>
+                            </t>
+                        </select>
+
+                        <label for="date_from">From Date</label>
+                        <input type="date" name="date_from" class="form-input"/>
+
+                        <label for="date_to">To Date</label>
+                        <input type="date" name="date_to" class="form-input"/>
+
+                        <label for="reason">Reason</label>
+                        <textarea name="reason" rows="3" class="form-input"></textarea>
+
+                        <div class="modal-actions">
+                            <button type="submit" class="modal-btn submit-btn">Submit</button>
+                            <a href="#" onclick="document.getElementById('applyLeaveModal').style.display='none'" class="modal-btn cancel-btn">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </t>
+    </template>
+
+</odoo>
