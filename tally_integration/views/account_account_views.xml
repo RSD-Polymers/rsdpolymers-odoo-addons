@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_form_inherit_tally_integration" model="ir.ui.view">
+        <field name="name">account.account.form.inherit.tally.integration</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='deprecated']" position="after">
+                <field name="is_posted_to_tally" readonly="1" />
+                <field name="tally_group_id" readonly="1"/>
+            </xpath>
+            </field>
+    </record>
+</odoo>

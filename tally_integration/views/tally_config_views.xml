@@ -1,0 +1,124 @@
+<odoo>
+    <data>
+        <record id="res_config_settings_view_form_inherit_tally" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.tally</field>
+            <field name="model">res.config.settings</field>
+            <field name="priority" eval="15"/>
+            <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@id='invite_users']" position="after">
+                    <div class="app_settings_block" data-string="Tally Integration" string="Tally Integration"
+                         data-key="odoo_tally_integration">
+                        <h2>Tally Connection Settings</h2>
+                        <div class="row mt16 o_settings_container">
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">Tally Company Name</span>
+                                    <div class="text-muted">
+                                        Enter the exact name of the company in Tally.
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <field name="tally_company_name"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">Tally Host</span>
+                                    <div class="text-muted">
+                                        IP address or hostname of the Tally server.
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <field name="tally_host"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">Tally Port</span>
+                                    <div class="text-muted">
+                                        Port number for Tally API (default is 9000).
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <field name="tally_port"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">Tally XML Export Path</span>
+                                    <div class="text-muted">
+                                        Local path to save generated XML files (optional).
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <field name="tally_xml_path"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+<!--                            <div class="col-12 col-lg-6 o_setting_box">-->
+<!--                                <div class="o_setting_right_pane">-->
+<!--                                    <span class="o_form_label">Tally ODBC DSN</span>-->
+<!--                                    <div class="text-muted">-->
+<!--                                        Enter Tally ODBC DSN.-->
+<!--                                    </div>-->
+<!--                                    <div class="content-group">-->
+<!--                                        <div class="mt16">-->
+<!--                                            <field name="tally_odbc_dsn"/>-->
+<!--                                        </div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                            <div class="col-12 col-lg-6 o_setting_box">-->
+<!--                                <div class="o_setting_right_pane">-->
+<!--                                    <span class="o_form_label">Tally ODBC Driver</span>-->
+<!--                                    <div class="text-muted">-->
+<!--                                        Enter Tally ODBC Driver.-->
+<!--                                    </div>-->
+<!--                                    <div class="content-group">-->
+<!--                                        <div class="mt16">-->
+<!--                                            <field name="tally_odbc_driver"/>-->
+<!--                                        </div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                            <div class="col-12 col-lg-6 o_setting_box">-->
+<!--                                <div class="o_setting_right_pane">-->
+<!--                                    <span class="o_form_label">Tally ODBC Port</span>-->
+<!--                                    <div class="text-muted">-->
+<!--                                        Enter Tally ODBC Port.-->
+<!--                                    </div>-->
+<!--                                    <div class="content-group">-->
+<!--                                        <div class="mt16">-->
+<!--                                            <field name="tally_odbc_port"/>-->
+<!--                                        </div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                            <div class="col-12 col-lg-6 o_setting_box">-->
+<!--                                <div class="o_setting_right_pane">-->
+<!--                                    <span class="o_form_label">Tally ODBC Remote Host/IP</span>-->
+<!--                                    <div class="text-muted">-->
+<!--                                        Enter Tally ODBC Remote Host/IP.-->
+<!--                                    </div>-->
+<!--                                    <div class="content-group">-->
+<!--                                        <div class="mt16">-->
+<!--                                            <field name="tally_odbc_remote_host"/>-->
+<!--                                        </div>-->
+<!--                                    </div>-->
+<!--                                </div>-->
+<!--                            </div>-->
+                        </div>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

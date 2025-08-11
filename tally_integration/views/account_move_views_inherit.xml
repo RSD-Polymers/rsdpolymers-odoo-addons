@@ -1,0 +1,26 @@
+<odoo>
+    <data>
+        <record id="view_account_move_form_inherit_tally_push" model="ir.ui.view">
+            <field name="name">account.move.form.inherit.tally.push</field>
+            <field name="model">account.move</field>
+            <field name="inherit_id" ref="account.view_move_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//button[@name='action_post']" position="after">
+                    <button name="action_push_to_tally" type="object"
+                            string="Push to Tally"
+                            invisible="show_push_to_tally_button == False"
+                            class="oe_highlight"
+                            help="Push this accounting entry to Tally ERP/Prime."/>
+                </xpath>
+                <xpath expr="//group[@id='header_left_group']/field[@name='tax_cash_basis_origin_move_id']"
+                       position="after">
+                    <field name="posted_to_tally" widget="boolean_toggle"/>
+                    <field name="tally_guid"/>
+                </xpath>
+                <xpath expr="//group[@id='header_right_group']" position="inside">
+                    <field name="tally_response" readonly="1"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_account_code_asset_fixed" model="ir.sequence">
+            <field name="name">Account Code - Fixed Assets</field>
+            <field name="code">account.code.asset.fixed</field>
+            <field name="prefix">10</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_asset_current" model="ir.sequence">
+            <field name="name">Account Code - Current Assets</field>
+            <field name="code">account.code.asset.current</field>
+            <field name="prefix">11</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_asset_non_current" model="ir.sequence">
+            <field name="name">Account Code - Non Current Assets</field>
+            <field name="code">account.code.asset.non_current</field>
+            <field name="prefix">12</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_asset_cash" model="ir.sequence">
+            <field name="name">Account Code - Cash</field>
+            <field name="code">account.code.asset.cash</field>
+            <field name="prefix">13</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_asset_receivable" model="ir.sequence">
+            <field name="name">Account Code - Receivables</field>
+            <field name="code">account.code.asset.receivable</field>
+            <field name="prefix">14</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_account_code_liability_current" model="ir.sequence">
+            <field name="name">Account Code - Current Liabilities</field>
+            <field name="code">account.code.liability.current</field>
+            <field name="prefix">20</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_liability_payable" model="ir.sequence">
+            <field name="name">Account Code - Payables</field>
+            <field name="code">account.code.liability.payable</field>
+            <field name="prefix">21</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_liability_non_current" model="ir.sequence">
+            <field name="name">Account Code - Non Current Liabilities</field>
+            <field name="code">account.code.liability.non_current</field>
+            <field name="prefix">22</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_account_code_equity" model="ir.sequence">
+            <field name="name">Account Code - Equity</field>
+            <field name="code">account.code.equity</field>
+            <field name="prefix">30</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_account_code_income" model="ir.sequence">
+            <field name="name">Account Code - Income</field>
+            <field name="code">account.code.income</field>
+            <field name="prefix">40</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_income_other" model="ir.sequence">
+            <field name="name">Account Code - Other Income</field>
+            <field name="code">account.code.income.other</field>
+            <field name="prefix">41</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_account_code_expense" model="ir.sequence">
+            <field name="name">Account Code - Expenses</field>
+            <field name="code">account.code.expense</field>
+            <field name="prefix">50</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_expense_direct_cost" model="ir.sequence">
+            <field name="name">Account Code - Direct Costs</field>
+            <field name="code">account.code.expense.direct.cost</field>
+            <field name="prefix">51</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_account_code_expense_depreciation" model="ir.sequence">
+            <field name="name">Account Code - Depreciation Expense</field>
+            <field name="code">account.code.expense.depreciation</field>
+            <field name="prefix">52</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="seq_account_code_off_balance" model="ir.sequence">
+            <field name="name">Account Code - Off-Balance</field>
+            <field name="code">account.code.off.balance</field>
+            <field name="prefix">99</field>
+            <field name="padding">4</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

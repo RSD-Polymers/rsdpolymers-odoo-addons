@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_tally_config_settings,tally.config.settings,model_res_config_settings,base.group_system,1,1,1,1
+access_tally_ledger_group,tally.ledger.group,model_tally_ledger_group,base.group_system,1,1,1,1
+access_tally_import_wizard,tally.import.wizard.access,model_tally_import_wizard,base.group_user,1,1,1,1
+access_tally_partner_staging,tally.partner.staging,model_tally_partner_staging,base.group_system,1,1,1,1

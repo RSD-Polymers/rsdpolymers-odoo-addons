@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Form View for the Tally Import Wizard -->
+        <record id="tally_import_wizard_form_view" model="ir.ui.view">
+            <field name="name">tally.import.wizard.form</field>
+            <field name="model">tally.import.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Import Data from Tally">
+                    <sheet>
+                        <group>
+                            <field name="message_field"/>
+                        </group>
+                    </sheet>
+                    <footer>
+                        <!-- Button to trigger group import -->
+                        <button name="action_import_tally_groups"
+                                string="Import Groups"
+                                type="object"
+                                class="oe_highlight"/>
+                        <button name="action_import_tally_ledgers"
+                                string="Import Ledgers"
+                                type="object"
+                                class="oe_highlight"/>
+                        <button name="action_import_tally_partner_data"
+                                string="Import Partner Data"
+                                type="object"
+                                class="oe_highlight"/>
+                        <button name="action_create_opening_balance_journal_entries" string="Process Opening Balances" type="object" class="oe_highlight o_secondary_button"
+                        help="Creates journal entries for imported Tally ledger opening balances."/>
+                        <button string="Cancel" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Window Action to open the Tally Import Wizard -->
+        <record id="action_tally_import_wizard" model="ir.actions.act_window">
+            <field name="name">Import Data From Tally</field>
+            <field name="res_model">tally.import.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field> <!-- 'new' opens it as a modal dialog/wizard -->
+            <field name="binding_model_id" eval="False"/> <!-- Not tied to a specific record -->
+        </record>
+
+        <menuitem id="menu_tally_import_data"
+                  name="Import Data From Tally"
+                  parent="menu_accounting_tally_configuration"
+                  action="action_tally_import_wizard"
+                  sequence="30"/>
+
+    </data>
+</odoo>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="tally_partner_staging_tree_view" model="ir.ui.view">
+            <field name="name">tally.partner.staging.tree</field>
+            <field name="model">tally.partner.staging</field>
+            <field name="arch" type="xml">
+                <list string="Tally staging Partner">
+                    <field name="partner_type_display"/>
+                    <field name="name"/>
+                    <field name="guid"/>
+                    <field name="parent_group_id"/>
+                    <field name="gstin"/>
+                    <field name="pan_no"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="tally_partner_staging_form_view" model="ir.ui.view">
+            <field name="name">tally.partner.staging.form</field>
+            <field name="model">tally.partner.staging</field>
+            <field name="arch" type="xml">
+                <form string="Tally staging Partner" create="false" edit="false" delete="false">
+                    <sheet>
+                        <group>
+                            <group string="Tally Data (Raw)">
+                                <field name="partner_type_display" invisible="1"/>
+                                <field name="name"/>
+                                <field name="guid"/>
+                                <field name="parent_group_id"/>
+                                <field name="tally_gst_registration_type"/>
+                                <field name="gstin"/>
+                                <field name="pan_no"/>
+                                <field name="phone"/>
+                                <field name="mobile"/>
+                                <field name="is_customer" widget="boolean_toggle" invisible="is_vendor"/>
+                                <field name="is_vendor" widget="boolean_toggle" invisible="is_customer"/>
+                            </group>
+                            <group string="Address Details">
+                                <field name="street"/>
+                                <field name="street2"/>
+                                <field name="city"/>
+                                <field name="pincode"/>
+                                <field name="state_name"/>
+                                <field name="country_name"/>
+                            </group>
+                        </group>
+                        <group string="Odoo Mapped Data &amp; Status">
+                            <group>
+                                <field name="odoo_country_id"/>
+                                <field name="odoo_state_id"/>
+                                <field name="odoo_gst_treatment"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="tally_partner_staging_action" model="ir.actions.act_window">
+            <field name="name">Tally staging Partner</field>
+            <field name="res_model">tally.partner.staging</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    No Tally Partner Import Log data found.
+                </p>
+                <p>
+                    Run the 'Tally Partner Sync' script on your local machine to import data.
+                </p>
+            </field>
+        </record>
+
+        <!-- Action for Tally Partner Staging -->
+        <record id="action_tally_partner_staging" model="ir.actions.act_window">
+            <field name="name">Tally Partner Staging</field>
+            <field name="res_model">tally.partner.staging</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <!-- Menu Item for Tally Partner Staging under Accounting -> Configuration -->
+        <menuitem id="menu_accounting_tally_configuration"
+                  name="Tally"
+                  parent="account.menu_finance_configuration" sequence="10"/>
+        <menuitem id="menu_tally_partner_staging"
+                  name="Tally Partner Staging"
+                  parent="menu_accounting_tally_configuration" action="action_tally_partner_staging"
+                  sequence="20"/>
+
+    </data>
+</odoo>
