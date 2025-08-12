@@ -558,7 +558,6 @@ class ProjectTask(models.Model):
         # 1. Administrator Bypass:
         if current_user.has_group('base.group_system'):
             final_domain = original_domain
-            _logger.info("Admin user (%s) detected. Bypassing custom filter.", current_user.name)
         else:
             # Check for Nilesh Bagwe specifically
             nilesh_bagwe_user = self.env['res.users'].sudo().search([('login', '=', 'nilesh@rsdpolymers.com')], limit=1)
@@ -580,18 +579,14 @@ class ProjectTask(models.Model):
                         ('checker_id', '=', current_user.id),
                         ('user_ids.employee_ids.department_id', 'in', nilesh_specific_dept_ids)
                     ]
-                    _logger.info("Nilesh Bagwe specific department filter applied.")
                 else:
                     custom_filter = [
                         '|',
                         ('user_ids', 'in', current_user.id),
                         ('checker_id', '=', current_user.id),
                     ]
-                    _logger.info("Nilesh Bagwe default filter applied.")
             else:
-                # Logic for all other non-admin, non-Nilesh users (Parikshit Bhatt falls here)
-                _logger.info("Non-admin, non-Nilesh user (%s) detected. Applying general custom filter.",
-                             current_user.name)
+                # Logic for all other non-admin, non-Nilesh users
 
                 # IMPORTANT: Replace these with the actual External IDs of Parikshit's relevant groups
                 # You must get these from Settings -> Technical -> Security -> Groups
@@ -624,7 +619,6 @@ class ProjectTask(models.Model):
                         # Tasks explicitly linked to leaves they approve
                     ]
                 else:
-                    _logger.info("User is a regular user. Applying default user filter.")
                     # Default filter for regular users (assigned or checker)
                     custom_filter = [
                         '|',
@@ -636,21 +630,10 @@ class ProjectTask(models.Model):
         if custom_filter:
             if original_domain:
                 final_domain = ['&'] + original_domain + custom_filter
-                _logger.info("Custom filter combined with original domain using '&'.")
             else:
                 final_domain = custom_filter
-                _logger.info("Custom filter applied as no original domain.")
         else:
             final_domain = original_domain
-            _logger.info("No custom filter applied. Using original domain.")
-
-        _logger.info("---------- START _search DEBUG for user %s (%s) ----------", current_user.name, current_user.id)
-        _logger.info("Original Domain: %s", original_domain)
-        _logger.info("Custom Filter: %s", custom_filter)
-        _logger.info("Final Domain to Super: %s", final_domain)
-        _logger.info("Offset: %s, Limit: %s, Order: %s, Count: %s, Access Rights UID: %s", offset, limit, order, count,
-                     access_rights_uid)
-        _logger.info("---------- END _search DEBUG ----------")
 
         # Pass all original args/kwargs to super, but replace the domain part
         return super()._search(final_domain, offset=offset, limit=limit, order=order)
