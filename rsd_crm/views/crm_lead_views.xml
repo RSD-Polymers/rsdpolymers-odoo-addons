@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add fields to the CRM opportunity form -->
+    <record id="crm_lead_view_form_inherit_product_metrics" model="ir.ui.view">
+        <field name="name">crm.lead.form.inherit.product.metrics</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Place just after Expected Revenue -->
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="product_qty"/>
+                <field name="product_avg_price"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Also show these in the pipeline list (tree) view -->
+    <record id="crm_lead_tree_view_inherit_product_metrics" model="ir.ui.view">
+        <field name="name">crm.lead.tree.inherit.product.metrics</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="product_qty"/>
+                <field name="product_avg_price"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
