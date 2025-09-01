@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_awaiting_readiness_orders" model="ir.actions.act_window">
+        <field name="name">Pending Requests</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('state', '=', 'awaiting_readiness')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No pending production requests found.
+            </p>
+        </field>
+    </record>
+
+    <record id="menu_pending_production_requests" model="ir.ui.menu">
+        <field name="name">Pending Request</field>
+        <field name="action" ref="action_awaiting_readiness_orders"/>
+        <field name="parent_id" ref="mrp.menu_mrp_manufacturing"/>
+        <field name="groups_id" eval="[(6, 0, [ref('mrp.group_mrp_user'), ref('mrp.group_mrp_manager')])]"/>
+        <field name="sequence">0</field>
+    </record>
+
+    <record id="view_quotation_tree_inherit_readiness_color" model="ir.ui.view">
+        <field name="name">sale.order.tree.inherit.readiness.color</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_quotation_tree_with_onboarding"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="attributes">
+                <attribute name="decoration-warning">state == 'awaiting_readiness' or state == 'trial'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="mat_ready_date"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_sale_order_form_inherit" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state']" position="attributes">
+                <attribute name="statusbar_visible">draft,awaiting_readiness,trial,sent,sale</attribute>
+            </xpath>
+            <xpath expr="//field[@name='payment_term_id']" position="after">
+                <field name="is_rd_user" invisible="1"/>
+                <field name="mat_ready_date" readonly="not is_production_manager or state in ['sale', 'done']"/>
+                <field name="production_request_type"
+                       readonly="is_rd_user == True or state in ['sale', 'done']"/>
+                <field name="is_production_user_by_dept" invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='sale_order_template_id']" position="after">
+                <field name="dispatch_date" readonly="state in ['sale', 'done']"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
+                <field name="qty_available" readonly="1" string="Qty Available" title="Quantity Available"/>
+                <field name="qty_packed_inventory" readonly="1" string="FG Packed Qty" title="Packed Inventory"/>
+                <field name="qty_unpacked_inventory" readonly="1" string="FG Unpacked Qty" title="Unpacked Inventory"/>
+            </xpath>
+
+            <!-- Hide all customer and pricing details from the production users and managers. -->
+            <!-- The original xpath for amount_total, amount_untaxed, etc. was incorrect.
+                 This xpath targets the correct parent group to hide the total and subtotals. -->
+            <xpath expr="//field[@name='tax_totals']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='pricelist_id']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+
+            <xpath expr="//button[@name='action_confirm']" position="attributes">
+                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',
+                    False)]
+                </attribute>
+            </xpath>
+            <xpath expr="//button[@id='create_invoice']" position="attributes">
+                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',
+                    False)]
+                </attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_confirm']" position="after">
+                <button name="action_confirm_from_readiness"
+                        type="object"
+                        string="Confirm Order"
+                        invisible="state not in ('awaiting_readiness', 'trial')"
+                        class="oe_highlight"
+                />
+                <field name="is_production_request_sent" invisible="1"/>
+                <button name="action_create_mrp_orders"
+                        type="object"
+                        string="Create MO"
+                        invisible="state != 'awaiting_readiness' or mrp_order_count != 0"
+                        class="oe_highlight"/>
+            </xpath>
+
+            <xpath expr="//button[@name='action_view_invoice']" position="after">
+                <button class="oe_stat_button"
+                        name="action_view_mrp_orders"
+                        type="object"
+                        icon="fa-industry"
+                        invisible="mrp_order_count == 0">
+                    <field name="mrp_order_count" widget="statinfo" string="Manufacturing Order"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>
