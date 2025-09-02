@@ -7,11 +7,16 @@
         <field name="model">crm.lead</field>
         <field name="inherit_id" ref="crm.crm_lead_view_form"/>
         <field name="arch" type="xml">
-            <!-- Place just after Expected Revenue -->
-            <xpath expr="//field[@name='tag_ids']" position="after">
+
+            <xpath expr="//div[hasclass('o_row', 'o_row_readonly')]//field[@name='phone']/.." position="after">
                 <field name="product_qty"/>
-                <field name="product_avg_price"/>
+                <field name="product_id" widget="many2one_avatar_user"/>
             </xpath>
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="product_avg_price" class="oe_inline"/>
+                <field name="payment_term_id" class="oe_inline"/>
+            </xpath>
+
         </field>
     </record>
 
@@ -21,7 +26,7 @@
         <field name="model">crm.lead</field>
         <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
         <field name="arch" type="xml">
-            <xpath expr="//list" position="inside">
+            <xpath expr="//field[@name='probability']" position="after">
                 <field name="product_qty"/>
                 <field name="product_avg_price"/>
             </xpath>

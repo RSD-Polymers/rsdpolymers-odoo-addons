@@ -4,6 +4,7 @@
     'version': '1.0',
     'category': 'Project',
     'author': 'RSD Polymers',
+    'website': 'https://www.rsdpolymers.com/',
     'depends': ['project', 'web', 'project_enterprise', 'hr_timesheet', 'timesheet_grid'],
     'data': [
         'security/ir.model.access.csv',
