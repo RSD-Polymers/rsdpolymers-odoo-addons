@@ -9,8 +9,8 @@
         <field name="arch" type="xml">
 
             <xpath expr="//div[hasclass('o_row', 'o_row_readonly')]//field[@name='phone']/.." position="after">
+                <field name="product_id" widget="many2one_avatar_user" required="1"/>
                 <field name="product_qty"/>
-                <field name="product_id" widget="many2one_avatar_user"/>
             </xpath>
             <xpath expr="//field[@name='tag_ids']" position="after">
                 <field name="product_avg_price" class="oe_inline"/>
@@ -32,5 +32,45 @@
             </xpath>
         </field>
     </record>
+
+    <!-- New Forecast List Action -->
+    <record id="crm_lead_action_forecast_list" model="ir.actions.act_window">
+        <field name="name">Forecast</field>
+        <field name="res_model">crm.lead</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('type', '=', 'opportunity')]</field>
+        <field name="context">
+            {
+            'default_type': 'opportunity',
+            'search_default_assigned_to_me': 1,
+            'search_default_forecast': 1,
+            'search_default_date_deadline': 1,
+            'forecast_field': 'date_deadline'
+            }
+        </field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No opportunity to display!
+            </p>
+            <p>
+                This is the list view for Forecast.
+            </p>
+        </field>
+        <field name="search_view_id" ref="crm.crm_lead_view_search_forecast"/>
+    </record>
+
+    <!-- New Menu -->
+    <menuitem
+            id="crm_menu_forecast_list"
+            name="Forecast"
+            parent="crm.crm_menu_report"
+            action="crm_lead_action_forecast_list"
+            sequence="0"/>
+
+    <!-- Hide Original Forecast Menu -->
+    <record id="crm.crm_menu_forecast" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
 
 </odoo>

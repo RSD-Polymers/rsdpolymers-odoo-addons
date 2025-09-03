@@ -1,5 +1,5 @@
 {
-    'name': 'RSD Polymer Project Module Customization',
+    'name': 'RSD Polymer Project',
     'icon': '/project_customization/static/description/icon.png',
     'version': '1.0',
     'category': 'Project',

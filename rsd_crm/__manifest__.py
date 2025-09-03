@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'RSD CRM',
+    'name': 'RSD Polymer CRM',
+    'icon': '/rsd_crm/static/description/icon.png',
     'summary': 'Custom Module for RSD CRM Workflow',
     'version': '1.0',
     'category': 'Sales/CRM',

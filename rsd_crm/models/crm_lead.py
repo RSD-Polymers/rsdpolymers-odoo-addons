@@ -28,7 +28,7 @@ class CrmLead(models.Model):
         aggregator='avg',
     )
 
-    product_id = fields.Many2one('product.product', string='Product')
+    product_id = fields.Many2one('product.product', string='Product', required=True, index=True)
 
     payment_term_id = fields.Many2one('account.payment.term', string='Payment Terms')
 
