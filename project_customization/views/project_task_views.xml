@@ -14,7 +14,8 @@
                 <field name="is_assigner_field" invisible="1"/>
                 <field name="is_checker_field" invisible="1"/>
                 <field name="is_locked" invisible="1"/>
-
+                <field name="allocated_hours" string="Allocated Time" widget="float_time"
+                       readonly="not is_editable_to_user or is_locked"/>
                 <field name="marks_obtained" string="Marks Obtained (out of 100)"
                        readonly="is_rejected or is_locked or is_current_user_the_task_checker == False"/>
                 <field name="allowed_attempts"
