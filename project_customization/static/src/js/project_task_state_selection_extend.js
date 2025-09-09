@@ -66,7 +66,14 @@ patch(ProjectTaskStateSelection.prototype, {
         const isAssigneeUser = this.props.record.data.is_assignees_group_member;
         const isCheckerUser = this.props.record.data.is_checker_field;
 
-        if (isAssigneeUser && !isCheckerUser) {
+        // ✅ Restrict checker to only Change Requested + Approved
+        if (isCheckerUser) {
+            originalOptions = originalOptions.filter(option =>
+                ['02_changes_requested', '03_approved'].includes(option[0])
+            );
+        }
+        // ✅ Restrict assignee (non-checker)
+        else if (isAssigneeUser) {
             const statesToHideForAssignee = ['1_done', '1_canceled', '03_approved', '06_rejected'];
             originalOptions = originalOptions.filter(option =>
                 !statesToHideForAssignee.includes(option[0])

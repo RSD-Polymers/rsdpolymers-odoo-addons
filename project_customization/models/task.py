@@ -1,6 +1,7 @@
 from odoo import models, fields, api, exceptions, _
 from odoo.exceptions import ValidationError, UserError
 from datetime import date, datetime, timedelta
+from odoo.osv import expression
 import logging  # Import the logging module
 
 _logger = logging.getLogger(__name__)  # Initialize logger
@@ -78,13 +79,16 @@ class ProjectTask(models.Model):
         Ensures 'Marks Obtained' is filled with a positive value when the task is approved.
         """
         for task in self:
-            _logger.info(f"Checking marks_obtained for task {task.name} (ID: {task.id}) on state change to {task.state}")
+            _logger.info(
+                f"Checking marks_obtained for task {task.name} (ID: {task.id}) on state change to {task.state}")
             # If the task is being transitioned to the 'Approved' state
             if task.state == '03_approved':
                 # Check if marks_obtained is empty (False) or zero/negative
                 if not task.marks_obtained or task.marks_obtained <= 0:
-                    _logger.warning(f"Validation failed for task {task.id}: marks_obtained is {task.marks_obtained} when state is {task.state}")
-                    raise ValidationError(_("Marks Obtained must be entered and be greater than Zero before marking the task as Approved."))
+                    _logger.warning(
+                        f"Validation failed for task {task.id}: marks_obtained is {task.marks_obtained} when state is {task.state}")
+                    raise ValidationError(
+                        _("Marks Obtained must be entered and be greater than Zero before marking the task as Approved."))
 
     @api.depends('checker_id')  # Recompute if the assigned checker changes
     @api.depends_context('uid')  # Recompute if the logged-in user changes
@@ -94,7 +98,8 @@ class ProjectTask(models.Model):
             # Check if a checker is assigned AND if the assigned checker's ID matches the current user's ID
             task.is_current_user_the_task_checker = (task.checker_id and task.checker_id.id == current_user_id)
 
-    @api.depends('state', 'user_ids', 'is_accepted', 'is_rejected', 'is_assignees_group_member', 'is_current_user_the_task_checker')
+    @api.depends('state', 'user_ids', 'is_accepted', 'is_rejected', 'is_assignees_group_member',
+                 'is_current_user_the_task_checker')
     def _compute_can_assignee_accept_reject(self):
         user = self.env.user
 
@@ -130,8 +135,8 @@ class ProjectTask(models.Model):
         user = self.env.user
 
         is_user_admin = user.has_group('base.group_system')
-        is_user_assigner = user.has_group('base.group_assigner') # REMEMBER TO REPLACE THIS
-        is_user_assignee = user.has_group('base.group_assignees') # REMEMBER TO REPLACE THIS
+        is_user_assigner = user.has_group('base.group_assigner')  # REMEMBER TO REPLACE THIS
+        is_user_assignee = user.has_group('base.group_assignees')  # REMEMBER TO REPLACE THIS
         is_user_checker = user.has_group('base.group_checker')
 
         for task in self:
@@ -235,7 +240,6 @@ class ProjectTask(models.Model):
     def _compute_is_locked(self):
         for task in self:
             task.is_locked = (task.state == '03_approved')
-
 
     def create(self, vals_list):
         """
@@ -441,7 +445,8 @@ class ProjectTask(models.Model):
             raise UserError(_("This task cannot be accepted as the 48-hour acceptance window has expired."))
 
         self.write(
-            {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False, 'state': '01_in_progress'})  # Clear remarks on acceptance
+            {'is_accepted': True, 'is_rejected': False, 'rejection_remarks': False,
+             'state': '01_in_progress'})  # Clear remarks on acceptance
         _logger.info(f"Task {self.name} accepted. State changed to 'In Progress'.")
 
         self.message_post(
@@ -469,10 +474,10 @@ class ProjectTask(models.Model):
             raise UserError("This task has already been accepted. You cannot reject an accepted task.")
         # Ensure that if it's already in the '06_rejected' state, you cannot reject it again
         # This prevents opening the wizard if it's already fully rejected.
-        if self.state == '06_rejected': # <--- UPDATED: Check for '06_rejected'
+        if self.state == '06_rejected':  # <--- UPDATED: Check for '06_rejected'
             raise UserError(_("This task is already in 'Rejected' state."))
-        if self.is_rejected and self.state != '06_rejected': # This case should ideally not happen if state aligns with is_rejected
-             raise UserError("This task has already been rejected (flag is true).")
+        if self.is_rejected and self.state != '06_rejected':  # This case should ideally not happen if state aligns with is_rejected
+            raise UserError("This task has already been rejected (flag is true).")
 
         # Ensure the task is in a state where it can be rejected
         if self.state in ('1_done', '05_send_for_checking'):
@@ -593,7 +598,7 @@ class ProjectTask(models.Model):
                 is_time_off_manager = current_user.has_group('hr_holidays.group_hr_holidays_manager')
                 is_hr_manager = current_user.has_group('hr.group_hr_manager')  # Standard Odoo group
                 is_project_administrator = current_user.has_group(
-                    'project.group_project_manager')  # Standard Odoo group
+                    'project.group_user_l3')  # Standard Odoo group
                 is_time_off_user = current_user.has_group('hr_holidays.group_hr_holidays_user')
 
                 if is_time_off_manager or is_hr_manager or is_project_administrator or is_time_off_user:
@@ -601,22 +606,11 @@ class ProjectTask(models.Model):
                                  is_time_off_manager, is_hr_manager, is_project_administrator)
                     # Broaden access for managers/approvers
                     custom_filter = [
-                        '|',  # Keep personal tasks
+                        '|',  # OR condition for the first two items
                         ('user_ids', 'in', current_user.id),
-                        '|',  # Keep checker tasks
+                        '|',  # OR condition for the next two items
                         ('checker_id', '=', current_user.id),
-                        '|',  # Keep tasks where they are project manager
-                        ('project_id.user_id', '=', current_user.id),
-                        # NEW: Add conditions for tasks they need to see based on their roles
-                        # For Time Off Approvers, they need to see tasks relevant to the leaves.
-                        # This might involve seeing all tasks in non-private projects,
-                        # or tasks where they are the manager of the assigned employee.
-                        ('project_id.privacy_visibility', '!=', 'private'),  # See all tasks in non-private projects
-                        #'|',  # Added for tasks of employees they manage
-                        #('user_ids.employee_id.parent_id.user_id', '=', current_user.id),
-                        # Tasks assigned to direct reports
-                        #('timesheet_ids.holiday_id.approver_id', '=', current_user.id),
-                        # Tasks explicitly linked to leaves they approve
+                        ('project_id.user_id', '=', current_user.id)
                     ]
                 else:
                     # Default filter for regular users (assigned or checker)
@@ -637,5 +631,3 @@ class ProjectTask(models.Model):
 
         # Pass all original args/kwargs to super, but replace the domain part
         return super()._search(final_domain, offset=offset, limit=limit, order=order)
-
-
