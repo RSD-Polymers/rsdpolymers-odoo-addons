@@ -24,10 +24,18 @@
             <field name="perm_read" eval="True"/>
         </record>
 
-        <record id="rule_project_l3_manager_only" model="ir.rule">
-            <field name="name">Project: L3 Managers See Own Projects</field>
+        <record id="rule_project_manager_only" model="ir.rule">
+            <field name="name">Project: Managers See Own Projects</field>
             <field name="model_id" ref="project.model_project_project"/>
-            <field name="groups" eval="[(4, ref('project.group_user_l3'))]"/>
+            <field name="groups" eval="
+                [
+                  (4, ref('project.group_user_l3')),
+                  (4, ref('purchase.group_purchase_manager')),
+                  (4, ref('account.group_account_manager')),
+                  (4, ref('hr.user_l6')),
+                  (4, ref('project.group_user_l6'))
+                ]
+            "/>
             <field name="domain_force">[('user_id', '=', user.id)]</field>
             <field name="perm_read" eval="True"/>
         </record>

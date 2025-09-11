@@ -62,19 +62,35 @@ patch(ProjectTaskStateSelection.prototype, {
             originalOptions.push(rejectedState);
         }
         // --- END ADDING '07_rejected' ---
+        const isAdminUser = this.props.record.data.is_admin_user;
+        const isTaskAssignee = this.props.record.data.is_current_user_the_task_assignee;
+        const isTaskChecker = this.props.record.data.is_current_user_the_task_checker;
 
-        const isAssigneeUser = this.props.record.data.is_assignees_group_member;
-        const isCheckerUser = this.props.record.data.is_checker_field;
+        const isAssigneeGroupMember = this.props.record.data.is_assignees_group_member;
+        const isCheckerGroupMember = this.props.record.data.is_checker_field;
 
-        // ✅ Restrict checker to only Change Requested + Approved
-        if (isCheckerUser) {
+        // Hierarchy of permissions for the current task:
+        if (isAdminUser) {
+            // Admin can see all options, no filtering.
+        } else if (isTaskChecker) {
+            // The user is the specific checker for THIS task.
             originalOptions = originalOptions.filter(option =>
                 ['02_changes_requested', '03_approved'].includes(option[0])
             );
-        }
-        // ✅ Restrict assignee (non-checker)
-        else if (isAssigneeUser) {
-            const statesToHideForAssignee = ['1_done', '1_canceled', '03_approved', '06_rejected'];
+        } else if (isTaskAssignee) {
+            // The user is the specific assignee for THIS task.
+            const statesToHideForAssignee = ['1_done', '1_canceled', '03_approved', '06_rejected', '02_changes_requested'];
+            originalOptions = originalOptions.filter(option =>
+                !statesToHideForAssignee.includes(option[0])
+            );
+        } else if (isCheckerGroupMember) {
+            // The user is in the checker group but is NOT the specific task checker.
+            originalOptions = originalOptions.filter(option =>
+                ['02_changes_requested', '03_approved'].includes(option[0])
+            );
+        } else if (isAssigneeGroupMember) {
+            // The user is in the assignee group but is NOT the specific task assignee.
+            const statesToHideForAssignee = ['1_done', '1_canceled', '03_approved', '06_rejected', '02_changes_requested'];
             originalOptions = originalOptions.filter(option =>
                 !statesToHideForAssignee.includes(option[0])
             );

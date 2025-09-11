@@ -5,6 +5,9 @@
         <field name="inherit_id" ref="project.view_task_form2"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='user_ids']" position="after">
+                <field name="is_admin_user" invisible="1"/>
+                <field name="is_current_user_the_task_checker" invisible="1"/>
+                <field name="is_current_user_the_task_assignee" invisible="1"/>
                 <field name="is_editable_to_user" invisible="1"/>
                 <field name="checker_id" widget="res_partner_many2one"
                        readonly="(is_editable_to_user == False) or is_locked" options="{'no_open': True}"/>

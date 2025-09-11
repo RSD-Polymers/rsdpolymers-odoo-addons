@@ -72,6 +72,18 @@ class ProjectTask(models.Model):
         store=False,  # Not stored in DB as it's dynamic and user-specific
     )
 
+    is_current_user_the_task_assignee = fields.Boolean(
+        string="Current User is Task's Assignee",
+        compute="_compute_is_current_user_the_task_assignee",
+        store=False,  # Not stored in DB as it's dynamic and user-specific
+    )
+
+    is_admin_user = fields.Boolean(compute='_compute_is_admin_user')
+
+    def _compute_is_admin_user(self):
+        for record in self:
+            record.is_admin_user = self.env.user.has_group('base.group_system')
+
     # New Validation to check marks_obtained field while approving the task
     @api.constrains('state', 'marks_obtained')
     def _check_marks_obtained_on_approval(self):
@@ -97,6 +109,13 @@ class ProjectTask(models.Model):
         for task in self:
             # Check if a checker is assigned AND if the assigned checker's ID matches the current user's ID
             task.is_current_user_the_task_checker = (task.checker_id and task.checker_id.id == current_user_id)
+
+    @api.depends('user_ids')  # Recompute if the assigned checker changes
+    @api.depends_context('uid')  # Recompute if the logged-in user changes
+    def _compute_is_current_user_the_task_assignee(self):
+        current_user = self.env.user
+        for task in self:
+            task.is_current_user_the_task_assignee = current_user in task.user_ids
 
     @api.depends('state', 'user_ids', 'is_accepted', 'is_rejected', 'is_assignees_group_member',
                  'is_current_user_the_task_checker')
@@ -288,6 +307,18 @@ class ProjectTask(models.Model):
             original_is_rejected = original_vals[task.id]['is_rejected']
             _logger.info(
                 f"Task {task.id}: original_state={original_state}, original_is_rejected={original_is_rejected}")
+
+            # --- NEW VALIDATION: ALLOCATED TIME AFTER DEADLINE IS SET ---
+            if 'allocated_hours' in vals and task.date_deadline:
+                _logger.warning(
+                    f"Task {task.id}: Blocking 'allocated_time' update. A deadline has already been set.")
+                raise UserError(_("The allocated time cannot be edited once a deadline has been set."))
+
+            # --- NEW VALIDATION: MARKS OBTAINED IN 'IN PROGRESS' STATE ---
+            if 'marks_obtained' in vals and task.state == '01_in_progress':
+                _logger.warning(
+                    f"Task {task.id}: Blocking 'marks_obtained' update. Task is in 'In Progress' state.")
+                raise UserError(_("Marks Obtained cannot be given when the task is in the 'In Progress' state."))
 
             # --- VALIDATION LOGIC FOR TRANSITIONING *TO* '05_send_for_checking' STATE ---
             if 'state' in vals and vals['state'] == '05_send_for_checking':
