@@ -1,11 +1,32 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, api, _
-from odoo.exceptions import UserError
-
+from odoo.exceptions import UserError, ValidationError, AccessError
+import logging
+_logger = logging.getLogger(__name__)
 
 class IrAttachment(models.Model):
     _inherit = 'ir.attachment'
+
+    def create(self, vals):
+        if vals.get('res_model') == 'project.task' and vals.get('res_id'):
+            task = self.env['project.task'].browse(vals['res_id'])
+            allowed_states = ['01_in_progress', '05_send_for_checking']
+            if task.state not in allowed_states:
+                raise AccessError(
+                    _("You are not allowed to upload an attachment here.")
+                )
+        return super().create(vals)
+
+    def write(self, vals):
+        if self.res_model == 'project.task' and self.res_id:
+            task = self.env['project.task'].browse(self.res_id)
+            allowed_states = ['01_in_progress', '05_send_for_checking']
+            if task.state not in allowed_states:
+                raise AccessError(
+                    _("You are not allowed to upload an attachment here.")
+                )
+        return super().write(vals)
 
     def unlink(self):
         """

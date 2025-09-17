@@ -5,7 +5,7 @@
     'category': 'Project',
     'author': 'RSD Polymers',
     'website': 'https://www.rsdpolymers.com/',
-    'depends': ['project', 'web', 'project_enterprise', 'hr_timesheet', 'timesheet_grid'],
+    'depends': ['project', 'web', 'project_enterprise', 'hr_timesheet', 'timesheet_grid', 'mail'],
     'data': [
         'security/ir.model.access.csv',
         'security/project_rules.xml',
