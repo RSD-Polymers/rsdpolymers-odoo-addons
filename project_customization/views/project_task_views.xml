@@ -7,14 +7,20 @@
             <xpath expr="//label[@for='allocated_hours']" position="replace">
                 <label for="allocated_hours" groups="hr_timesheet.group_hr_timesheet_user"/>
             </xpath>
-            <xpath expr="//div[@class='text-nowrap' and contains(@invisible, 'allow_timesheets')]" position="replace">
+            <xpath expr="//div[hasclass('text-nowrap') and contains(@invisible, 'allow_timesheets')]"
+                   position="replace">
                 <div class="text-nowrap" groups="hr_timesheet.group_hr_timesheet_user">
-                    <field name="allocated_hours" class="oe_inline o_field_float_time o_task_planned_hours" widget="timesheet_uom_no_toggle"/>
+                    <field name="allocated_hours" class="oe_inline o_field_float_time o_task_planned_hours"
+                           widget="timesheet_uom_no_toggle"/>
                     <span invisible="subtask_count == 0">
-                        (incl. <field name="subtask_allocated_hours" nolabel="1" widget="timesheet_uom_no_toggle" class="oe_inline"/> on
-                        <span class="fw-bold text-dark"> Sub-tasks</span>)
+                        (incl.
+                        <field name="subtask_allocated_hours" nolabel="1" widget="timesheet_uom_no_toggle"
+                               class="oe_inline"/>
+                        on
+                        <span class="fw-bold text-dark">Sub-tasks</span>)
                     </span>
-                    (<field name="progress" invisible="not project_id" class="oe_inline" nolabel="1" decoration-danger="progress &gt; 1.005" digits="[1, 0]" widget="percentage"/>)
+                    (<field name="progress" invisible="not project_id" class="oe_inline" nolabel="1"
+                            decoration-danger="progress &gt; 1.005" digits="[1, 0]" widget="percentage"/>)
                 </div>
             </xpath>
         </field>

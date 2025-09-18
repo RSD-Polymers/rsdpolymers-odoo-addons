@@ -9,6 +9,7 @@
     'data': [
         'security/ir.model.access.csv',
         'security/project_rules.xml',
+        'security/project_task_rules.xml',
         'views/project_task_views.xml',
         'views/res_groups_view.xml',
         'views/project_task_reject_wizard_views.xml',

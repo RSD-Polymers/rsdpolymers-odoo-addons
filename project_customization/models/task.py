@@ -581,84 +581,85 @@ class ProjectTask(models.Model):
         else:
             _logger.info("No unaccepted tasks found requiring auto-rejection.")
 
-    @api.model
-    def _search(self, args, offset=0, limit=None, order=None, count=False, access_rights_uid=None):
-        original_domain = list(args) if args is not None else []  # Ensure original_domain is a mutable list
-        final_domain = []
-
-        # Initialize custom_filter at the very beginning to prevent UnboundLocalError
-        custom_filter = []
-
-        current_user = self.env.user
-
-        # 1. Administrator Bypass:
-        if current_user.has_group('base.group_system'):
-            final_domain = original_domain
-        else:
-            # Check for Nilesh Bagwe specifically
-            nilesh_bagwe_user = self.env['res.users'].sudo().search([('login', '=', 'nilesh@rsdpolymers.com')], limit=1)
-
-            if nilesh_bagwe_user and current_user == nilesh_bagwe_user:
-                _logger.info("Nilesh Bagwe (%s) detected.", current_user.name)
-                qc_department_id = self.env.ref('hr.dep_qc', raise_if_not_found=False).id
-                qa_department_id = self.env.ref('hr.dep_qa', raise_if_not_found=False).id
-                store_department_id = self.env.ref('hr.dep_store', raise_if_not_found=False).id
-                production_department_id = self.env.ref('hr.dep_production', raise_if_not_found=False).id
-
-                nilesh_specific_dept_ids = [did for did in [qc_department_id, qa_department_id, store_department_id,
-                                                            production_department_id] if did]
-
-                if nilesh_specific_dept_ids:
-                    custom_filter = [
-                        '|', '|',
-                        ('user_ids', 'in', current_user.id),
-                        ('checker_id', '=', current_user.id),
-                        ('user_ids.employee_ids.department_id', 'in', nilesh_specific_dept_ids)
-                    ]
-                else:
-                    custom_filter = [
-                        '|',
-                        ('user_ids', 'in', current_user.id),
-                        ('checker_id', '=', current_user.id),
-                    ]
-            else:
-                # Logic for all other non-admin, non-Nilesh users
-
-                # IMPORTANT: Replace these with the actual External IDs of Parikshit's relevant groups
-                # You must get these from Settings -> Technical -> Security -> Groups
-                is_time_off_manager = current_user.has_group('hr_holidays.group_hr_holidays_manager')
-                is_hr_manager = current_user.has_group('hr.group_hr_manager')  # Standard Odoo group
-                is_project_administrator = current_user.has_group(
-                    'project.group_user_l3')  # Standard Odoo group
-                is_time_off_user = current_user.has_group('hr_holidays.group_hr_holidays_user')
-
-                if is_time_off_manager or is_hr_manager or is_project_administrator or is_time_off_user:
-                    _logger.info("User is detected as a Manager/Approver (Time Off: %s, HR: %s, Project: %s).",
-                                 is_time_off_manager, is_hr_manager, is_project_administrator)
-                    # Broaden access for managers/approvers
-                    custom_filter = [
-                        '|',  # OR condition for the first two items
-                        ('user_ids', 'in', current_user.id),
-                        '|',  # OR condition for the next two items
-                        ('checker_id', '=', current_user.id),
-                        ('project_id.user_id', '=', current_user.id)
-                    ]
-                else:
-                    # Default filter for regular users (assigned or checker)
-                    custom_filter = [
-                        '|',
-                        ('user_ids', 'in', current_user.id),
-                        ('checker_id', '=', current_user.id),
-                    ]
-
-        # Combine custom filter with original domain
-        if custom_filter:
-            if original_domain:
-                final_domain = ['&'] + original_domain + custom_filter
-            else:
-                final_domain = custom_filter
-        else:
-            final_domain = original_domain
-
-        # Pass all original args/kwargs to super, but replace the domain part
-        return super()._search(final_domain, offset=offset, limit=limit, order=order)
+    # Removing search method as it is creating a lot of issues in Project Task. So record rules are used for this
+    # @api.model
+    # def _search(self, args, offset=0, limit=None, order=None, count=False, access_rights_uid=None):
+    #     original_domain = list(args) if args is not None else []  # Ensure original_domain is a mutable list
+    #     final_domain = []
+    #
+    #     # Initialize custom_filter at the very beginning to prevent UnboundLocalError
+    #     custom_filter = []
+    #
+    #     current_user = self.env.user
+    #
+    #     # 1. Administrator Bypass:
+    #     if current_user.has_group('base.group_system'):
+    #         final_domain = original_domain
+    #     else:
+    #         # Check for Nilesh Bagwe specifically
+    #         nilesh_bagwe_user = self.env['res.users'].sudo().search([('login', '=', 'nilesh@rsdpolymers.com')], limit=1)
+    #
+    #         if nilesh_bagwe_user and current_user == nilesh_bagwe_user:
+    #             _logger.info("Nilesh Bagwe (%s) detected.", current_user.name)
+    #             qc_department_id = self.env.ref('hr.dep_qc', raise_if_not_found=False).id
+    #             qa_department_id = self.env.ref('hr.dep_qa', raise_if_not_found=False).id
+    #             store_department_id = self.env.ref('hr.dep_store', raise_if_not_found=False).id
+    #             production_department_id = self.env.ref('hr.dep_production', raise_if_not_found=False).id
+    #
+    #             nilesh_specific_dept_ids = [did for did in [qc_department_id, qa_department_id, store_department_id,
+    #                                                         production_department_id] if did]
+    #
+    #             if nilesh_specific_dept_ids:
+    #                 custom_filter = [
+    #                     '|', '|',
+    #                     ('user_ids', 'in', current_user.id),
+    #                     ('checker_id', '=', current_user.id),
+    #                     ('user_ids.employee_ids.department_id', 'in', nilesh_specific_dept_ids)
+    #                 ]
+    #             else:
+    #                 custom_filter = [
+    #                     '|',
+    #                     ('user_ids', 'in', current_user.id),
+    #                     ('checker_id', '=', current_user.id),
+    #                 ]
+    #         else:
+    #             # Logic for all other non-admin, non-Nilesh users
+    #
+    #             # IMPORTANT: Replace these with the actual External IDs of Parikshit's relevant groups
+    #             # You must get these from Settings -> Technical -> Security -> Groups
+    #             is_time_off_manager = current_user.has_group('hr_holidays.group_hr_holidays_manager')
+    #             is_hr_manager = current_user.has_group('hr.group_hr_manager')  # Standard Odoo group
+    #             is_project_administrator = current_user.has_group(
+    #                 'project.group_user_l3')  # Standard Odoo group
+    #             is_time_off_user = current_user.has_group('hr_holidays.group_hr_holidays_user')
+    #
+    #             if is_time_off_manager or is_hr_manager or is_project_administrator or is_time_off_user:
+    #                 _logger.info("User is detected as a Manager/Approver (Time Off: %s, HR: %s, Project: %s).",
+    #                              is_time_off_manager, is_hr_manager, is_project_administrator)
+    #                 # Broaden access for managers/approvers
+    #                 custom_filter = [
+    #                     '|',  # OR condition for the first two items
+    #                     ('user_ids', 'in', current_user.id),
+    #                     '|',  # OR condition for the next two items
+    #                     ('checker_id', '=', current_user.id),
+    #                     ('project_id.user_id', '=', current_user.id)
+    #                 ]
+    #             else:
+    #                 # Default filter for regular users (assigned or checker)
+    #                 custom_filter = [
+    #                     '|',
+    #                     ('user_ids', 'in', current_user.id),
+    #                     ('checker_id', '=', current_user.id),
+    #                 ]
+    #
+    #     # Combine custom filter with original domain
+    #     if custom_filter:
+    #         if original_domain:
+    #             final_domain = ['&'] + original_domain + custom_filter
+    #         else:
+    #             final_domain = custom_filter
+    #     else:
+    #         final_domain = original_domain
+    #
+    #     # Pass all original args/kwargs to super, but replace the domain part
+    #     return super()._search(final_domain, offset=offset, limit=limit, order=order)

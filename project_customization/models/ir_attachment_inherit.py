@@ -9,24 +9,49 @@ class IrAttachment(models.Model):
     _inherit = 'ir.attachment'
 
     def create(self, vals):
-        if vals.get('res_model') == 'project.task' and vals.get('res_id'):
-            task = self.env['project.task'].browse(vals['res_id'])
-            allowed_states = ['01_in_progress', '05_send_for_checking']
-            if task.state not in allowed_states:
-                raise AccessError(
-                    _("You are not allowed to upload an attachment here.")
-                )
-        return super().create(vals)
+        _logger.info("Attachment create method called with vals: %s", vals)
+
+        # Check if vals is a dictionary or a list of dictionaries
+        if isinstance(vals, dict):
+            # Handle a single dictionary
+            if vals.get('res_model') == 'project.task' and vals.get('res_id'):
+                task = self.env['project.task'].browse(vals['res_id'])
+                allowed_states = ['01_in_progress', '05_send_for_checking']
+                if task.state not in allowed_states:
+                    raise AccessError(
+                        _("You are not allowed to upload an attachment here.")
+                    )
+        elif isinstance(vals, list):
+            # Handle a list of dictionaries (multiple attachments)
+            for single_vals in vals:
+                if single_vals.get('res_model') == 'project.task' and single_vals.get('res_id'):
+                    task = self.env['project.task'].browse(single_vals['res_id'])
+                    allowed_states = ['01_in_progress', '05_send_for_checking']
+                    if task.state not in allowed_states:
+                        raise AccessError(
+                            _("You are not allowed to upload an attachment here.")
+                        )
+        else:
+            # If vals is a string or another unsupported type, log a warning
+            _logger.warning("Unexpected data type in create method: %s", type(vals))
+            # Odoo's super() call might still handle it.
+            # We just need to make sure our code doesn't crash on it.
+
+        return super(IrAttachment, self).create(vals)
 
     def write(self, vals):
-        if self.res_model == 'project.task' and self.res_id:
-            task = self.env['project.task'].browse(self.res_id)
-            allowed_states = ['01_in_progress', '05_send_for_checking']
-            if task.state not in allowed_states:
-                raise AccessError(
-                    _("You are not allowed to upload an attachment here.")
-                )
-        return super().write(vals)
+        # self is a recordset, which can contain one or multiple records.
+        # We should iterate over it to apply the logic to each record.
+        for attachment in self:
+            if attachment.res_model == 'project.task' and attachment.res_id:
+                task = self.env['project.task'].browse(attachment.res_id)
+                allowed_states = ['01_in_progress', '05_send_for_checking']
+                if task.state not in allowed_states:
+                    raise AccessError(
+                        _("You are not allowed to update an attachment here.")
+                    )
+        # After all validations pass, call the original 'write' method
+        return super(IrAttachment, self).write(vals)
 
     def unlink(self):
         """
