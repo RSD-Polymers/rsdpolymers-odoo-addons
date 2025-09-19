@@ -15,6 +15,7 @@
         'views/project_task_reject_wizard_views.xml',
         'data/project_task_reject_cron.xml',
         'views/project_task_views_modification.xml',
+        'views/project_project_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

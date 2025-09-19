@@ -1,0 +1,5 @@
+<odoo>
+    <record id="project.open_create_project" model="ir.actions.act_window">
+        <field name="context">{'default_allow_billable': 0, 'default_allow_timesheets': False}</field>
+    </record>
+</odoo>
