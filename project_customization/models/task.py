@@ -1,5 +1,5 @@
 from odoo import models, fields, api, exceptions, _
-from odoo.exceptions import ValidationError, UserError
+from odoo.exceptions import ValidationError, UserError, AccessError
 from datetime import date, datetime, timedelta
 from odoo.osv import expression
 import logging  # Import the logging module
@@ -154,40 +154,46 @@ class ProjectTask(models.Model):
         user = self.env.user
 
         is_user_admin = user.has_group('base.group_system')
-        is_user_assigner = user.has_group('base.group_assigner')  # REMEMBER TO REPLACE THIS
-        is_user_assignee = user.has_group('base.group_assignees')  # REMEMBER TO REPLACE THIS
+        is_user_assigner = user.has_group('base.group_assigner')
         is_user_checker = user.has_group('base.group_checker')
+        is_user_assignee = user.has_group('base.group_assignees')
 
         for task in self:
-            # Determine if the task is in an "editable" state based on the provided 'state' field values.
-            # '01_in_progress' and '04_waiting_normal' are the states that should allow editing.
-            is_in_editable_state = task.state in ['01_in_progress', '04_waiting_normal']
+            # 1) New (unsaved) record → allow editing only if user has create access
+            if not task.id:
+                try:
+                    self.env['project.task'].check_access('create')
+                    task.is_editable_to_user = True
+                except AccessError:
+                    task.is_editable_to_user = False
+                continue
 
-            # Rule 1: If the task is NOT in an editable state, it's immediately not editable.
-            if not is_in_editable_state:
+            # 2) Only specific states are editable (adjust order if admin/assigner should override states)
+            if task.state not in ['01_in_progress', '04_waiting_normal']:
                 task.is_editable_to_user = False
-                continue  # Move to the next task
+                continue
 
-            # Rule 2: Admins can always edit
+            # 3) Priority rules for existing records
             if is_user_admin:
                 task.is_editable_to_user = True
-            # Rule 3: Users in the 'Assigner' group (who assign tasks) can edit
-            elif is_user_assigner:
+                continue
+
+            # Guard create_uid before comparing — avoids failures for records without it
+            if is_user_assigner and task.create_uid and task.create_uid.id == user.id:
                 task.is_editable_to_user = True
-            # Rule 4: Users in the 'Checker' group (who check tasks) can edit
-            # This is the new rule that was missing!
-            elif is_user_checker:
+                continue
+
+            if is_user_checker and task.is_current_user_the_task_checker:
                 task.is_editable_to_user = True
-            # Rule 5: If the user is in the 'Assignees' group, they cannot edit (as per your requirement)
-            elif is_user_assignee:
+                continue
+
+            # 4) Assignees (explicitly assigned users) or members of assignee group -> read-only
+            if (is_user_assigner and user in task.user_ids) or (user in task.user_ids):
                 task.is_editable_to_user = False
-            # Rule 6: If the current user is a direct assignee of THIS task (in user_ids)
-            # but is not an admin, assigner, or checker group member
-            elif user in task.user_ids:
-                task.is_editable_to_user = False  # Still cannot edit if just an assignee
-            else:
-                # Default case for any other user
-                task.is_editable_to_user = False
+                continue
+
+            # Default
+            task.is_editable_to_user = False
 
     @api.depends_context('uid')
     def _compute_is_checker_field(self):
@@ -282,6 +288,15 @@ class ProjectTask(models.Model):
             _logger.info(f"Overriding state to: {current_vals['state']} (was not provided or was '01_in_progress')")
         else:
             _logger.info(f"State already provided in vals and is not '01_in_progress': {current_vals['state']}")
+
+        if current_vals.get('parent_id') and not current_vals.get('date_deadline'):
+            parent_task = self.browse(current_vals['parent_id'])
+            if parent_task.date_deadline:
+                current_vals['date_deadline'] = parent_task.date_deadline
+                _logger.info(
+                    f"Inheriting deadline {current_vals['date_deadline']} "
+                    f"from parent task ID {parent_task.id}"
+                )
 
         modified_vals_list.append(current_vals)
         # Call the original create method with the (potentially modified) vals
