@@ -451,7 +451,7 @@ class ProjectTask(models.Model):
         for task in self:
             if task.state == '03_approved':
                 raise UserError("You cannot delete a task that is in 'Approved' state.")
-        return super(ProjectTask, self).unlink()
+        return super(ProjectTask, self.with_context(force_unlink=True)).unlink()
 
     def action_accept_task(self):
         """
