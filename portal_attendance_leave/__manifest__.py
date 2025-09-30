@@ -6,6 +6,8 @@
     'data': [
         'views/portal_attendance.xml',
         'views/website_template.xml',
+        'views/payslip.xml',
+        'views/hr_employee.xml',
     ],
 
     'installable': True,

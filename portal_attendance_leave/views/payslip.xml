@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <template id="payroll.report_payslip">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div style="font-family:Arial, sans-serif; font-size:13px; width:800px; margin:auto; border:1px solid #000; padding:15px; background:#fff;">
+                    <!-- Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px;">
+                        <!-- Logo on the left -->
+                        <img t-att-src="request.httprequest.host_url + '/portal_attendance_leave/static/src/img/img.png'" alt="Company Logo" style="width: 110px;"/>
+
+                        <!-- Company Name and Address on the right -->
+                        <div style="text-align: center;">
+                            <h2 style="margin: 0; font-size: 18px;">RSD Polymers Pvt. Ltd.</h2>
+                            <p style="margin: 2px 0; font-size: 12px;">
+                                Sanjar Enclave, Office No. 601, Khahuria Tank Lane, Off. S. V. Road, Opp. PVR Milap Cinema,<br/>
+                                Kandivali West, Mumbai, Maharashtra 400067
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Title -->
+                    <div style="text-align:center; font-weight:bold; margin:8px 0; text-decoration:underline;">
+                        Pay Slip for September 2025
+                    </div>
+
+                    <!-- Employee Info -->
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Employee ID</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.barcode"/></td>
+                            <td style="border:1px solid #000; padding:5px;">UAN</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.uan"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Employee Name</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.name"/></td>
+                            <td style="border:1px solid #000; padding:5px;">PF No</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.pf_number"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Designation</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.job_id.name"/></td>
+                            <td style="border:1px solid #000; padding:5px;">ESI No</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.esi_number"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Department</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.department_id.name"/></td>
+                            <td style="border:1px solid #000; padding:5px;">Bank</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.bank_account_id.name if doc.employee_id.bank_account_id else 'HDFC'"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Date of Joining</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.date_of_joining"/></td>
+                            <td style="border:1px solid #000; padding:5px;">Account No</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="doc.employee_id.account_number"/></td>
+                        </tr>
+                    </table>
+
+                    <!-- Working Days -->
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Total Working Days</td>
+                            <td style="border:1px solid #000; padding:5px;">30</td>
+                            <td style="border:1px solid #000; padding:5px;">Paid Days</td>
+                            <td style="border:1px solid #000; padding:5px;">26</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Weekly Offs</td>
+                            <td style="border:1px solid #000; padding:5px;">4</td>
+                            <td style="border:1px solid #000; padding:5px;">Present Days</td>
+                            <td style="border:1px solid #000; padding:5px;">26</td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Leave Days</td>
+                            <td style="border:1px solid #000; padding:5px;">0</td>
+                            <td style="border:1px solid #000; padding:5px;">Balance PL</td>
+                            <td style="border:1px solid #000; padding:5px;">0</td>
+                        </tr>
+                    </table>
+
+                    <!-- Earnings and Deductions -->
+
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                        <tr>
+                            <th colspan="2" style="border:1px solid #000; padding:5px; background:#f2f2f2; text-align:left;">Earnings</th>
+                            <th colspan="2" style="border:1px solid #000; padding:5px; background:#f2f2f2; text-align:left;">Deductions</th>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Basic</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Basic Salary')"/></td>
+                            <td style="border:1px solid #000; padding:5px;">Provident Fund (PF)</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'PF')"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">HRA</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'HRA')"/></td>
+                            <td style="border:1px solid #000; padding:5px;">ESI</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'ESIC')"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Conveyance Allowance</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'CONVEYANCE')"/></td>
+                            <td style="border:1px solid #000; padding:5px;">Professional Tax</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Profession Tax')"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Medical Allowance</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'MEDICAL REIMB.')"/></td>
+                            <td style="border:1px solid #000; padding:5px;">TDS </td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'TDS')"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Other Allowances</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'OTH ALL')"/></td>
+                            <td style="border:1px solid #000; padding:5px;">Advance </td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Advance')"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">Over Time (OT)</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Over Time')"/></td>
+                            <td style="border:1px solid #000; padding:5px;">Loan</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Loan')"/></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px;">DA</td>
+                            <td style="border:1px solid #000; padding:5px;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'DA')"/></td>
+                            <td style="border:1px solid #000; padding:5px;"></td>
+                            <td style="border:1px solid #000; padding:5px;"></td>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #000; padding:5px; font-weight:bold;">Total Earnings</td>
+                            <td style="border:1px solid #000; padding:5px; font-weight:bold;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Taxable Salary')"/></td>
+                            <td style="border:1px solid #000; padding:5px; font-weight:bold;">Total Deductions</td>
+                            <td style="border:1px solid #000; padding:5px; font-weight:bold;"><t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Basic Salary' or line.name == 'PF' or line.name == 'ESIC' or line.name == 'Profession Tax' or line.name == 'TDS' or line.name == 'Advance' or line.name == 'Loan')"/></td>
+                        </tr>
+                    </table>
+
+                    <!-- Net Salary -->
+                    <div style="font-weight:bold; border-top:2px solid #000; padding-top:6px; margin-top:8px;">
+                        Net Salary: <t t-esc="sum(line.amount for line in doc.line_ids if line.name == 'Net Salary')"/>
+                    </div>
+
+                    <div style="margin-top:10px; font-size:12px; font-weight:bold;">
+                        Net Salary in Words: Forty-Four Thousand Sixty Only
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>
