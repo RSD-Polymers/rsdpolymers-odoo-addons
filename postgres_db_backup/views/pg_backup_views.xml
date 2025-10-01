@@ -1,0 +1,111 @@
+<odoo>
+    <!-- Access Rights -->
+    <record model="ir.module.category" id="module_category_gdrive_backup">
+        <field name="name">Google Drive Backup</field>
+        <field name="sequence">100</field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_gdrive_backup_config_form" model="ir.ui.view">
+        <field name="name">gdrive.backup.config.form</field>
+        <field name="model">gdrive.backup.config</field>
+        <field name="arch" type="xml">
+            <form string="Google Drive Backup Configuration">
+                <header>
+                    <button name="action_run_backup" string="Run Backup &amp; Upload Now" type="object"
+                            class="oe_highlight"
+                            confirm="Are you sure you want to run the database backup and upload to Google Drive now? This may take several minutes."
+                            groups="base.group_system"/>
+                    <button string="Authorize Google Drive"
+                            type="object"
+                            name="action_open_auth_url"
+                            class="btn-primary"
+                            help="Click here to authorize Odoo to access your Google Drive."
+                            invisible="not show_authorize_button"/>
+                    <field name="last_backup_status" widget="badge"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group string="Google Drive API Credentials">
+                        <p class="text-danger" colspan="2">
+                            * Note: You must manually perform the OAuth 2.0 flow once to obtain the Client ID, Client
+                            Secret, and Refresh Token.
+                            Ensure the Google Drive API is enabled and the scope
+                            'https://www.googleapis.com/auth/drive.file' is used.
+                        </p>
+                        <field name="client_id"/>
+                        <field name="client_secret"/>
+                        <field name="refresh_token" password="True"/>
+                        <field name="folder_id" help="The ID of the target folder in Google Drive (from the URL)."/>
+                    </group>
+                    <group string="Last Backup Information">
+                        <field name="last_backup_time"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_open_auth_url" model="ir.actions.server">
+        <field name="name">Open Google Auth URL</field>
+        <field name="model_id" ref="model_gdrive_backup_config"/>
+        <field name="binding_model_id" ref="model_gdrive_backup_config"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_open_auth_url()</field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_gdrive_backup_config_tree" model="ir.ui.view">
+        <field name="name">gdrive.backup.config.tree</field>
+        <field name="model">gdrive.backup.config</field>
+        <field name="arch" type="xml">
+            <list string="Backup Configurations">
+                <field name="name"/>
+                <field name="last_backup_time"/>
+                <field name="last_backup_status" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_gdrive_backup_config" model="ir.actions.act_window">
+        <field name="name">Google Drive Backups</field>
+        <field name="res_model">gdrive.backup.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem
+            id="menu_gdrive_backup_root"
+            name="Backup"
+            parent="base.menu_administration"
+            sequence="50"
+            groups="base.group_system"/>
+
+    <menuitem
+            id="menu_gdrive_backup_config"
+            name="Drive Configuration"
+            parent="menu_gdrive_backup_root"
+            action="action_gdrive_backup_config"
+            sequence="10"/>
+
+    <!-- Schedule the Action (Optional, for true automation) -->
+    <!-- You can uncomment this section to create a scheduled action that runs the backup daily -->
+    <!--
+    <record id="ir_cron_run_daily_backup" model="ir.cron">
+        <field name="name">Daily Google Drive Backup</field>
+        <field name="model_id" ref="model_gdrive_backup_config"/>
+        <field name="type">ir.actions.server</field>
+        <field name="state">code</field>
+        <field name="code">model.search([]).action_run_backup()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="doall">False</field>
+    </record>
+    -->
+</odoo>
