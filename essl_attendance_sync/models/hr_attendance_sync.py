@@ -134,7 +134,7 @@ class HRAttendanceCronMethods(models.Model):
 
         # Get the current time using standard Python library
         server_now_utc = datetime.now()
-        days_to_sync = 30
+        days_to_sync = 3
 
         # Calculate the end/start of the range in UTC
         to_datetime_utc = server_now_utc + timedelta(days=1)

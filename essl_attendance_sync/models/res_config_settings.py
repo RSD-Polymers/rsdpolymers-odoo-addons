@@ -8,7 +8,7 @@ class ResConfigSettings(models.TransientModel):
     essl_wsdl_url = fields.Char(
         string="eSSL WSDL URL",
         config_parameter='essl_attendance_sync.wsdl_url',
-        default='http://etime.esslsecurity.com/WebAPIService.asmx?wsdl',
+        default='http://www.esslcloud.com/rsd/WebAPIService.asmx?wsdl',
         help="The WSDL URL for the eSSL SOAP Web Service."
     )
     essl_user_name = fields.Char(
