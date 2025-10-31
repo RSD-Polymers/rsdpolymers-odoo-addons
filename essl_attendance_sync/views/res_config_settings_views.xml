@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="res_config_settings_view_form_inherit_essl_sync" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.essl.sync</field>
+            <field name="model">res.config.settings</field>
+            <field name="priority" eval="15"/>
+            <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+            <field name="arch" type="xml">
+
+                <!-- Target the same insertion point as your Tally module for consistent layout -->
+                <xpath expr="//div[@id='invite_users']" position="after">
+
+                    <div class="app_settings_block" data-string="eSSL Attendance Sync" string="eSSL Attendance Sync"
+                         data-key="essl_attendance_sync">
+
+                        <h2>eSSL API Configuration</h2>
+
+                        <div class="row mt16 o_settings_container">
+
+                            <!-- Box 1: eSSL WSDL URL (Top Left) -->
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">eSSL WSDL URL</span>
+                                    <div class="text-muted">
+                                        The WSDL URL for the eSSL SOAP Web Service.
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <field name="essl_wsdl_url"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Box 2: eSSL Username (Top Right) -->
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">eSSL Username</span>
+                                    <div class="text-muted">
+                                        The UserName parameter for GetTransactionsLog.
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <field name="essl_user_name"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Box 3: eSSL Password (Bottom Left) -->
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">eSSL Password</span>
+                                    <div class="text-muted">
+                                        The UserPassword parameter for GetTransactionsLog.
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <!-- password="True" hides the input for security -->
+                                            <field name="essl_password" password="True"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Box 4: eSSL Serial Number (Bottom Right) -->
+                            <div class="col-12 col-lg-6 o_setting_box">
+                                <div class="o_setting_right_pane">
+                                    <span class="o_form_label">eSSL Serial Number</span>
+                                    <div class="text-muted">
+                                        The SerialNumber parameter (comma-separated if multiple).
+                                    </div>
+                                    <div class="content-group">
+                                        <div class="mt16">
+                                            <field name="essl_serial_number"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
