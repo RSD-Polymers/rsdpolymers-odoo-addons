@@ -88,6 +88,32 @@ class SaleOrder(models.Model):
         help="Indicates if the current user is in the Production or Manufacturing department."
     )
 
+    def _confirmation_error_message(self):
+        """
+        Extends the core method to allow confirmation from the 'awaiting_readiness' state.
+        """
+        self.ensure_one()
+
+        # --- MODIFICATION START ---
+        # Add 'awaiting_readiness' to the list of allowed states
+        ALLOWED_STATES = {'draft', 'sent', 'awaiting_readiness'}
+
+        if self.state not in ALLOWED_STATES:
+            # You can return the original error message or a more specific one
+            return _("Some orders are not in a state requiring confirmation.")
+            # --- MODIFICATION END ---
+
+        # The rest of the original logic to check for missing products should remain.
+        if any(
+                not line.display_type
+                and not line.is_downpayment
+                and not line.product_id
+                for line in self.order_line
+        ):
+            return _("A line on these orders missing a product, you cannot confirm it.")
+
+        return False
+
     @api.depends('user_id.employee_id.department_id')
     def _compute_is_production_user_by_dept(self):
         """
@@ -225,7 +251,7 @@ class SaleOrder(models.Model):
                     raise UserError(
                         _("Please set the Material Readiness Date before creating a Manufacturing Order.")
                     )
-                lines_to_process = order.order_line.filtered(lambda l: l.is_out_of_stock)
+                lines_to_process = order.order_line.filtered(lambda l: l.is_out_of_stock and l.product_id.type in ('product', 'consu'))
                 _logger.info("SALES ORDER: lines_to_process for min_inventory: %s", lines_to_process.mapped('product_id.name'))
 
             if not lines_to_process:

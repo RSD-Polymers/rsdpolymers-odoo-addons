@@ -80,11 +80,11 @@
                     False)]
                 </attribute>
             </xpath>
-            <xpath expr="//button[@id='create_invoice']" position="attributes">
-                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',
-                    False)]
-                </attribute>
-            </xpath>
+<!--            <xpath expr="//button[@id='create_invoice']" position="attributes">-->
+<!--                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',-->
+<!--                    False)]-->
+<!--                </attribute>-->
+<!--            </xpath>-->
             <xpath expr="//button[@name='action_confirm']" position="after">
                 <button name="action_confirm_from_readiness"
                         type="object"

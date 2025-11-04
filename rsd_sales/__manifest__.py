@@ -9,11 +9,12 @@
         """,
     'author': 'RSD Polymer',
     'website': 'https://www.rsdpolymers.com/',
-    'depends': ['base', 'sale', 'sale_management', 'mrp'],
+    'depends': ['base', 'sale', 'sale_management', 'mrp', 'product'],
     'data': [
         #'views/sale_order_production_menu.xml',
         'views/sale_order_views.xml',
         'views/mrp_production_view.xml',
+        'views/product_views.xml',
     ],
     'installable': True,
     'application': False,
