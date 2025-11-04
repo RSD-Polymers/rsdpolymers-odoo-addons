@@ -28,6 +28,13 @@ class HREmployeeSync(models.Model):
     # Add a field to hr.employee to map to the biometric device's Employee ID
     essl_device_id = fields.Char(string="eSSL Device ID", copy=False, groups="hr.group_hr_user")
 
+    attendance_manager_id = fields.Many2one(
+        'res.users',
+        string="Attendance Manager",
+        groups="hr_attendance.group_hr_attendance_officer",  # 👈 add officer group here
+        help="The user set in Attendance will access the attendance of the employee "
+             "through the dedicated app and will be able to edit them.",
+    )
 
 # --- 2. Inheritance for hr.attendance (Hosts the Cron Job function) ---
 class HRAttendanceCronMethods(models.Model):
