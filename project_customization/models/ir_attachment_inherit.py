@@ -9,7 +9,7 @@ class IrAttachment(models.Model):
     _inherit = 'ir.attachment'
 
     def create(self, vals):
-        _logger.info("Attachment create method called with vals: %s", vals)
+        # _logger.info("Attachment create method called with vals: %s", vals)
 
         # Check if vals is a dictionary or a list of dictionaries
         if isinstance(vals, dict):
