@@ -1,11 +1,5 @@
 <odoo>
 
-    <!--    <template id="portal_template" inherit_id="website.layout" name="Template Header Default" active="True">-->
-    <!--    <xpath expr="//header//nav" position="inside">-->
-
-    <!--    </xpath>-->
-    <!--    </template>-->
-    <!-- Component Template -->
     <template id="CheckInRoot" name="Check-In Root Component">
         <div class="checkin-container owl">
             <div class="checkin-header">
@@ -32,7 +26,10 @@
 
                 <t t-if="worked_hours">
                     <div class="checkin-time">
-                        ⏱ Hours Worked: <strong><t t-esc="worked_hours"/></strong>
+                        ⏱ Hours Worked:
+                        <strong>
+                            <t t-esc="worked_hours"/>
+                        </strong>
                     </div>
                 </t>
             </t>
@@ -46,29 +43,33 @@
                 <div class="checkin-text">Click to check out</div>
 
                 <div class="checkin-time">
-                    ⏱ Hours Worked: <strong><t t-esc="worked_hours"/></strong>
+                    ⏱ Hours Worked:
+                    <strong>
+                        <t t-esc="worked_hours"/>
+                    </strong>
                 </div>
             </t>
         </div>
         <div class="action-buttons">
             <a href="/" class="action-link">
-                <i class="fa fa-home"></i> Home
+                <i class="fa fa-home"></i>
+                Home
             </a>
             <a href="/my/attendance-list" class="action-link">
-                <i class="fa fa-calendar-check"></i> Show Attendance
+                <i class="fa fa-calendar-check"></i>
+                Show Attendance
             </a>
             <a href="/my/timeoff" class="action-link">
-                <i class="fa fa-calendar-minus"></i> Show Leaves
+                <i class="fa fa-calendar-minus"></i>
+                Show Leaves
             </a>
         </div>
     </template>
 
-    <!-- Page Template -->
     <template id="checkin_screen_template" name="Employee Check-In Page">
         <t t-call="website.layout">
             <t t-set="title">Employee Check-In</t>
 
-            <!-- Style copied from your screenshot layout -->
             <style>
                 body {
                 background-color: #e2a85f;
@@ -184,10 +185,8 @@
 
             </style>
 
-            <!-- Component call -->
             <t t-call="portal_attendance_leave.CheckInRoot"/>
 
-            <!-- Font Awesome icons -->
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
         </t>
     </template>
@@ -273,9 +272,15 @@
                     <tbody>
                         <t t-foreach="records" t-as="att">
                             <tr>
-                                <td><t t-esc="att.check_in.date() if att.check_in else ''"/></td>
-                                <td><t t-esc="str(att.check_in) if att.check_in else '-'"/></td>
-                                <td><t t-esc="str(att.check_out) if att.check_out else '-'"/></td>
+                                <td>
+                                    <t t-esc="att.check_in.date() if att.check_in else ''"/>
+                                </td>
+                                <td>
+                                    <t t-esc="str(att.check_in) if att.check_in else '-'"/>
+                                </td>
+                                <td>
+                                    <t t-esc="str(att.check_out) if att.check_out else '-'"/>
+                                </td>
                                 <td>
                                     <t t-if="att.check_in and att.check_out">
                                         <t t-set="duration" t-value="att.check_out - att.check_in"/>
@@ -291,13 +296,16 @@
             </div>
             <div class="action-buttons">
                 <a href="/" class="action-link">
-                    <i class="fa fa-home"></i> Home
+                    <i class="fa fa-home"></i>
+                    Home
                 </a>
                 <a href="/my/attendance" class="action-link">
-                    <i class="fa fa-calendar-check"></i> Back to Check in/out
+                    <i class="fa fa-calendar-check"></i>
+                    Back to Check in/out
                 </a>
                 <a href="/my/timeoff" class="action-link">
-                    <i class="fa fa-calendar-minus"></i> Show Leaves
+                    <i class="fa fa-calendar-minus"></i>
+                    Show Leaves
                 </a>
             </div>
 
@@ -462,11 +470,21 @@
                     <tbody>
                         <t t-foreach="leaves" t-as="leave">
                             <tr>
-                                <td><t t-esc="leave.holiday_status_id.name"/></td>
-                                <td><t t-esc="str(leave.request_date_from)"/></td>
-                                <td><t t-esc="str(leave.request_date_to)"/></td>
-                                <td><t t-esc="leave.duration_display"/></td>
-                                <td><t t-esc="leave.state.capitalize()"/></td>
+                                <td>
+                                    <t t-esc="leave.holiday_status_id.name"/>
+                                </td>
+                                <td>
+                                    <t t-esc="str(leave.request_date_from)"/>
+                                </td>
+                                <td>
+                                    <t t-esc="str(leave.request_date_to)"/>
+                                </td>
+                                <td>
+                                    <t t-esc="leave.duration_display"/>
+                                </td>
+                                <td>
+                                    <t t-esc="leave.state.capitalize()"/>
+                                </td>
                             </tr>
                         </t>
                     </tbody>
@@ -474,13 +492,17 @@
             </div>
             <div class="action-buttons">
                 <a href="/" class="action-link">
-                    <i class="fa fa-home"></i> Home
+                    <i class="fa fa-home"></i>
+                    Home
                 </a>
                 <a href="/my/attendance" class="action-link">
-                    <i class="fa fa-calendar-check"></i> Back to Check in/out
+                    <i class="fa fa-calendar-check"></i>
+                    Back to Check in/out
                 </a>
-                <a href="#" class="action-link" onclick="document.getElementById('applyLeaveModal').style.display='block'">
-                    <i class="fa fa-calendar-minus"></i> Apply Leaves
+                <a href="#" class="action-link"
+                   onclick="document.getElementById('applyLeaveModal').style.display='block'">
+                    <i class="fa fa-calendar-minus"></i>
+                    Apply Leaves
                 </a>
             </div>
             <div id="applyLeaveModal" class="modal-overlay">
@@ -492,7 +514,9 @@
                         <label for="leave_type">Leave Type</label>
                         <select name="leave_type_id" class="form-input">
                             <t t-foreach="request.env['hr.leave.type'].sudo().search([])" t-as="type">
-                                <option t-att-value="type.id"><t t-esc="type.name"/></option>
+                                <option t-att-value="type.id">
+                                    <t t-esc="type.name"/>
+                                </option>
                             </t>
                         </select>
 
@@ -507,10 +531,202 @@
 
                         <div class="modal-actions">
                             <button type="submit" class="modal-btn submit-btn">Submit</button>
-                            <a href="#" onclick="document.getElementById('applyLeaveModal').style.display='none'" class="modal-btn cancel-btn">Cancel</a>
+                            <a href="#" onclick="document.getElementById('applyLeaveModal').style.display='none'"
+                               class="modal-btn cancel-btn">Cancel
+                            </a>
                         </div>
                     </form>
                 </div>
+            </div>
+
+        </t>
+    </template>
+
+    <template id="salary_slips_list_template" name="My Salary Slips List">
+        <t t-call="website.layout">
+            <t t-set="title">My Salary Slips</t>
+
+            <style>
+                /* 1. Apply the background color to the body */
+                body {
+                background-color: #e2a85f !important;
+                }
+
+                /* 2. Style the main content wrapper */
+                .o_portal_wrap {
+                padding-top: 50px;
+                padding-bottom: 50px;
+                }
+
+                /* 3. Style the inner white card container */
+                .payslip-container {
+                max-width: 1200px; /* INCREASED WIDTH HERE */
+                width: 95%; /* Increased width percentage for responsiveness */
+                margin: 0 auto; /* Essential for horizontal centering */
+                padding: 20px;
+                background-color: #ffffff !important;
+                border-radius: 12px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                }
+
+                /* 4. Remove conflicting Odoo alignment from the centering divs */
+                .d-flex, .justify-content-center {
+                display: block !important;
+                justify-content: initial !important;
+                }
+
+                /* Table styles retained for visual appeal */
+                .table th,
+                .table td {
+                vertical-align: middle;
+                }
+
+                /* Optional: Ensure table headers don't wrap too aggressively */
+                .table th {
+                white-space: nowrap;
+                }
+            </style>
+
+            <div class="o_portal_wrap">
+                <div class="payslip-container">
+                    <h2 class="text-center mb-4">My Salary Slips</h2>
+
+                    <t t-if="not payslips">
+                        <div class="alert alert-info text-center" role="alert">
+                            No confirmed, paid, draft, or waiting salary slips found for you.
+                        </div>
+                    </t>
+
+                    <t t-if="payslips">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Period</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="payslips" t-as="slip">
+                                        <tr>
+                                            <td>
+                                                <t t-esc="slip.name"/>
+                                            </td>
+                                            <td>
+                                                <span t-field="slip.date_from" t-options='{"widget": "date"}'/>
+                                                -
+                                                <span t-field="slip.date_to" t-options='{"widget": "date"}'/>
+                                            </td>
+                                            <td>
+                                                <span class="badge rounded-pill"
+                                                      t-att-class="{'bg-success': slip.state == 'done', 'bg-primary': slip.state == 'paid'}"
+                                                      t-esc="dict(slip._fields['state'].selection).get(slip.state)"/>
+                                            </td>
+                                            <td class="text-center">
+                                                <a t-attf-href="/my/salary-slips/{{ slip.id }}"
+                                                   class="btn btn-sm btn-primary">
+                                                    <i class="fa fa-eye"/>
+                                                    View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="salary_slip_detail_template" name="Salary Slip Details">
+        <t t-call="website.layout">
+            <t t-set="title">Salary Slip Detail</t>
+
+            <style>
+                /* REMOVED: .action-buttons { position: fixed; ... } and associated styles */
+
+                .slip-detail-container {
+                max-width: 700px;
+                margin: 40px auto;
+                padding: 30px;
+                background-color: #ffffff;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                font-family: 'Segoe UI', sans-serif;
+                }
+                .slip-detail-header {
+                border-bottom: 2px solid #eee;
+                padding-bottom: 15px;
+                margin-bottom: 20px;
+                }
+                .slip-info p {
+                margin-bottom: 5px;
+                font-size: 15px;
+                }
+                .download-section {
+                margin-top: 30px;
+                text-align: center;
+                }
+            </style>
+
+            <div class="o_portal_wrap">
+                <div class="d-flex justify-content-center">
+                    <div class="slip-detail-container">
+                        <div class="slip-detail-header">
+                            <h2>Salary Slip:
+                                <t t-esc="payslip.name"/>
+                            </h2>
+                        </div>
+
+                        <div class="slip-info">
+                            <p>
+                                <strong>Employee:</strong>
+                                <t t-esc="payslip.employee_id.name"/>
+                            </p>
+                            <p>
+                                <strong>Period:</strong>
+                                <span t-field="payslip.date_from" t-options='{"widget": "date"}'/>
+                                -
+                                <span t-field="payslip.date_to" t-options='{"widget": "date"}'/>
+                            </p>
+                            <p>
+                                <strong>Reference:</strong>
+                                <t t-esc="payslip.number or 'N/A'"/>
+                            </p>
+                            <p>
+                                <strong>Status:</strong>
+                                <span class="badge rounded-pill"
+                                      t-att-class="{'bg-success': payslip.state == 'done', 'bg-primary': payslip.state == 'paid'}"
+                                      t-esc="dict(payslip._fields['state'].selection).get(payslip.state)"/>
+                            </p>
+                        </div>
+
+                        <div class="download-section">
+                            <t t-if="payslip.state in ['done', 'paid']">
+                                <a t-attf-href="/my/salary-slips/pdf/{{ payslip.id }}" target="_blank"
+                                   class="btn btn-lg btn-danger"
+                                   style="background-color:#d93d3d; border-color:#d93d3d;">
+                                    <i class="fa fa-file-pdf"></i>
+                                    Download Payslip PDF
+                                </a>
+                            </t>
+                            <t t-else="">
+                                <p class="text-muted mt-3">PDF download is available once the payslip is confirmed.</p>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-4 mb-5">
+                <a href="/my/salary-slips" class="btn btn-primary">
+                    <i class="fa fa-chevron-left"></i>
+                    Back to List
+                </a>
             </div>
 
         </t>
