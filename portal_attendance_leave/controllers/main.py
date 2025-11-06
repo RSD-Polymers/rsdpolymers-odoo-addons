@@ -1,7 +1,7 @@
 import logging
 
 from odoo import fields, http, _
-from odoo.http import request
+from odoo.http import request, content_disposition
 from datetime import datetime, date, timedelta
 from odoo.addons.auth_totp.controllers.home import Home
 from werkzeug.utils import redirect
@@ -174,22 +174,37 @@ class PortalAttendanceLeaves(http.Controller):
     @http.route(['/my/salary-slips/pdf/<int:payslip_id>'], type='http', auth='user', website=True)
     def portal_salary_slip_pdf(self, payslip_id, **kw):
         """
-        Generate and return the PDF for a specific salary slip.
+        Generate and return the PDF for a specific salary slip by directly calling the report engine.
         """
         employee = self._get_employee()
         if not employee:
             return request.redirect('/my')
 
-        payslip = request.env['hr.payslip'].sudo().search([
-            ('id', '=', payslip_id),
-            ('employee_id', '=', employee.id)
-        ], limit=1)
+        payslip = request.env['hr.payslip'].sudo().browse(payslip_id)
 
-        if not payslip or payslip.state not in ['done', 'paid']:
+        if not payslip or payslip.employee_id.id != employee.id or payslip.state not in ['done', 'paid']:
             return request.redirect('/my/salary-slips')
 
-        # Get the PDF report action
-        report_action = request.env.ref('hr_payroll.action_report_payslip').sudo().report_action(payslip)
+        # 1. Get the Report Action Record using the XML ID and Sudo
+        # The XML ID for the payslip report action is typically 'hr_payroll.action_report_payslip'
+        report_action = request.env.ref('hr_payroll.action_report_payslip').sudo()
 
-        # Odoo 17+ uses report_action to return the content directly
-        return report_action
+        # 2. RENDER THE PDF CONTENT using the standard report generation engine
+        # This calls the low-level method that returns the PDF data.
+        # We explicitly pass the report type and model to avoid internal lookups passing lists.
+        pdf_content, content_type = request.env['ir.actions.report'].sudo()._render_qweb_pdf(
+            report_action,
+            payslip.ids,
+            data={}
+        )
+
+        # 3. Return the HTTP Response
+        payslip_name = payslip.name.replace('/', '_')  # Sanitize name for file
+        http_headers = [
+            ('Content-Type', 'application/pdf'),
+            ('Content-Length', len(pdf_content)),
+            # Force download with a clean filename
+            ('Content-Disposition', content_disposition(f"{payslip_name}.pdf")),
+        ]
+
+        return request.make_response(pdf_content, headers=http_headers)
