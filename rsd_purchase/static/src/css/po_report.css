@@ -1,0 +1,25 @@
+/* po_report.css (Ensure your file contains these rules) */
+
+/* Apply full border collapse and a minimum font size for fitting */
+.po_table {
+    width: 100%;
+    border-collapse: collapse; /* Critical for continuous borders */
+    font-size: 10pt;          /* Often necessary to fit on one page */
+}
+
+/* Apply borders to the table itself, all cells, and headers */
+.po_table, .po_table td, .po_table th {
+    border: 1px solid black !important;
+    padding: 4px;
+    vertical-align: top;
+}
+
+/* Ensure text alignment for data presentation */
+.po_table td.text-right {
+    text-align: right;
+}
+
+/* Ensure headers are centered */
+.po_table thead th.text-center {
+    text-align: center;
+}
