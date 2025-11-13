@@ -138,39 +138,26 @@ class HRAttendanceCronMethods(models.Model):
             return
 
         # 2. CALCULATE DATE RANGE (Last N FULL DAYS, Converted to IST for API)
-
-        # Get the current time using standard Python library
         server_now_utc = datetime.now()
         days_to_sync = 3
-
-        # Calculate the end/start of the range in UTC
         to_datetime_utc = server_now_utc + timedelta(days=1)
         to_datetime_utc = to_datetime_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         from_datetime_utc = to_datetime_utc - timedelta(days=days_to_sync)
 
-        # Convert the UTC date range to IST before formatting the string for the API call
         if pytz:
             ist_tz = pytz.timezone('Asia/Kolkata')
-
-            # Localize the naive UTC datetimes and convert them to IST datetimes
             from_dt_ist = pytz.utc.localize(from_datetime_utc, is_dst=None).astimezone(ist_tz)
             to_dt_ist = pytz.utc.localize(to_datetime_utc, is_dst=None).astimezone(ist_tz)
-
-            # Format the IST date strings to send to the API
             from_dt_str = from_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
             to_dt_str = to_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
         else:
-            # Fallback to UTC if pytz is missing
             from_dt_str = from_datetime_utc.strftime("%Y-%m-%dT%H:%M:%S")
             to_dt_str = to_datetime_utc.strftime("%Y-%m-%dT%H:%M:%S")
 
         _logger.info(f"Syncing logs from {from_dt_str} to {to_dt_str} (Last {days_to_sync} full days)")
 
         try:
-            # 3. CALL THE ESSL SOAP API
             client = Client(wsdl_url)
-
-            # The API call payload
             response = client.service.GetTransactionsLog(
                 FromDateTime=from_dt_str,
                 ToDateTime=to_dt_str,
@@ -180,10 +167,6 @@ class HRAttendanceCronMethods(models.Model):
                 strDataList=''
             )
 
-            # --- FIX: Drill down to the strDataList as identified by the user ---
-
-            # 1. Access the main result wrapper
-            # --- CRITICAL FIX: Handle both Zeep object & dict responses properly ---
             if isinstance(response, dict):
                 response_data = response.get('GetTransactionsLogResult')
                 log_data_list = response.get('strDataList')
@@ -193,8 +176,8 @@ class HRAttendanceCronMethods(models.Model):
 
             log_count = 0
             str_message = "Unknown"
+            _logger.info(f"✅ ESSL API Response: {log_data_list}")
 
-            # Handle case where GetTransactionsLogResult gives only the log count
             if isinstance(response_data, str) and 'Logs Count:' in response_data:
                 try:
                     log_count = int(response_data.split(':')[1].strip())
@@ -202,11 +185,8 @@ class HRAttendanceCronMethods(models.Model):
                 except Exception:
                     _logger.warning(f"Could not parse log count from response: {response_data}")
 
-            # Handle missing data list
             if not log_data_list:
-                _logger.warning(
-                    f"eSSL API reported {log_count} logs but strDataList missing. Response = {response}"
-                )
+                _logger.warning(f"eSSL API reported {log_count} logs but strDataList missing. Response = {response}")
                 return
 
             if not log_data_list or log_count == 0:
@@ -214,7 +194,6 @@ class HRAttendanceCronMethods(models.Model):
                     f"eSSL API returned no attendance logs for the period. Message: {str_message}. Count: {log_count}")
                 return
 
-            # Handle the unauthorized/error response if it was a single log line
             if log_data_list == 'Unathorised User':
                 _logger.error(f"eSSL API returned an error: {log_data_list}. Check Username/Password in Odoo Settings.")
                 return
@@ -226,17 +205,35 @@ class HRAttendanceCronMethods(models.Model):
             _logger.error(f"General error during SOAP call: {e}")
             return
 
+        # ✅ 3A. AUTO-CLOSE STALE OPEN ATTENDANCES BEFORE PROCESSING NEW LOGS
+        try:
+            stale_threshold = datetime.now() - timedelta(hours=16)  # 16-hour rule (customize as needed)
+            stale_open_attendances = self.env['hr.attendance'].search([
+                ('check_out', '=', False),
+                ('check_in', '<', stale_threshold)
+            ])
+            _logger.info(f"Found {len(stale_open_attendances)} stale open attendances to auto-close.")
+
+            for attendance in stale_open_attendances:
+                # Safely close it at end of that day (23:59:59 of check-in date)
+                close_time = attendance.check_in.replace(hour=23, minute=59, second=59)
+                attendance.write({'check_out': close_time})
+                _logger.info(f"Auto-closed stale attendance for {attendance.employee_id.name} "
+                             f"from {attendance.check_in} → {close_time}.")
+        except Exception as e:
+            _logger.error(f"Error while auto-closing stale open attendances: {e}")
+
         # 4. PARSE THE ATTENDANCE LOG DATA
-
         _logger.info(
-            f"Received {len(log_data_list)} characters of raw log data containing {log_count} punches. Starting parsing...")
+            f"Received {len(log_data_list)} characters of raw log data containing {log_count} punches. Starting parsing..."
+        )
 
-        # Logs are separated by '^'
         logs = log_data_list.replace('\r\n', '\n').replace('\r', '\n').split('\n')
         logs = [line.strip() for line in logs if line.strip()]
 
         _logger.info(
-            f"Received {len(log_data_list)} chars of raw log data. Log parser found {len(logs)} individual punch lines to process...")
+            f"Received {len(log_data_list)} chars of raw log data. Log parser found {len(logs)} individual punch lines to process..."
+        )
 
         parsed_punches = []
         employee_obj = self.env['hr.employee']
@@ -247,10 +244,7 @@ class HRAttendanceCronMethods(models.Model):
                 continue
 
             try:
-                # Splitting fields based on format: DeviceID|EmployeeID|Timestamp|Status (0/1)
                 fields_data = log_line.strip().split('\t')
-
-                # We expect exactly 4 fields for this specific eSSL format
                 if len(fields_data) < 2:
                     _logger.warning(f"Skipping malformed log (field count < 2): {log_line}")
                     continue
@@ -258,28 +252,18 @@ class HRAttendanceCronMethods(models.Model):
                 employee_device_id = fields_data[0]
                 punch_time_str = fields_data[1].strip()
                 punch_status = '0'
-                # Parse the raw timestamp (It is in IST/Local Time)
                 punch_datetime = datetime.strptime(punch_time_str, "%Y-%m-%d %H:%M:%S")
 
-                # --- TIMEZONE CONVERSION: Convert Local (IST) Punch Time to UTC for Odoo ---
-                punch_time_utc = punch_datetime  # Default fallback
-
+                punch_time_utc = punch_datetime
                 if pytz:
                     ist = pytz.timezone('Asia/Kolkata')
-                    # Localize the naive datetime object (assuming it is IST)
                     local_punch_datetime = ist.localize(punch_datetime, is_dst=None)
-                    # Convert it to UTC
                     punch_time_utc = local_punch_datetime.astimezone(pytz.utc).replace(tzinfo=None)
 
-                # Check for employee mapping (using the custom essl_device_id field)
-                employee = employee_obj.search([
-                    ('essl_device_id', '=', employee_device_id)
-                ], limit=1)
-
+                employee = employee_obj.search([('essl_device_id', '=', employee_device_id)], limit=1)
                 if not employee:
                     _logger.warning(
-                        f"No Odoo Employee found for Device ID: {employee_device_id}. Skipping punch at {punch_time_str}."
-                    )
+                        f"No Odoo Employee found for Device ID: {employee_device_id}. Skipping punch at {punch_time_str}.")
                     continue
 
                 parsed_punches.append({
