@@ -116,10 +116,11 @@ class HRAttendanceCronMethods(models.Model):
         return True
 
     @api.model
+    @api.model
     def sync_essl_attendance_logs(self):
         """
-        The main method executed by the Scheduled Action (Cron Job).
-        Fetches attendance logs from eSSL cloud API and creates Odoo hr.attendance records.
+        Fetches attendance logs from all configured eSSL devices and creates Odoo hr.attendance records.
+        Supports multiple devices by reading comma-separated serial numbers from Odoo config.
         """
         if not Client:
             raise UserError(_("The 'zeep' library is required but not installed on the Odoo server."))
@@ -131,13 +132,14 @@ class HRAttendanceCronMethods(models.Model):
         wsdl_url = config_param.get_param('essl_attendance_sync.wsdl_url')
         username = config_param.get_param('essl_attendance_sync.username')
         password = config_param.get_param('essl_attendance_sync.password')
-        serial_number = config_param.get_param('essl_attendance_sync.serial_number')
+        serial_numbers_str = config_param.get_param('essl_attendance_sync.serial_number', '')
 
-        if not all([wsdl_url, username, password, serial_number]):
-            _logger.error("eSSL synchronization failed: Configuration parameters missing in Settings.")
+        serial_numbers = [s.strip() for s in serial_numbers_str.split(',') if s.strip()]
+        if not all([wsdl_url, username, password]) or not serial_numbers:
+            _logger.error("eSSL synchronization failed: Missing configuration parameters or Serial Numbers.")
             return
 
-        # 2. CALCULATE DATE RANGE (Last N FULL DAYS, Converted to IST for API)
+        # 2. CALCULATE DATE RANGE (Last N FULL Days, Converted to IST for API)
         server_now_utc = datetime.now()
         days_to_sync = 3
         to_datetime_utc = server_now_utc + timedelta(days=1)
@@ -156,58 +158,51 @@ class HRAttendanceCronMethods(models.Model):
 
         _logger.info(f"Syncing logs from {from_dt_str} to {to_dt_str} (Last {days_to_sync} full days)")
 
-        try:
-            client = Client(wsdl_url)
-            response = client.service.GetTransactionsLog(
-                FromDateTime=from_dt_str,
-                ToDateTime=to_dt_str,
-                SerialNumber=serial_number,
-                UserName=username,
-                UserPassword=password,
-                strDataList=''
-            )
+        all_logs = []
 
-            if isinstance(response, dict):
-                response_data = response.get('GetTransactionsLogResult')
-                log_data_list = response.get('strDataList')
-            else:
-                response_data = getattr(response, 'GetTransactionsLogResult', None)
-                log_data_list = getattr(response, 'strDataList', None)
+        # 3. LOOP THROUGH ALL SERIAL NUMBERS
+        for serial_number in serial_numbers:
+            _logger.info(f"Fetching logs from device: {serial_number}")
+            try:
+                client = Client(wsdl_url)
+                response = client.service.GetTransactionsLog(
+                    FromDateTime=from_dt_str,
+                    ToDateTime=to_dt_str,
+                    SerialNumber=serial_number,
+                    UserName=username,
+                    UserPassword=password,
+                    strDataList=''
+                )
 
-            log_count = 0
-            str_message = "Unknown"
-            _logger.info(f"✅ ESSL API Response: {log_data_list}")
+                if isinstance(response, dict):
+                    log_data_list = response.get('strDataList')
+                else:
+                    log_data_list = getattr(response, 'strDataList', None)
 
-            if isinstance(response_data, str) and 'Logs Count:' in response_data:
-                try:
-                    log_count = int(response_data.split(':')[1].strip())
-                    str_message = response_data
-                except Exception:
-                    _logger.warning(f"Could not parse log count from response: {response_data}")
+                if not log_data_list:
+                    _logger.warning(f"No logs returned from device {serial_number}. Skipping.")
+                    continue
+                if log_data_list == 'Unathorised User':
+                    _logger.error(f"Unauthorized access for device {serial_number}. Check credentials.")
+                    continue
 
-            if not log_data_list:
-                _logger.warning(f"eSSL API reported {log_count} logs but strDataList missing. Response = {response}")
-                return
+                logs = log_data_list.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+                logs = [line.strip() for line in logs if line.strip()]
+                all_logs.extend(logs)
+                _logger.info(f"Fetched {len(logs)} logs from device {serial_number}")
 
-            if not log_data_list or log_count == 0:
-                _logger.info(
-                    f"eSSL API returned no attendance logs for the period. Message: {str_message}. Count: {log_count}")
-                return
+            except Fault as e:
+                _logger.error(f"SOAP Fault while fetching logs from device {serial_number}: {e}")
+            except Exception as e:
+                _logger.error(f"Error fetching logs from device {serial_number}: {e}")
 
-            if log_data_list == 'Unathorised User':
-                _logger.error(f"eSSL API returned an error: {log_data_list}. Check Username/Password in Odoo Settings.")
-                return
-
-        except Fault as e:
-            _logger.error(f"SOAP Fault while calling GetTransactionsLog: {e}")
-            return
-        except Exception as e:
-            _logger.error(f"General error during SOAP call: {e}")
+        if not all_logs:
+            _logger.info("No attendance logs found from any devices. Exiting sync.")
             return
 
-        # ✅ 3A. AUTO-CLOSE STALE OPEN ATTENDANCES BEFORE PROCESSING NEW LOGS
+        # 4. AUTO-CLOSE STALE OPEN ATTENDANCES BEFORE PROCESSING NEW LOGS
         try:
-            stale_threshold = datetime.now() - timedelta(hours=16)  # 16-hour rule (customize as needed)
+            stale_threshold = datetime.now() - timedelta(hours=16)
             stale_open_attendances = self.env['hr.attendance'].search([
                 ('check_out', '=', False),
                 ('check_in', '<', stale_threshold)
@@ -215,38 +210,25 @@ class HRAttendanceCronMethods(models.Model):
             _logger.info(f"Found {len(stale_open_attendances)} stale open attendances to auto-close.")
 
             for attendance in stale_open_attendances:
-                # Safely close it at end of that day (23:59:59 of check-in date)
                 close_time = attendance.check_in.replace(hour=23, minute=59, second=59)
                 attendance.write({'check_out': close_time})
                 _logger.info(f"Auto-closed stale attendance for {attendance.employee_id.name} "
                              f"from {attendance.check_in} → {close_time}.")
         except Exception as e:
-            _logger.error(f"Error while auto-closing stale open attendances: {e}")
+            _logger.error(f"Error auto-closing stale attendances: {e}")
 
-        # 4. PARSE THE ATTENDANCE LOG DATA
-        _logger.info(
-            f"Received {len(log_data_list)} characters of raw log data containing {log_count} punches. Starting parsing..."
-        )
-
-        logs = log_data_list.replace('\r\n', '\n').replace('\r', '\n').split('\n')
-        logs = [line.strip() for line in logs if line.strip()]
-
-        _logger.info(
-            f"Received {len(log_data_list)} chars of raw log data. Log parser found {len(logs)} individual punch lines to process..."
-        )
-
+        # 5. PARSE ALL LOGS
         parsed_punches = []
         employee_obj = self.env['hr.employee']
         processed_logs_count = 0
 
-        for log_line in logs:
+        for log_line in all_logs:
             if not log_line:
                 continue
-
             try:
                 fields_data = log_line.strip().split('\t')
                 if len(fields_data) < 2:
-                    _logger.warning(f"Skipping malformed log (field count < 2): {log_line}")
+                    _logger.warning(f"Skipping malformed log: {log_line}")
                     continue
 
                 employee_device_id = fields_data[0]
@@ -278,9 +260,10 @@ class HRAttendanceCronMethods(models.Model):
             except Exception as e:
                 _logger.error(f"Error processing log line: {log_line}. Error: {e}")
 
-        _logger.info(f"Successfully parsed {processed_logs_count} valid punches from {len(logs)} raw log lines.")
+        _logger.info(f"Successfully parsed {processed_logs_count} valid punches from {len(all_logs)} raw log lines.")
 
-        # 5. CREATE OR UPDATE ODOO ATTENDANCE RECORDS
+        # 6. CREATE OR UPDATE ODOO ATTENDANCE RECORDS
         self._create_or_update_attendance(parsed_punches)
 
         _logger.info("--- eSSL Attendance Synchronization finished ---")
+
