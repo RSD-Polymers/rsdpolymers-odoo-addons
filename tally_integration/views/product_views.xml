@@ -1,0 +1,16 @@
+<odoo>
+    <record id="product_template_form_inherit_tally" model="ir.ui.view">
+        <field name="name">product.template.form.tally.mapping</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Insert after the income account -->
+            <xpath expr="//field[@name='property_account_income_id']" position="after">
+                <field name="tally_sales_ledger_id"/>
+                <field name="tally_purchase_ledger_id"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

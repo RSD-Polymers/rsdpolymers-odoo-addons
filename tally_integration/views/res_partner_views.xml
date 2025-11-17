@@ -1,0 +1,17 @@
+<odoo>
+    <record id="view_partner_form_inherit_tally_mapping" model="ir.ui.view">
+        <field name="name">res.partner.form.tally.mapping</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add Tally Mapping Section after receivable/payable fields -->
+            <xpath expr="//field[@name='property_account_receivable_id']" position="after">
+                <field name="tally_receivable_account_id"/>
+                <field name="tally_payable_account_id"/>
+                <field name="tally_sales_account_id"/>
+                <field name="tally_purchase_account_id"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

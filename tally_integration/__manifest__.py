@@ -11,7 +11,7 @@
         based data push to Tally with SOAP request.
         """,
     'author': 'RSD Polymer',
-    'website': 'http://www.yourwebsite.com',
+    'website': 'https://www.rsdpolymers.com/',
     'depends': ['account', 'base', 'l10n_in'],
     'data': [
         'security/ir.model.access.csv',
@@ -22,6 +22,9 @@
         'views/tally_ledger_group_views.xml',
         'wizard/tally_import_wizard_views.xml',
         'views/tally_partner_staging_views.xml',
+        'views/res_partner_views.xml',
+        'views/product_views.xml',
+        'views/account_tax_views.xml',
     ],
     'installable': True,
     'application': False,

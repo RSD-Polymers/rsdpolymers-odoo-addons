@@ -272,7 +272,7 @@ class TallyImportWizard(models.TransientModel):
           </BODY>
         </ENVELOPE>
         """
-
+        print(xml_payload)
         headers = {"Content-Type": "application/xml"}
 
         try:
@@ -315,7 +315,7 @@ class TallyImportWizard(models.TransientModel):
                     _logger.warning(f"Skipping group '{name}' due to missing GUID")
                     continue
 
-                is_primary_group = parent_name.strip().lower() in ('primary', 'primary group')
+                is_primary_group = parent_name.lower() in ('primary', 'primary group')
 
                 vals = {
                     'name': name,
@@ -468,7 +468,7 @@ class TallyImportWizard(models.TransientModel):
                         _logger.warning(f"Tally Group '{parent_name}' not found in Odoo for ledger '{name}'. "
                                         "Please import Tally Groups first or ensure the group exists.")
                 parent_name = html.unescape(parent_name)
-                parent_name = parent_name.strip()
+                # parent_name = parent_name.strip()
                 # Determine Odoo Account Type
                 odoo_account_type = _get_odoo_account_type(parent_name)
                 if not odoo_account_type:
@@ -708,7 +708,7 @@ class TallyImportWizard(models.TransientModel):
                                                                               1].text is not None else ''
 
                     if name:
-                        name = name.strip()
+                        name = html.unescape(name)
 
                     gstin = party_gstin.strip() if party_gstin else ''
 
@@ -721,7 +721,7 @@ class TallyImportWizard(models.TransientModel):
                     _logger.debug(
                         f"Tally GST Type: {gst_registration_type_tally}, Mapped Odoo GST Treatment: {gst_treatment_odoo}")
 
-                    parent_group_lower = parent_group.lower().strip() if parent_group else ''
+                    parent_group_lower = parent_group.lower() if parent_group else ''
                     is_customer = 'sundry debtors' in parent_group_lower or 'debtors' in parent_group_lower
                     is_vendor = 'sundry creditors' in parent_group_lower or 'creditors' in parent_group_lower
 

@@ -26,20 +26,8 @@ class AccountMove(models.Model):
         help="Response received from Tally after pushing the entry."
     )
 
-    # Computed fields for button visibility
-    show_push_to_tally_button = fields.Boolean(
-        string="Show Push Button",
-        compute='_compute_tally_button_visibility',
-        store=False,  # No need to store in DB
-    )
-
     tally_guid = fields.Char(string="Tally GUID", copy=False, readonly=True, index=True,
                              help="Unique Identifier for the voucher in TallyPrime for import/alteration purposes.")
-
-    @api.depends('state', 'posted_to_tally')
-    def _compute_tally_button_visibility(self):
-        for move in self:
-            move.show_push_to_tally_button = move.state == 'posted' and not move.posted_to_tally
 
     def _get_tally_connection_details(self):
         ICPSudo = self.env['ir.config_parameter'].sudo()
@@ -55,334 +43,600 @@ class AccountMove(models.Model):
         return tally_company_name, tally_host, tally_port, tally_xml_path
 
     def _generate_tally_xml(self, move, tally_action, voucher_guid):
+        """Generate Tally XML for Journal Entries and Customer Invoices"""
 
-        invoice = move
-        if not invoice.exists():
-            raise ValidationError('Invoice not found.')
+        if not move.exists():
+            raise ValidationError("Move not found.")
 
-        if not invoice.invoice_date:
-            raise ValidationError(f"Invoice {invoice.name} does not have an invoice date.")
+        # CRITICAL: move.name must be the final sequence number here.
+        if not move.name or move.name == '/':
+            raise ValidationError(f"Move name is not yet assigned for entry with ID {move.id}.")
 
-        invoice_date_str = invoice.invoice_date.strftime('%Y%m%d')
-        party = invoice.partner_id.name
-        party.replace('&', '&amp;')
-        # Total invoice amount for the customer (debit)
-        amount_total = f"{invoice.amount_total:.2f}"
+        if not move.date:
+            raise ValidationError(f"Move {move.name} does not have a date.")
 
-        narration = f'Invoice {invoice.name} from Odoo Testing'
-        if narration.find('&') != -1:
-            narration = narration.replace('&', '&amp;')
-        if narration.find("'") != -1:
-            narration = narration.replace("'", '&apos;')
-        if narration.find('"') != -1:
-            narration = narration.replace('"', '&quot;')
-        if narration.find('–') != -1:
-            narration = narration.replace('–', '-')
+        move_date_str = move.date.strftime('%Y%m%d')
+        narration = move.ref or move.name or "Odoo Entry"
+
+        # --- Escape narration for XML ---
+        if narration:
+            narration = (
+            narration.replace("&", "&amp;")
+                     .replace("'", "&apos;")
+                     .replace('"', "&quot;")
+                     .replace("–", "-")
+        )
 
         tally_company_name, _, _, _ = self._get_tally_connection_details()
-        print(tally_company_name)
-        # --- Start dynamic LEDGERENTRIES.LIST generation ---
+
         ledger_entries_xml_parts = []
 
-        # 1. Party/Customer Ledger Entry (Debit)
-        # This is typically the first entry and represents the total amount receivable from the customer.
-        ledger_entries_xml_parts.append(f"""
+        # ==============================
+        # CASE 1: Journal Entries (Salary, Manual JVs, etc.)
+        # ==============================
+        if move.move_type == 'entry':
+            for line in move.line_ids.filtered(lambda l: l.account_id):
+                if not line.account_id.name:
+                    continue
+
+                ledger_name = line.account_id.name.replace("&", "&amp;")
+                is_debit = line.debit > 0
+                amount = line.debit if is_debit else line.credit
+
+                ledger_entries_xml_parts.append(f"""
+                    <LEDGERENTRIES.LIST>
+                        <LEDGERNAME>{ledger_name}</LEDGERNAME>
+                        <ISDEEMEDPOSITIVE>{"Yes" if is_debit else "No"}</ISDEEMEDPOSITIVE>
+                        <AMOUNT>{'-' if is_debit else ''}{amount:.2f}</AMOUNT>
+                    </LEDGERENTRIES.LIST>
+                """)
+
+            voucher_type = "Journal"
+            party = ""  # Not needed for journal entries
+
+        # ==============================
+        # CASE 2: Customer Invoices (Sales)
+        # ==============================
+        elif move.move_type == 'out_invoice':
+            invoice = move
+            if not invoice.invoice_date:
+                raise ValidationError(f"Invoice {invoice.name} does not have an invoice date.")
+
+            invoice_date_str = invoice.invoice_date.strftime('%Y%m%d')
+            party = invoice.partner_id.name.replace("&", "&amp;").replace("\n", " ").replace("\r", "").strip()
+            amount_total = f"{invoice.amount_total:.2f}"
+
+            # 1. Customer Ledger (Debit)
+            ledger_entries_xml_parts.append(f"""
                 <LEDGERENTRIES.LIST>
-                    <OLDAUDITENTRYIDS.LIST TYPE="Number">
-                        <OLDAUDITENTRYIDS>-1</OLDAUDITENTRYIDS>
-                    </OLDAUDITENTRYIDS.LIST>
                     <LEDGERNAME>{party}</LEDGERNAME>
                     <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
                     <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
-                    <ISLASTDEEMEDPOSITIVE>Yes</ISLASTDEEMEDPOSITIVE>
                     <AMOUNT>-{amount_total}</AMOUNT>
                     <BILLALLOCATIONS.LIST>
                         <NAME>{invoice.name}</NAME>
-                        <BILLCREDITPERIOD P="30 Days">30 Days</BILLCREDITPERIOD>
                         <BILLTYPE>New Ref</BILLTYPE>
                         <AMOUNT>-{amount_total}</AMOUNT>
                     </BILLALLOCATIONS.LIST>
                 </LEDGERENTRIES.LIST>
-                """)
+            """)
 
-        # 2. Product/Service Ledger Entries (Credit)
-        # Group amounts by actual sales/service ledger (e.g., 'Inter State Sale', 'Transportation Charges - (Inter State)')
-        # This handles multiple product lines dynamically.
-        sales_ledgers_amounts = {}
-        for line in invoice.invoice_line_ids.filtered(lambda l: l.display_type == 'product'):
-            ledger_name = line.account_id.name  # Assuming Odoo account name matches Tally ledger name
-            # Escape ledger name for XML
-            ledger_name = ledger_name.replace('&', '&amp;')
-            sales_ledgers_amounts[ledger_name] = sales_ledgers_amounts.get(ledger_name, 0.0) + line.price_subtotal
+            # 2. Sales Ledger(s) (Credit)
+            sales_ledgers_amounts = {}
+            for line in invoice.invoice_line_ids.filtered(lambda l: l.display_type == 'product'):
+                ledger_name = line.account_id.name.replace("&", "&amp;")
+                sales_ledgers_amounts[ledger_name] = sales_ledgers_amounts.get(ledger_name, 0.0) + line.price_subtotal
 
-        for ledger_name, amount in sales_ledgers_amounts.items():
-            if amount > 0:  # Only include if there's an actual amount
+            for ledger_name, amount in sales_ledgers_amounts.items():
                 ledger_entries_xml_parts.append(f"""
                     <LEDGERENTRIES.LIST>
-                        <OLDAUDITENTRYIDS.LIST TYPE="Number">
-                            <OLDAUDITENTRYIDS>-1</OLDAUDITENTRYIDS>
-                        </OLDAUDITENTRYIDS.LIST>
                         <LEDGERNAME>{ledger_name}</LEDGERNAME>
                         <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                        <ISLASTDEEMEDPOSITIVE>No</ISLASTDEEMEDPOSITIVE>
-                        <ISPARTYLEDGER>No</ISPARTYLEDGER>
                         <AMOUNT>{amount:.2f}</AMOUNT>
-                        <VATEXPAMOUNT>{amount:.2f}</VATEXPAMOUNT>
                     </LEDGERENTRIES.LIST>
-                        """)
+                """)
 
-        # 3. Tax Ledger Entries (Credit)
-        # Consolidate tax amounts by tax ledger (e.g., 'Output IGST', 'Output CGST')
-        consolidated_taxes = {}
-        # Iterate over all account.move.line records, specifically looking for tax lines
-        # In Odoo, tax lines have display_type == 'tax' and usually a specific account_id.
-        for line in invoice.line_ids.filtered(lambda l: l.display_type == 'tax' and l.account_id):
-            tax_ledger_name = "Output IGST Maharashtra"  # Assuming Odoo tax account name matches Tally ledger name
-            # Escape tax ledger name for XML
-            tax_ledger_name = tax_ledger_name.replace('&', '&amp;')
-            consolidated_taxes[tax_ledger_name] = consolidated_taxes.get(tax_ledger_name, 0.0) + abs(line.balance)
+            # 3. Tax Ledger(s) (Credit)
+            consolidated_taxes = {}
+            for line in invoice.line_ids.filtered(lambda l: l.display_type == 'tax' and l.account_id):
+                tax_ledger_name = line.account_id.name.replace("&", "&amp;")
+                consolidated_taxes[tax_ledger_name] = consolidated_taxes.get(tax_ledger_name, 0.0) + abs(line.balance)
 
-        for tax_ledger_name, amount in consolidated_taxes.items():
-            if amount > 0:  # Only include if there's an actual tax amount
+            for tax_ledger_name, amount in consolidated_taxes.items():
                 ledger_entries_xml_parts.append(f"""
                     <LEDGERENTRIES.LIST>
-                        <OLDAUDITENTRYIDS.LIST TYPE="Number">
-                            <OLDAUDITENTRYIDS>-1</OLDAUDITENTRYIDS>
-                        </OLDAUDITENTRYIDS.LIST>
-                        <APPROPRIATEFOR>GST</APPROPRIATEFOR>
-                        <GSTAPPROPRIATETO>Goods and Services</GSTAPPROPRIATETO>
                         <LEDGERNAME>{tax_ledger_name}</LEDGERNAME>
                         <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
-                        <ISPARTYLEDGER>No</ISPARTYLEDGER>
                         <AMOUNT>{amount:.2f}</AMOUNT>
-                        <VATEXPAMOUNT>{amount:.2f}</VATEXPAMOUNT>
                     </LEDGERENTRIES.LIST>
-                        """)
+                """)
 
-        # Join all generated LEDGERENTRIES.LIST parts
+            voucher_type = "Sales"
+
+        # ==============================
+        # CASE 3: Vendor Bills (Purchase)
+        # ==============================
+        elif move.move_type == 'in_invoice':
+            invoice = move
+
+            if not invoice.invoice_date:
+                raise ValidationError(f"Vendor Bill {invoice.name} does not have an invoice date.")
+
+            invoice_date_str = invoice.invoice_date.strftime('%Y%m%d')
+
+            party = (
+                invoice.partner_id.name.replace("&", "&amp;")
+                .replace("\n", " ").replace("\r", "").strip()
+            )
+
+            amount_total = f"{invoice.amount_total:.2f}"
+
+            # ----------------------------------------
+            # 1. Vendor Ledger (Credit)
+            # ----------------------------------------
+            # Vendor is always credited in purchase voucher
+            ledger_entries_xml_parts.append(f"""
+                       <LEDGERENTRIES.LIST>
+                           <LEDGERNAME>{party}</LEDGERNAME>
+                           <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                           <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+                           <AMOUNT>{amount_total}</AMOUNT>
+                           <BILLALLOCATIONS.LIST>
+                               <NAME>{invoice.name}</NAME>
+                               <BILLTYPE>New Ref</BILLTYPE>
+                               <AMOUNT>{amount_total}</AMOUNT>
+                           </BILLALLOCATIONS.LIST>
+                       </LEDGERENTRIES.LIST>
+                   """)
+
+            # ----------------------------------------
+            # 2. Purchase Ledger(s) (Debit)
+            # ----------------------------------------
+            purchase_ledgers_amounts = {}
+
+            for line in invoice.invoice_line_ids.filtered(lambda l: l.display_type == 'product'):
+                ledger_name = line.account_id.name.replace("&", "&amp;")
+                purchase_ledgers_amounts[ledger_name] = (
+                        purchase_ledgers_amounts.get(ledger_name, 0.0) + line.price_subtotal
+                )
+
+            for ledger_name, amount in purchase_ledgers_amounts.items():
+                ledger_entries_xml_parts.append(f"""
+                           <LEDGERENTRIES.LIST>
+                               <LEDGERNAME>{ledger_name}</LEDGERNAME>
+                               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                               <AMOUNT>-{amount:.2f}</AMOUNT>
+                           </LEDGERENTRIES.LIST>
+                       """)
+
+            # ----------------------------------------
+            # 3. Tax Ledger(s) (Debit)
+            # ----------------------------------------
+            consolidated_taxes = {}
+
+            for line in invoice.line_ids.filtered(lambda l: l.display_type == 'tax' and l.account_id):
+                ledger_name = line.account_id.name.replace("&", "&amp;")
+                consolidated_taxes[ledger_name] = (
+                        consolidated_taxes.get(ledger_name, 0.0) + abs(line.balance)
+                )
+
+            for ledger_name, amount in consolidated_taxes.items():
+                ledger_entries_xml_parts.append(f"""
+                           <LEDGERENTRIES.LIST>
+                               <LEDGERNAME>{ledger_name}</LEDGERNAME>
+                               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                               <AMOUNT>-{amount:.2f}</AMOUNT>
+                           </LEDGERENTRIES.LIST>
+                       """)
+
+            voucher_type = "Purchase"
+
+        else:
+            raise ValidationError(f"Tally XML generation not implemented for move type {move.move_type}")
+
         all_ledger_entries_xml = "\n".join(ledger_entries_xml_parts)
-        # --- End dynamic LEDGERENTRIES.LIST generation ---
 
+        # ==============================
+        # Final XML Build
+        # ==================================
         xml_string = f"""
-                <ENVELOPE>
-                    <HEADER>
-                        <TALLYREQUEST>Import Data</TALLYREQUEST>
-                    </HEADER>
-                    <BODY>
-                        <IMPORTDATA>
-                            <REQUESTDESC>
-                                <REPORTNAME>Vouchers</REPORTNAME>
-                                <STATICVARIABLES>
-                                    <SVCURRENTCOMPANY>{tally_company_name}</SVCURRENTCOMPANY>
-                                </STATICVARIABLES>
-                            </REQUESTDESC>
-                            <REQUESTDATA>
-                                <TALLYMESSAGE xmlns:UDF="TallyUDF">
-                                    <VOUCHER REMOTEID="{voucher_guid}"
-                                             VCHKEY="{voucher_guid}"
-                                             VCHTYPE="Sales"
-                                             ACTION="{tally_action}"
-                                             OBJVIEW="Invoice Voucher View">
-                                             <OLDAUDITENTRYIDS.LIST TYPE="Number">
-                                                <OLDAUDITENTRYIDS>-1</OLDAUDITENTRYIDS>
-                                            </OLDAUDITENTRYIDS.LIST>
-                                        <DATE>{invoice_date_str}</DATE>
-                                        <REFERENCEDATE>{invoice_date_str}</REFERENCEDATE>
-                                        <VCHSTATUSDATE>{invoice_date_str}</VCHSTATUSDATE>
-                                        <GUID>{voucher_guid}</GUID>
-                                        <NARRATION>{narration}</NARRATION>
-                                        <VCHSTATUSDATE>{invoice_date_str}</VCHSTATUSDATE>
-                                        <ENTEREDBY>{self.env.user.name}</ENTEREDBY>
-                                        <PARTYGSTIN>{invoice.partner_id.vat}</PARTYGSTIN>
-                                        <OBJECTUPDATEACTION>{tally_action}</OBJECTUPDATEACTION>
-                                        <PARTYNAME>{party}</PARTYNAME>
-                                        <VOUCHERTYPENAME>Sales</VOUCHERTYPENAME>
-                                        <PARTYLEDGERNAME>{party}</PARTYLEDGERNAME>
-                                        <VOUCHERNUMBER>{invoice.name}</VOUCHERNUMBER>
-                                        <BASICBUYERNAME>{party}</BASICBUYERNAME>
-                                        <REFERENCE>{invoice.name}</REFERENCE>
-                                        <PARTYMAILINGNAME>{party}</PARTYMAILINGNAME>
-                                        <UPDATEDDATETIME>{invoice.write_date.strftime('%Y%m%d%H%M%S000') if invoice.write_date else invoice_date_str + '000000000'}</UPDATEDDATETIME>
-                                        <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
-                                        <ISINVOICE>Yes</ISINVOICE>
-                                        <EFFECTIVEDATE>{invoice_date_str}</EFFECTIVEDATE>
-                                        <ISGSTOVERRIDDEN>No</ISGSTOVERRIDDEN>
-                                        <IGNOREGSTVALIDATION>No</IGNOREGSTVALIDATION>
-                                        <VCHGSTSTATUSISINCLUDED>Yes</VCHGSTSTATUSISINCLUDED>
-                                        <VCHGSTSTATUSISAPPLICABLE>Yes</VCHGSTSTATUSISAPPLICABLE>
-
-                                        {all_ledger_entries_xml} </VOUCHER>
-                                </TALLYMESSAGE>
-                            </REQUESTDATA>
-                        </IMPORTDATA>
-                    </BODY>
-                </ENVELOPE>
-            """
+            <ENVELOPE>
+                <HEADER>
+                    <TALLYREQUEST>Import Data</TALLYREQUEST>
+                </HEADER>
+                <BODY>
+                    <IMPORTDATA>
+                        <REQUESTDESC>
+                            <REPORTNAME>Vouchers</REPORTNAME>
+                            <STATICVARIABLES>
+                                <SVCURRENTCOMPANY>{tally_company_name}</SVCURRENTCOMPANY>
+                            </STATICVARIABLES>
+                        </REQUESTDESC>
+                        <REQUESTDATA>
+                            <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                                <VOUCHER REMOTEID="{voucher_guid}"
+                                         VCHKEY="{voucher_guid}"
+                                         VCHTYPE="{voucher_type}"
+                                         ACTION="{tally_action}"
+                                         OBJVIEW="Invoice Voucher View">
+                                    <DATE>{move_date_str}</DATE>
+                                    <EFFECTIVEDATE>{move_date_str}</EFFECTIVEDATE>
+                                    <GUID>{voucher_guid}</GUID>
+                                    <NARRATION>{narration}</NARRATION>
+                                    <ENTEREDBY>{self.env.user.name}</ENTEREDBY>
+                                    <VOUCHERTYPENAME>{voucher_type}</VOUCHERTYPENAME>
+                                    <VOUCHERNUMBER>{move.name}</VOUCHERNUMBER>
+                                    <REFERENCE>{move.name}</REFERENCE>
+                                    <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
+                                    <ISINVOICE>{"Yes" if move.move_type == 'out_invoice' else "No"}</ISINVOICE>
+                                    {f"<PARTYLEDGERNAME>{party}</PARTYLEDGERNAME>" if party else ""}
+                                    {f"<PARTYNAME>{party}</PARTYNAME>" if party else ""}
+                                    {all_ledger_entries_xml}
+                                </VOUCHER>
+                            </TALLYMESSAGE>
+                        </REQUESTDATA>
+                    </IMPORTDATA>
+                </BODY>
+            </ENVELOPE>
+        """
         return xml_string
 
-    def action_push_to_tally(self):
+    def _push_to_tally_core(self):
+        """
+        Core function to push a move to Tally. Returns a tuple (success, message, guid).
+        Does NOT perform any database writes.
+        """
         self.ensure_one()
         move = self
-
-        current_tally_response_text = ""
-        error_occurred = False  # Flag to indicate if an error happened
-        error_message_for_user = ""  # Message to display to the user
-
-        if move.state != 'posted':
-            # This is a pre-check, can still raise UserError directly as it's not a network error
-            raise exceptions.UserError(
-                _(f"Invoice {move.name}: Only posted accounting entries can be pushed to Tally."))
-
-        tally_action = 'Create'
         voucher_guid = move.tally_guid
+        tally_action = "Alter"
+
+        # Check the move name BEFORE generating XML (it should have been set in _post)
+        if not move.name or move.name == '/':
+            # This should ideally not happen if _post is fixed, but it's a safety net
+            return (False, f"Invoice number not yet assigned for Odoo move ID {move.id}.", None)
 
         if not voucher_guid:
-            voucher_guid = str(str(self.id) + "-" + self.name[:3])
-            tally_action = 'Create'
-        else:
-            tally_action = 'Alter'
-
-        tally_company_name, tally_host, tally_port, tally_xml_path = self._get_tally_connection_details()
-        tally_url = f"http://{tally_host}:{tally_port}"
-        headers = {'Content-Type': 'application/xml'}
-
-        xml_data = self._generate_tally_xml(move, tally_action, voucher_guid)
-        _logger.info("Generated Tally XML for %s (Action: %s, GUID: %s):\n%s", move.name, tally_action, voucher_guid,
-                     xml_data)
+            # We use the final assigned move.name to ensure the GUID is somewhat unique and traceable
+            voucher_guid = str(move.id)
+            tally_action = "Create"
 
         try:
-            if tally_xml_path:
-                file_path = f"{tally_xml_path}/tally_entry_{move.name.replace('/', '_')}.xml"
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(xml_data)
-                _logger.info("Tally XML saved to: %s", file_path)
+            xml_data = self._generate_tally_xml(
+                move=move,
+                tally_action=tally_action,
+                voucher_guid=voucher_guid
+            )
 
-            response = requests.post(tally_url, data=xml_data.encode('utf-8'), headers=headers)
-            response.raise_for_status()
+            _logger.info(f"Tally XML for entry {move.name}:\n{xml_data}")
 
-            tally_response_xml = response.text
-            current_tally_response_text = tally_response_xml
-            _logger.info("Tally Raw Response for %s: %s", move.name, tally_response_xml)
+            # Push to Tally
+            tally_company_name, tally_host, tally_port, tally_xml_path = self._get_tally_connection_details()
+            tally_url = f"http://{tally_host}:{tally_port}"
+            headers = {'Content-Type': 'application/xml'}
+            response = requests.post(tally_url, data=xml_data.encode("utf-8"), headers=headers, timeout=60)
+            tally_response_xml = response.text or ""
+
+            if response.status_code != 200:
+                message = f"Tally returned HTTP {response.status_code}: {response.text}"
+                return (False, message, None)
 
             root = ET.fromstring(tally_response_xml)
-
             created_element = root.find(".//CREATED")
             altered_element = root.find(".//ALTERED")
             errors_element = root.find(".//ERRORS")
             line_error_element = root.find(".//LINEERROR")
 
-            is_successful_tally_response = False
-            error_details_from_tally = None
-
             if line_error_element is not None and line_error_element.text:
-                error_details_from_tally = line_error_element.text
-                is_successful_tally_response = False
-            elif errors_element is not None and errors_element.text and int(errors_element.text) > 0:
-                error_details_from_tally = f"Tally reported {errors_element.text} errors."
-                is_successful_tally_response = False
-            elif created_element is not None and created_element.text == '1':
-                success_message_from_tally = f"Invoice {move.name} is Successfully Created/Altered in Tally Prime."
-                is_successful_tally_response = True
-            elif altered_element is not None and altered_element.text == '1':
-                success_message_from_tally = f"Invoice {move.name} is Successfully Created/Altered in Tally Prime."
-                is_successful_tally_response = True
+                message = f"Tally reported a line error: {line_error_element.text}"
+                return (False, message, None)
+            elif errors_element is not None and int(errors_element.text) > 0:
+                message = f"Tally reported {errors_element.text} errors."
+                return (False, message, None)
+            elif (created_element is not None and created_element.text == '1') or \
+                    (altered_element is not None and altered_element.text == '1'):
+                success_message = f"Invoice {move.name} is Successfully Created/Altered in Tally Prime."
+                return (True, success_message, voucher_guid)
             else:
-                success_message_from_tally = f"Tally response is ambiguous (HTTP 200, but no clear success/error tags). Assuming successful operation. Raw response: {tally_response_xml}"
-                _logger.warning(
-                    f"Tally response for {move.name} is ambiguous (HTTP 200, but no clear success/error tags). Assuming success for now. Raw response: {tally_response_xml}")
-                is_successful_tally_response = True
+                message = f"Tally response is ambiguous. Raw response: {tally_response_xml}"
+                return (False, message, None)
 
-            if is_successful_tally_response:
-                current_tally_response_text = success_message_from_tally
-                write_vals = {
-                    'posted_to_tally': True,
-                    'tally_response': current_tally_response_text
-                }
-                if tally_action == 'Create':
-                    write_vals['tally_guid'] = voucher_guid
-                move.write(write_vals)  # Main transaction write
-
-                # Return success notification with reload
-                return {
-                    "type": "ir.actions.client",
-                    "tag": "display_notification",
-                    "params": {
-                        "title": "Success",
-                        "message": f"Invoice {move.name} successfully pushed to Tally Prime as {tally_action}.",
-                        "type": "success",
-                        "sticky": False,
-                        "next": {
-                            "type": "ir.actions.client",
-                            "tag": "reload",
-                        }
-                    }
-                }
-            else:
-                error_msg_display = error_details_from_tally if error_details_from_tally else "Tally response indicates an unknown error."
-                error_message_for_user = f"Failed to push Invoice '{move.name}' to Tally. Details: {error_msg_display}."  # Simpler message for user
-                _logger.error(
-                    f"{error_message_for_user} Raw response: {current_tally_response_text}")  # Full details in log
-                error_occurred = True
-
-        except requests.exceptions.HTTPError as err:
-            current_tally_response_text = err.response.text if err.response is not None else str(err)
-            error_message_for_user = f"Failed to push Invoice '{move.name}' to Tally. HTTP Error: {err.response.status_code}."
-            _logger.error(f"{error_message_for_user} Raw response: {current_tally_response_text}")
-            error_occurred = True
-
-        except requests.exceptions.ConnectionError:
-            current_tally_response_text = "Connection Error: Could not connect to Tally. Check Tally host and port settings, and ensure Tally is running and accessible."
-            error_message_for_user = f"Failed to push Invoice '{move.name}' to Tally. Could not connect to Tally."
-            _logger.error(error_message_for_user)
-            error_occurred = True
-
+        except requests.exceptions.RequestException as e:
+            message = f"Network error connecting to Tally: {str(e)}"
+            return (False, message, None)
         except ET.ParseError as e:
-            raw_response_for_log = tally_response_xml if 'tally_response_xml' in locals() else 'No XML received'
-            current_tally_response_text = f"XML Parse Error: {e}. Raw received: {raw_response_for_log}"
-            error_message_for_user = f"Failed to parse Tally XML response for Invoice '{move.name}'."
-            _logger.error(f"{error_message_for_user} Raw response: {current_tally_response_text}")
-            error_occurred = True
-
+            message = f"Failed to parse Tally's XML response: {str(e)}"
+            return (False, message, None)
         except Exception as e:
-            current_tally_response_text = f"An unexpected error occurred: {e}"
-            error_message_for_user = f"An unexpected error occurred while pushing Invoice '{move.name}' to Tally."
-            _logger.exception(f"{error_message_for_user} Details: {e}")
-            error_occurred = True
+            message = f"An unexpected error occurred: {str(e)}"
+            return (False, message, None)
 
-        finally:
-            # This finally block will execute even if an error occurred above.
-            # It's responsible for persisting the tally_response, whether success or error.
-            if error_occurred:
-                new_cr = None
-                try:
-                    # Use a new cursor to commit the tally_response independently
-                    new_cr = self.env.registry.cursor()
-                    move_sudo = self.with_env(self.env(cr=new_cr)).browse(move.id)
-                    move_sudo.tally_response = current_tally_response_text
-                    new_cr.commit()
-                except Exception as e_inner:
-                    _logger.error(f"Failed to save tally_response in separate transaction: {e_inner}")
-                    if new_cr:
-                        new_cr.rollback()
-                finally:
-                    if new_cr:
-                        new_cr.close()
+    def action_push_to_tally(self):
+        self.ensure_one()
+        success, message, new_guid = self._push_to_tally_core()
 
-        if error_occurred:
-            # Instead of raising UserError, return a notification with reload
+        write_vals = {
+            'tally_response': message,
+        }
+        if success:
+            write_vals['posted_to_tally'] = True
+            if new_guid:
+                write_vals['tally_guid'] = new_guid
+
+        self.write(write_vals)
+
+        if success:
             return {
                 "type": "ir.actions.client",
                 "tag": "display_notification",
                 "params": {
-                    "title": "Error",
-                    "message": error_message_for_user,  # Show the simplified message to the user
-                    "type": "danger",
-                    "sticky": True,  # Keep it on screen until user dismisses
+                    "title": "Success",
+                    "message": message,
+                    "type": "success",
+                    "sticky": False,
                     "next": {
                         "type": "ir.actions.client",
-                        "tag": "reload",  # This will refresh the form
+                        "tag": "reload",
                     }
                 }
             }
-        # This point should not be reached if success or error is handled
-        return {}
+        else:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Tally Push Error",
+                    "message": message,
+                    "type": "danger",
+                    "sticky": True,
+                    "next": {
+                        "type": "ir.actions.client",
+                        "tag": "reload",
+                    }
+                }
+            }
+
+    # def _post(self, soft=True):
+    #     """
+    #     Overridden _post method — posts normally first, then pushes to Tally afterward.
+    #     Guarantees that move.name (invoice number) is already assigned.
+    #     """
+    #     # --- First, call Odoo's standard posting logic ---
+    #     res = super()._post(soft=soft)
+    #
+    #     for move in self:
+    #         # Skip Tally push for opening balance entries
+    #         is_opening_balance_entry = (
+    #                 move.move_type == 'entry'
+    #                 and 'Tally Prime Opening Balances as of' in (move.ref or '')
+    #         )
+    #         if is_opening_balance_entry:
+    #             _logger.info(
+    #                 f"Skipping Tally push for Journal Entry {move.name}. "
+    #                 f"Detected Tally Prime Opening Balances entry."
+    #             )
+    #             move.posted_to_tally = True
+    #             continue
+    #
+    #         # Only push if not already pushed
+    #         if not move.posted_to_tally:
+    #             _logger.info(f"Pushing {move.name} to Tally after successful post.")
+    #             success, message, new_guid = move._push_to_tally_core()
+    #
+    #             write_vals = {'tally_response': message}
+    #             if success:
+    #                 write_vals['posted_to_tally'] = True
+    #                 if new_guid:
+    #                     write_vals['tally_guid'] = new_guid
+    #                 _logger.info(f"Tally push successful for {move.name}.")
+    #             else:
+    #                 _logger.error(f"Tally push failed for {move.name}: {message}")
+    #
+    #             move.write(write_vals)
+    #
+    #             # Optional: Notify the user if push failed (non-blocking)
+    #             if not success:
+    #                 move.message_post(
+    #                     body=f"<b>Tally Push Failed:</b><br/>{message}",
+    #                     subtype_xmlid="mail.mt_note",
+    #                 )
+    #
+    #     return res
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        moves = super().create(vals_list)
+        # after creation ensure mapping is applied for move lines
+        for move in moves:
+            move._apply_tally_account_mapping()
+        return moves
+
+    def _apply_tally_account_mapping(self):
+        """Apply mapping for existing move lines. Debug-version: logs and messages changes."""
+        for move in self:
+            if move.move_type not in ('in_invoice', 'out_invoice'):
+                continue
+
+            _logger.info("TALLY-MAP: Applying mapping for move %s (id=%s)", move.name, move.id)
+            debug_msgs = []
+
+            # PRODUCT LINES
+            for line in move.line_ids.filtered(lambda l: l.product_id and l.account_id):
+                before_acc = line.account_id.name or False
+                applied = False
+                if move.move_type == 'in_invoice':
+                    if move.partner_id and getattr(move.partner_id, 'tally_purchase_account_id', False):
+                        line.write({'account_id': move.partner_id.tally_purchase_account_id.id})
+                        applied = True
+                        debug_msgs.append(
+                            f"Product line {line.id}: used partner.tally_purchase_account_id -> {move.partner_id.tally_purchase_account_id.name}")
+                    elif getattr(line.product_id, 'tally_purchase_ledger_id', False):
+                        line.write({'account_id': line.product_id.tally_purchase_ledger_id.id})
+                        applied = True
+                        debug_msgs.append(
+                            f"Product line {line.id}: used product.tally_purchase_ledger_id -> {line.product_id.tally_purchase_ledger_id.name}")
+                else:  # out_invoice
+                    if move.partner_id and getattr(move.partner_id, 'tally_sales_account_id', False):
+                        line.write({'account_id': move.partner_id.tally_sales_account_id.id})
+                        applied = True
+                        debug_msgs.append(
+                            f"Product line {line.id}: used partner.tally_sales_account_id -> {move.partner_id.tally_sales_account_id.name}")
+                    elif getattr(line.product_id, 'tally_sales_ledger_id', False):
+                        line.write({'account_id': line.product_id.tally_sales_ledger_id.id})
+                        applied = True
+                        debug_msgs.append(
+                            f"Product line {line.id}: used product.tally_sales_ledger_id -> {line.product_id.tally_sales_ledger_id.name}")
+
+                if not applied:
+                    debug_msgs.append(
+                        f"Product line {line.id}: no product/partner mapping; left account '{before_acc}'")
+
+            # PAYABLE / RECEIVABLE LINES
+            payable_lines = move.line_ids.filtered(
+                lambda l: l.account_id and l.account_id.account_type == 'liability_payable'
+            )
+            receivable_lines = move.line_ids.filtered(
+                lambda l: l.account_id and l.account_id.account_type == 'asset_receivable'
+            )
+
+            if getattr(move.partner_id, 'tally_payable_account_id', False):
+                for pl in payable_lines:
+                    before = pl.account_id.name
+                    pl.write({'account_id': move.partner_id.tally_payable_account_id.id})
+                    debug_msgs.append(
+                        f"Payable line {pl.id}: replaced '{before}' -> '{move.partner_id.tally_payable_account_id.name}'")
+
+            if getattr(move.partner_id, 'tally_receivable_account_id', False):
+                for rl in receivable_lines:
+                    before = rl.account_id.name
+                    rl.write({'account_id': move.partner_id.tally_receivable_account_id.id})
+                    debug_msgs.append(
+                        f"Receivable line {rl.id}: replaced '{before}' -> '{move.partner_id.tally_receivable_account_id.name}'")
+
+            # TAX LINES - robust detection for pre/post posting
+            for tline in move.line_ids:
+                # snapshot before
+                before_acc = tline.account_id.name if tline.account_id else False
+                dt = tline.display_type or ''
+                tax_ids = [t.name for t in tline.tax_ids] if tline.tax_ids else []
+                tax_line = getattr(tline, 'tax_line_id', False)
+                tax_line_name = tax_line.name if tax_line else False
+
+                # Try pre-post mapping: display_type == 'tax' and tax_ids
+                if tline.display_type == 'tax' and tline.tax_ids:
+                    tax = tline.tax_ids[0]
+                    if getattr(tax, 'tally_tax_account_id', False):
+                        tline.write({'account_id': tax.tally_tax_account_id.id})
+                        debug_msgs.append(
+                            f"Tax-line {tline.id} (pre-post): tax {tax.name} -> wrote account {tax.tally_tax_account_id.name}")
+                        continue
+                    else:
+                        debug_msgs.append(
+                            f"Tax-line {tline.id} (pre-post): tax {tax.name} has no tally mapping; left '{before_acc}'")
+
+                # Try post mapping: tax_line_id set
+                if tax_line:
+                    tax = tax_line
+                    if getattr(tax, 'tally_tax_account_id', False):
+                        tline.write({'account_id': tax.tally_tax_account_id.id})
+                        debug_msgs.append(
+                            f"Tax-line {tline.id} (post): tax {tax.name} -> wrote account {tax.tally_tax_account_id.name}")
+                    else:
+                        debug_msgs.append(
+                            f"Tax-line {tline.id} (post): tax {tax.name} has no tally mapping; left '{before_acc}'")
+
+            # Push debug messages to log and chatter for quick inspection
+            for m in debug_msgs:
+                _logger.info("TALLY-MAP DEBUG: %s", m)
+
+            # Add a compact message to the move chatter (limit length)
+            short_msg = "<br/>".join(debug_msgs[:30])
+            if short_msg:
+                try:
+                    move.message_post(body=f"<b>Tally mapping debug:</b><br/>{short_msg}", subtype_xmlid="mail.mt_note")
+                except Exception:
+                    _logger.exception("Failed to post debug message on move %s", move.id)
+
+    def action_post(self):
+        # --- Pre-mapping ---
+        for move in self:
+            try:
+                move._recompute_dynamic_lines(recompute_all_taxes=True)
+            except Exception:
+                pass
+
+            move._apply_tally_account_mapping()
+
+        # --- Standard posting ---
+        res = super().action_post()
+
+        # after res = super().action_post()
+        for move in self:
+            for line in move.line_ids:
+                # Pre-post tax rows: display_type == 'tax'
+                if line.display_type == 'tax' and line.tax_ids:
+                    tax = line.tax_ids[0]
+                    if getattr(tax, 'tally_tax_account_id', False):
+                        _logger.info("TALLY-FORCE: move %s line %s pre-post tax %s -> writing account %s", move.name,
+                                     line.id, tax.name, tax.tally_tax_account_id.name)
+                        try:
+                            line.write({'account_id': tax.tally_tax_account_id.id})
+                        except Exception:
+                            _logger.exception("Failed to write tax account for line %s", line.id)
+
+                # Post-post tax rows: tax_line_id
+                if getattr(line, 'tax_line_id', False):
+                    tax = line.tax_line_id
+                    if getattr(tax, 'tally_tax_account_id', False):
+                        _logger.info("TALLY-FORCE: move %s line %s post tax %s -> writing account %s", move.name,
+                                     line.id, tax.name, tax.tally_tax_account_id.name)
+                        try:
+                            line.write({'account_id': tax.tally_tax_account_id.id})
+                        except Exception:
+                            _logger.exception("Failed to write tax account for line %s", line.id)
+
+                # Payable/receivable ensure using account_type (Odoo 18)
+                if line.account_id and line.account_id.account_type == 'liability_payable' and getattr(move.partner_id,
+                                                                                                       'tally_payable_account_id',
+                                                                                                       False):
+                    try:
+                        line.write({'account_id': move.partner_id.tally_payable_account_id.id})
+                    except Exception:
+                        _logger.exception("Failed to write payable account for line %s", line.id)
+                if line.account_id and line.account_id.account_type == 'asset_receivable' and getattr(move.partner_id,
+                                                                                                      'tally_receivable_account_id',
+                                                                                                      False):
+                    try:
+                        line.write({'account_id': move.partner_id.tally_receivable_account_id.id})
+                    except Exception:
+                        _logger.exception("Failed to write receivable account for line %s", line.id)
+            return res
+
+    def _get_default_credit_account(self):
+        self.ensure_one()
+        partner = self.partner_id
+
+        # If vendor has Tally Payable mapping, use it
+        if partner.tally_payable_account_id:
+            return partner.tally_payable_account_id
+
+        # Otherwise fallback to Odoo default logic
+        return super()._get_default_credit_account()
+
+    def _recompute_dynamic_lines(self, recompute_all_taxes=False, **kwargs):
+        """
+        After Odoo computes tax lines, we replace their account with Tally mapped account.
+        """
+        res = super()._recompute_dynamic_lines(
+            recompute_all_taxes=recompute_all_taxes, **kwargs
+        )
+
+        # After tax lines are computed, ensure tax lines use the mapped tally tax ledger
+        for move in self:
+            for line in move.line_ids.filtered(lambda l: l.tax_line_id):
+                tax = line.tax_line_id
+                if tax and getattr(tax, 'tally_tax_account_id', False):
+                    line.account_id = tax.tally_tax_account_id
+
+        return res
+

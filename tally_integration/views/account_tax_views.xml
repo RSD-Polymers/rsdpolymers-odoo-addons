@@ -1,0 +1,14 @@
+<odoo>
+    <record id="account_tax_form_inherit_tally" model="ir.ui.view">
+        <field name="name">account.tax.form.tally.mapping</field>
+        <field name="model">account.tax</field>
+        <field name="inherit_id" ref="account.view_tax_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="Tally Mapping">
+                    <field name="tally_tax_account_id"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

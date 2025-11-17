@@ -8,7 +8,7 @@
                 <xpath expr="//button[@name='action_post']" position="after">
                     <button name="action_push_to_tally" type="object"
                             string="Push to Tally"
-                            invisible="show_push_to_tally_button == False"
+                            invisible="state != 'posted' or posted_to_tally == True"
                             class="oe_highlight"
                             help="Push this accounting entry to Tally ERP/Prime."/>
                 </xpath>
