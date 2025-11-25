@@ -9,6 +9,20 @@ from odoo.api import Environment
 
 _logger = logging.getLogger(__name__)  # Initialize logger
 
+MESSAGE_MAP = {
+    'out_invoice': "Sales Invoice {num} is Successfully Created/Altered in Tally Prime.",
+    'in_invoice': "Purchase Invoice {num} is Successfully Created/Altered in Tally Prime.",
+    'entry': "Journal Entry {num} is Successfully Created/Altered in Tally Prime.",
+}
+
+def _get_tally_success_message(move):
+
+    template = MESSAGE_MAP.get(
+        move.move_type,
+        "Document {num} is Successfully Created/Altered in Tally Prime."
+    )
+    return template.format(num=move.name)
+
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
@@ -56,7 +70,7 @@ class AccountMove(models.Model):
             raise ValidationError(f"Move {move.name} does not have a date.")
 
         move_date_str = move.date.strftime('%Y%m%d')
-        narration = move.ref or move.name or "Odoo Entry"
+        narration = move.narration
 
         # --- Escape narration for XML ---
         if narration:
@@ -75,24 +89,46 @@ class AccountMove(models.Model):
         # CASE 1: Journal Entries (Salary, Manual JVs, etc.)
         # ==============================
         if move.move_type == 'entry':
+
+            # Map ledger names for salary merging
+            combine_map = {
+                'Salary Expense': 'Salary & Bonus Payable',
+                'Salary & Bonus Payable': 'Salary & Bonus Payable',
+            }
+
+            ledger_totals = {}
+
+            # ----------------------------
+            # 1. COLLECT + MERGE LEDGERS
+            # ----------------------------
             for line in move.line_ids.filtered(lambda l: l.account_id):
-                if not line.account_id.name:
+                raw_name = (line.account_id.name or "").strip()
+                target_name = combine_map.get(raw_name, raw_name)
+
+                net = (line.credit or 0.0) - (line.debit or 0.0)
+                ledger_totals[target_name] = ledger_totals.get(target_name, 0.0) + net
+
+            # ----------------------------
+            # 2. BUILD XML (only once)
+            # ----------------------------
+            for ledger_name, net_amount in ledger_totals.items():
+                if abs(net_amount) < 0.005:
                     continue
 
-                ledger_name = line.account_id.name.replace("&", "&amp;")
-                is_debit = line.debit > 0
-                amount = line.debit if is_debit else line.credit
+                ledger_name_escaped = ledger_name.replace("&", "&amp;")
+                is_deemed_positive = "Yes" if net_amount < 0 else "No"
+                amount_str = f"-{abs(net_amount):.2f}" if net_amount < 0 else f"{abs(net_amount):.2f}"
 
                 ledger_entries_xml_parts.append(f"""
                     <LEDGERENTRIES.LIST>
-                        <LEDGERNAME>{ledger_name}</LEDGERNAME>
-                        <ISDEEMEDPOSITIVE>{"Yes" if is_debit else "No"}</ISDEEMEDPOSITIVE>
-                        <AMOUNT>{'-' if is_debit else ''}{amount:.2f}</AMOUNT>
+                        <LEDGERNAME>{ledger_name_escaped}</LEDGERNAME>
+                        <ISDEEMEDPOSITIVE>{is_deemed_positive}</ISDEEMEDPOSITIVE>
+                        <AMOUNT>{amount_str}</AMOUNT>
                     </LEDGERENTRIES.LIST>
                 """)
 
             voucher_type = "Journal"
-            party = ""  # Not needed for journal entries
+            party = ""
 
         # ==============================
         # CASE 2: Customer Invoices (Sales)
@@ -346,7 +382,7 @@ class AccountMove(models.Model):
                 return (False, message, None)
             elif (created_element is not None and created_element.text == '1') or \
                     (altered_element is not None and altered_element.text == '1'):
-                success_message = f"Invoice {move.name} is Successfully Created/Altered in Tally Prime."
+                success_message = _get_tally_success_message(move)
                 return (True, success_message, voucher_guid)
             else:
                 message = f"Tally response is ambiguous. Raw response: {tally_response_xml}"
