@@ -89,7 +89,7 @@
 
                         <tr>
                             <td style="padding: 5px; border-right:1px solid black; border-bottom:1px solid black;">
-                                <strong>Customer Ref. No. &amp; Date</strong>
+                                <strong>Buyer's Ref./Order No.</strong>
                             </td>
                             <td style="padding: 5px; border-bottom:1px solid black;">
                                 <span t-field="o.client_order_ref"/>
@@ -187,6 +187,7 @@
                                 <strong>Dispatched Through</strong>
                             </td>
                             <td style="padding: 5px; border-bottom:1px solid black;">
+                                <span t-field="o.note"/>
                             </td>
                         </tr>
 
@@ -203,7 +204,7 @@
                             <td colspan="2" style="padding: 5px; border-bottom:0.5px solid black;">
                                 <strong>Terms of Delivery</strong>
                                 <br/>
-                                <span t-field="o.note"/>
+                                <span t-field="o.delivery_terms"/>
                             </td>
                         </tr>
 
