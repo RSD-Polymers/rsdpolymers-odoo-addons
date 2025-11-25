@@ -175,18 +175,25 @@ class AccountMove(models.Model):
             # 1. Vendor Ledger (Credit)
             # ----------------------------------------
             # Vendor is always credited in purchase voucher
+            # Get the payable line from journal items
+            payable_line = next(
+                (line for line in invoice.line_ids if line.account_id.account_type == 'liability_payable'), None
+            )
+
+            vendor_ledger_name = payable_line.account_id.name
+
             ledger_entries_xml_parts.append(f"""
-                       <LEDGERENTRIES.LIST>
-                           <LEDGERNAME>{party}</LEDGERNAME>
-                           <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                       <ALLLEDGERENTRIES.LIST>
+                           <LEDGERNAME>{payable_line.account_id.name}</LEDGERNAME>
+                           <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
                            <ISPARTYLEDGER>Yes</ISPARTYLEDGER>
-                           <AMOUNT>{amount_total}</AMOUNT>
+                           <AMOUNT>{payable_line.credit}</AMOUNT>
                            <BILLALLOCATIONS.LIST>
                                <NAME>{invoice.name}</NAME>
                                <BILLTYPE>New Ref</BILLTYPE>
-                               <AMOUNT>{amount_total}</AMOUNT>
+                               <AMOUNT>{payable_line.credit}</AMOUNT>
                            </BILLALLOCATIONS.LIST>
-                       </LEDGERENTRIES.LIST>
+                       </ALLLEDGERENTRIES.LIST>
                    """)
 
             # ----------------------------------------
@@ -202,11 +209,12 @@ class AccountMove(models.Model):
 
             for ledger_name, amount in purchase_ledgers_amounts.items():
                 ledger_entries_xml_parts.append(f"""
-                           <LEDGERENTRIES.LIST>
+                           <ALLLEDGERENTRIES.LIST>
                                <LEDGERNAME>{ledger_name}</LEDGERNAME>
-                               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                               <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                               <ISPARTYLEDGER>No</ISPARTYLEDGER>
                                <AMOUNT>-{amount:.2f}</AMOUNT>
-                           </LEDGERENTRIES.LIST>
+                           </ALLLEDGERENTRIES.LIST>
                        """)
 
             # ----------------------------------------
@@ -222,14 +230,16 @@ class AccountMove(models.Model):
 
             for ledger_name, amount in consolidated_taxes.items():
                 ledger_entries_xml_parts.append(f"""
-                           <LEDGERENTRIES.LIST>
+                           <ALLLEDGERENTRIES.LIST>
                                <LEDGERNAME>{ledger_name}</LEDGERNAME>
-                               <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+                               <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                               <ISPARTYLEDGER>No</ISPARTYLEDGER>
                                <AMOUNT>-{amount:.2f}</AMOUNT>
-                           </LEDGERENTRIES.LIST>
+                           </ALLLEDGERENTRIES.LIST>
                        """)
 
             voucher_type = "Purchase"
+            party = vendor_ledger_name
 
         else:
             raise ValidationError(f"Tally XML generation not implemented for move type {move.move_type}")
@@ -239,6 +249,8 @@ class AccountMove(models.Model):
         # ==============================
         # Final XML Build
         # ==================================
+        obj_view = "Accounting Voucher View"
+
         xml_string = f"""
             <ENVELOPE>
                 <HEADER>
@@ -255,20 +267,19 @@ class AccountMove(models.Model):
                         <REQUESTDATA>
                             <TALLYMESSAGE xmlns:UDF="TallyUDF">
                                 <VOUCHER REMOTEID="{voucher_guid}"
-                                         VCHKEY="{voucher_guid}"
                                          VCHTYPE="{voucher_type}"
                                          ACTION="{tally_action}"
-                                         OBJVIEW="Invoice Voucher View">
+                                         OBJVIEW="{obj_view}">
                                     <DATE>{move_date_str}</DATE>
-                                    <EFFECTIVEDATE>{move_date_str}</EFFECTIVEDATE>
+                                    <REFERENCEDATE>{move_date_str}</REFERENCEDATE>
                                     <GUID>{voucher_guid}</GUID>
                                     <NARRATION>{narration}</NARRATION>
-                                    <ENTEREDBY>{self.env.user.name}</ENTEREDBY>
                                     <VOUCHERTYPENAME>{voucher_type}</VOUCHERTYPENAME>
                                     <VOUCHERNUMBER>{move.name}</VOUCHERNUMBER>
                                     <REFERENCE>{move.name}</REFERENCE>
-                                    <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
-                                    <ISINVOICE>{"Yes" if move.move_type == 'out_invoice' else "No"}</ISINVOICE>
+                                    <EFFECTIVEDATE>{move_date_str}</EFFECTIVEDATE>
+                                    <PERSISTEDVIEW>"{obj_view}"</PERSISTEDVIEW>
+                                    <ISINVOICE>{"Yes" if move.move_type in ['out_invoice', 'in_invoice'] else "No"}</ISINVOICE>
                                     {f"<PARTYLEDGERNAME>{party}</PARTYLEDGERNAME>" if party else ""}
                                     {f"<PARTYNAME>{party}</PARTYNAME>" if party else ""}
                                     {all_ledger_entries_xml}
