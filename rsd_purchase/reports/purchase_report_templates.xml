@@ -16,7 +16,7 @@
         <t t-call="web.external_layout">
             <t t-set="company_address" t-value="False"/>
 
-            <div class="page">
+            <div class="page" style="font-size:12px; font-family: DejaVu Sans, sans-serif;">
 
                 <!-- TITLE -->
                 <t t-if="o.is_work_order">
@@ -29,60 +29,12 @@
                 <!-- TOP BLOCK (RESTORED ORIGINAL LAYOUT) -->
                 <table style="width:100%; font-size:12px; border-collapse:collapse; border:1px solid black;">
                     <tbody>
+
                         <tr>
-                            <td rowspan="9"
-                                style="width:50%; padding: 0; border-right:1px solid black; vertical-align: top;">
-                                <table style="width:100%; border-collapse:collapse;">
-                                    <tr>
-                                        <td style="padding: 5px; border-bottom:1px solid black;">
-                                            <strong>Invoice To</strong>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 5px; border-bottom:1px solid black;">
-                                            <span t-field="o.company_id.partner_id"
-                                                  t-options='{"widget": "contact", "fields": ["name","address"], "no_marker": True}'/>
-                                            <strong>E-mail:</strong>
-                                            <span t-field="o.company_id.email"/>
-                                            <br/>
-                                            <strong>GSTIN/UIN:</strong>
-                                            <span t-field="o.company_id.vat"/>
-                                            <br/>
-                                            <strong>State Name:</strong>
-                                            <span t-field="o.company_id.state_id.name"/>
-                                            <br/>
-                                            <strong>State Code:</strong>
-                                            <span t-field="o.company_id.state_id.l10n_in_tin"/>
-                                        </td>
-                                    </tr>
-
-                                    <tr>
-                                        <td style="padding: 5px; border-bottom:1px solid black;">
-                                            <strong>Consignee (Ship To)</strong>
-                                        </td>
-                                    </tr>
-
-                                    <tr>
-                                        <td style="padding: 5px;">
-                                            <span t-field="o.ship_to_address_id.name"/>
-                                            <div t-field="o.ship_to_address_id"
-                                                 t-options='{"widget": "contact", "fields":["address"], "no_marker": True}'/>
-                                            <strong>E-mail:</strong>
-                                            <span t-field="o.ship_to_address_id.email"/>
-                                            <br/>
-                                            <strong>GSTIN/UIN:</strong>
-                                            <span t-field="o.ship_to_address_id.vat"/>
-                                            <br/>
-                                            <strong>State Name:</strong>
-                                            <span t-field="o.ship_to_address_id.state_id.name"/>
-                                            <br/>
-                                            <strong>State Code:</strong>
-                                            <span t-field="o.ship_to_address_id.state_id.l10n_in_tin"/>
-                                        </td>
-                                    </tr>
-                                </table>
+                            <td colspan="3"
+                                style="width:50%; padding: 5px; border-right:1px solid black; border-bottom:1px solid black;">
+                                Invoice To
                             </td>
-
                             <td style="width:25%; padding: 5px; border-right:1px solid black; border-bottom:1px solid black;">
                                 <strong>
                                     <t t-if="o.is_work_order">Work Order No.</t>
@@ -95,7 +47,26 @@
                         </tr>
 
                         <tr>
-                            <td style="width:25%; padding: 5px; border-right:1px solid black; border-bottom:1px solid black;">
+                            <td rowspan="5" colspan="3"
+                                style="width:50%; padding: 5px; border-right:1px solid black; border-bottom:1px solid black; vertical-align: top;">
+                                <p style="margin-bottom: 5px;">
+                                    <span t-field="o.company_id.partner_id.name" style="font-weight: bold;"/>
+                                    <div t-field="o.company_id.partner_id"
+                                         t-options='{"widget": "contact", "fields": ["address"], "no_marker": True}'/>
+                                    <strong>E-mail:</strong>
+                                    <span t-field="o.company_id.email"/>
+                                    <br/>
+                                    <span>GSTIN/UIN:</span>
+                                    <span t-field="o.company_id.vat"/>
+                                    <br/>
+                                    <span>State Name:</span>
+                                    <span t-field="o.company_id.state_id.name"/>
+                                    <br/>
+                                    <span>State Code:</span>
+                                    <span t-field="o.company_id.state_id.l10n_in_tin"/>
+                                </p>
+                            </td>
+                            <td style="padding: 5px; border-right:1px solid black; border-bottom:1px solid black;">
                                 <strong>Date</strong>
                             </td>
                             <td style="padding: 5px; border-bottom:1px solid black;">
@@ -132,6 +103,67 @@
 
                         <tr>
                             <td style="padding: 5px; border-right:1px solid black; border-bottom:1px solid black;">
+                                <strong>Vendor Currency</strong>
+                            </td>
+                            <td style="padding: 5px; border-bottom:1px solid black;">
+                                <span t-field="o.currency_id.name"/>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td colspan="3"
+                                rowspan="4"
+                                style="width:50%; padding: 0; border-right:1px solid black; vertical-align: top;">
+
+                                <table style="width:100%; border-collapse: collapse; table-layout: fixed;">
+                                    <tr>
+                                        <td style="width:100%; padding: 5px; border-bottom:1px solid black;">
+                                            <span>Consignee (Ship To)</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:100%; padding: 5px; border-bottom:1px solid black; vertical-align: top;">
+                                            <span t-field="o.ship_to_address_id.name" style="font-weight: bold;"/>
+                                            <div t-field="o.ship_to_address_id"
+                                                 t-options='{"widget": "contact", "fields":["address"], "no_marker": True}'/>
+                                            <span>E-mail:</span>
+                                            <span t-field="o.ship_to_address_id.email"/>
+                                            <br/>
+                                            <span>GSTIN/UIN:</span>
+                                            <span t-field="o.ship_to_address_id.vat"/>
+                                            <br/>
+                                            <span>State Name:</span>
+                                            <span t-field="o.ship_to_address_id.state_id.name"/>
+                                            <br/>
+                                            <span>State Code:</span>
+                                            <span t-field="o.ship_to_address_id.state_id.l10n_in_tin"/>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:100%; padding: 5px; border-bottom:1px solid black;">
+                                            <span>Supplier / Bill From</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="width:100%; padding: 5px; vertical-align: top;">
+                                            <span t-field="o.partner_id.name" style="font-weight: bold;"/>
+                                            <div t-field="o.partner_id"
+                                                 t-options='{"widget": "contact", "fields":["address"], "no_marker": True}'/>
+                                            <span>GSTIN/UIN:</span>
+                                            <span t-field="o.partner_id.vat"/>
+                                            <br/>
+                                            <span>State Name:</span>
+                                            <span t-field="o.partner_id.state_id.name"/>
+                                            <br/>
+                                            <span>State Code:</span>
+                                            <span t-field="o.partner_id.state_id.l10n_in_tin"/>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                            </td>
+
+                            <td style="padding: 5px; border-right:1px solid black; border-bottom:1px solid black;">
                                 <strong>Dispatched Through</strong>
                             </td>
                             <td style="padding: 5px; border-bottom:1px solid black;">
@@ -149,7 +181,7 @@
                         </tr>
 
                         <tr>
-                            <td colspan="2" style="padding: 5px; border-bottom:1px solid black;">
+                            <td colspan="2" style="padding: 5px; border-right: 1px solid black;">
                                 <strong>Terms of Delivery</strong>
                                 <br/>
                                 <span t-field="o.delivery_terms"/>
@@ -157,33 +189,16 @@
                         </tr>
 
                         <tr>
-                            <td style="padding: 5px; border-right:1px solid black; border-bottom:1px solid black;"
-                                colspan="2">
-                                <!-- CHANGE 1: Reduced the label -->
-                                <strong>Supplier / Bill From</strong>
-                                <br/>
-                                <span t-field="o.partner_id"
-                                      t-options='{"widget": "contact", "fields":["name","address"], "no_marker": True}'/>
-                                <strong>GSTIN/UIN:</strong>
-                                <span t-field="o.partner_id.vat"/>
-                                <br/>
-                                <strong>State Name:</strong>
-                                <span t-field="o.partner_id.state_id.name"/>
-                                <br/>
-                                <strong>State Code:</strong>
-                                <span t-field="o.partner_id.state_id.l10n_in_tin"/>
+                            <td colspan="2" style="padding: 5px; border-right: 1px solid black;">
                             </td>
-
-                            <!-- CHANGE 2: Removed the redundant empty cell to fix table structure -->
                         </tr>
+
                     </tbody>
                 </table>
-
                 <!-- PRODUCT AND TOTALS TABLE (COMBINED SECTION) -->
                 <table style="width:100%; font-size:12px; border-collapse:collapse; border-left:1px solid black; border-right:1px solid black;">
                     <thead>
-                        <!-- All numeric headers are set to text-align: right -->
-                        <tr style="font-weight: bold; border-top:1px solid black;">
+                        <tr style="font-weight: bold;">
                             <th class="text-center"
                                 style="width:5%; border-right:1px solid black; padding: 5px; border-bottom:1px solid black;">
                                 Sl No
@@ -213,7 +228,6 @@
                     <tbody>
                         <t t-set="line_num" t-value="1"/>
                         <t t-foreach="o.order_line" t-as="line">
-                            <!-- Product rows must have bottom border for separation -->
                             <tr style="border-bottom:1px solid black;">
                                 <td class="text-center" style="border-right:1px solid black; padding: 5px;">
                                     <span t-esc="line_num"/>
@@ -225,23 +239,19 @@
                                         <span t-field="line.product_id.description_purchase"/>
                                     </t>
                                 </td>
-                                <!-- Quantity is right-aligned -->
                                 <td class="text-right"
                                     style="border-right:1px solid black; padding: 5px; text-align: right;">
                                     <span t-field="line.product_qty"/>
                                 </td>
-                                <!-- Rate is right-aligned -->
                                 <td class="text-right"
                                     style="border-right:1px solid black; padding: 5px; text-align: right;">
                                     <span t-field="line.price_unit"
                                           t-options='{"widget":"monetary","display_currency": o.currency_id}'/>
                                 </td>
-                                <!-- Per is right-aligned for consistency with numbers -->
                                 <td class="text-right"
                                     style="border-right:1px solid black; padding: 5px; text-align: right;">
                                     <span t-field="line.product_uom.name"/>
                                 </td>
-                                <!-- Amount is right-aligned -->
                                 <td class="text-right" style="padding: 5px; text-align: right;">
                                     <span t-field="line.price_subtotal"
                                           t-options='{"widget":"monetary","display_currency": o.currency_id}'/>
@@ -250,19 +260,16 @@
                             <t t-set="line_num" t-value="line_num + 1"/>
                         </t>
 
-                        <!-- START TAX SUMMARY (DYNAMIC VERSION) -->
-
-                        <!-- Build aggregated tax dict -->
                         <t t-set="tax_groups" t-value="{}"/>
                         <t t-foreach="o.order_line" t-as="line">
                             <t t-set="computed"
                                t-value="line.taxes_id.compute_all(
-           line.price_unit,
-           o.currency_id,
-           line.product_qty,
-           product=line.product_id,
-           partner=o.partner_id
-       )"/>
+       line.price_unit,
+       o.currency_id,
+       line.product_qty,
+       product=line.product_id,
+       partner=o.partner_id
+    )"/>
                             <t t-set="line_taxes" t-value="computed.get('taxes', [])"/>
 
                             <t t-foreach="line_taxes" t-as="tax_item">
@@ -273,11 +280,8 @@
                             </t>
                         </t>
 
-                        <!-- Untaxed Amount Row (layout-safe: 6 tds) -->
                         <tr>
-                            <!-- CHANGE 3: Use colspan to combine the first 4 cells and remove internal borders -->
                             <td colspan="4" style=""></td>
-                            <!-- Removed border-right from this cell -->
                             <td class="text-right" style="padding: 5px; text-align: right;">
                                 <strong>Untaxed Amount</strong>
                             </td>
@@ -287,15 +291,12 @@
                         </tr>
 
 
-                        <!-- Dynamic Tax Rows (layout-safe: 6 tds) -->
                         <t t-foreach="sorted(tax_groups.items(), key=lambda x: x[0])" t-as="pair">
                             <t t-set="tname" t-value="pair[0]"/>
                             <t t-set="tamt" t-value="pair[1]"/>
 
                             <tr>
-                                <!-- CHANGE 3: Use colspan to combine the first 4 cells and remove internal borders -->
                                 <td colspan="4" style=""></td>
-                                <!-- Removed border-right from this cell -->
                                 <td class="text-right" style="padding: 5px; text-align: right;">
                                     <strong>
                                         <t t-esc="tname"/>
@@ -307,13 +308,9 @@
                             </tr>
                         </t>
 
-                        <!-- Total Row (layout-safe: 6 tds) -->
-                        <!-- NOTE: border-top and border-bottom are kept on this row for visual separation from the lines above and the footer below. -->
                         <tr style="border-top:1px solid black; border-bottom:1px solid black;">
-                            <!-- CHANGE 3: Use colspan to combine the first 4 cells and remove internal borders -->
                             <td colspan="4" style=""></td>
-                            <!-- Removed border-right from this cell -->
-                            <td class="text-right" style="padding: 5px;">
+                            <td class="text-right" style="padding: 5px; text-align: right;">
                                 <strong>Total</strong>
                             </td>
                             <td class="text-right" style="padding: 5px; text-align: right;">
@@ -322,21 +319,20 @@
                             </td>
                         </tr>
 
-                        <!-- ===== END PRODUCT AND TOTALS TABLE ===== -->
-
 
                     </tbody>
                 </table>
-
                 <!-- FOOTER BLOCK -->
                 <table style="width:100%; font-size:12px; border-collapse:collapse; border-left:1px solid black; border-right:1px solid black; border-bottom:1px solid black;">
                     <tbody>
                         <tr>
                             <td style="width:75%; padding:10px; border-right:1px solid black; vertical-align:top;">
-                                <strong>Amount Chargeable (in words):</strong>
+                                <span>Amount Chargeable (in words):</span>
                                 <p>
-                                    <span t-esc="o.currency_id.amount_to_text(o.amount_total)"/>
-                                    Only
+                                    <strong>
+                                        <span t-esc="o.currency_id.amount_to_text(o.amount_total)"/>
+                                        Only
+                                    </strong>
                                 </p>
                             </td>
                             <td style="width:25%; padding:10px; text-align:right; vertical-align:top;">

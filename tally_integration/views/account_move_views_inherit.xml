@@ -17,10 +17,6 @@
                     <field name="posted_to_tally" widget="boolean_toggle"/>
                     <field name="tally_guid"/>
                 </xpath>
-                <xpath expr="//group[@id='header_right_group']" position="inside">
-                    <field name="tally_response" readonly="1"/>
-                    <field name="narration" string="Narration" readonly="state in ['posted']"/>
-                </xpath>
             </field>
         </record>
     </data>
