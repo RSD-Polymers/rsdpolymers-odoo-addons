@@ -13,7 +13,7 @@
     'category': 'Purchases',
     'version': '18.0.1.0.0',
     # Ensure 'web' and 'purchase' are listed for dependencies and template inheritance
-    'depends': ['base', 'web', 'purchase', 'mrp', 'stock', 'report_xlsx'],
+    'depends': ['base', 'web', 'purchase', 'mrp', 'stock'],
     'data': [
         'data/work_order_sequence.xml',
         'views/purchase_order_views.xml',
