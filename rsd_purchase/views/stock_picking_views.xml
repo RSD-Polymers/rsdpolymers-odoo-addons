@@ -1,0 +1,27 @@
+<odoo>
+    <record id="view_picking_form_inherit_grn_print" model="ir.ui.view">
+        <field name="name">stock.picking.form.print.grn</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add button on the form view header -->
+            <xpath expr="//header" position="inside">
+                <button name="action_print_grn"
+                        type="object"
+                        class="btn-primary"
+                        string="Print GRN"
+                        invisible="not is_grn"/>
+            </xpath>
+
+            <xpath expr="//field[@name='picking_type_id']" position="after">
+                <field name="is_grn" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//header//button[@type='action'][1]" position="attributes">
+                <attribute name="invisible">['|', ('is_grn', '=', True), ('state', '!=', 'done')]</attribute>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

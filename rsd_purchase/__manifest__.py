@@ -13,12 +13,14 @@
     'category': 'Purchases',
     'version': '18.0.1.0.0',
     # Ensure 'web' and 'purchase' are listed for dependencies and template inheritance
-    'depends': ['base', 'web', 'purchase', 'mrp'],
+    'depends': ['base', 'web', 'purchase', 'mrp', 'stock', 'report_xlsx'],
     'data': [
         'data/work_order_sequence.xml',
         'views/purchase_order_views.xml',
+        'views/stock_picking_views.xml',
         # Removed the commented-out 'reports/reports.xml'
         'reports/purchase_report_templates.xml',
+        'reports/grn_custom_report.xml',
     ],
     # 🚨 CRITICAL FIX: The custom CSS is registered here
     'assets': {

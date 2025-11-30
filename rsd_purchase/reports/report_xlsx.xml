@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_grn_xlsx" model="ir.actions.report">
+        <field name="name">Goods Receipt Note (Excel)</field>
+        <field name="model">stock.picking</field>
+        <field name="report_type">xlsx</field>
+        <field name="report_name">rsd_purchase.report_grn_xlsx</field>
+        <field name="attachment_use">False</field>
+        <field name="binding_model_id" ref="stock.model_stock_picking"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo>
