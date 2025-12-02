@@ -14,15 +14,15 @@
 
             <xpath expr="//group[@id='header_right_group']" position="inside">
                 <field name="tally_response" readonly="1"/>
-                <field name="delivery_terms" readonly="state in ['posted']"/>
-                <field name="dispatch_doc_no" readonly="state in ['posted']"/>
-                <field name="dispatch_through" readonly="state in ['posted']"/>
-                <field name="bill_of_lading" readonly="state in ['posted']"/>
+                <field name="delivery_terms" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
+                <field name="dispatch_doc_no" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
+                <field name="dispatch_through" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
+                <field name="bill_of_lading" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
             </xpath>
 
             <xpath expr="//field[@name='tally_guid']" position="after">
-                <field name="delivery_note" readonly="state in ['posted']"/>
-                <field name="motor_vehicle_no" readonly="state in ['posted']"/>
+                <field name="delivery_note" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
+                <field name="motor_vehicle_no" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
             </xpath>
 
         </field>
