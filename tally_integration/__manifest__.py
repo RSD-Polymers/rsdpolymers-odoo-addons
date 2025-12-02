@@ -25,6 +25,7 @@
         'views/res_partner_views.xml',
         'views/product_views.xml',
         'views/account_tax_views.xml',
+        'views/account_payment_view_inherit.xml',
     ],
     'installable': True,
     'application': False,

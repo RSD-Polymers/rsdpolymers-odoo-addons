@@ -6,3 +6,4 @@ from . import tally_staging_partner
 from . import res_partner
 from . import product_template
 from . import account_tax
+from . import account_payment_inherit

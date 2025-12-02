@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_payment_form_tally_button" model="ir.ui.view">
+        <field name="name">account.payment.form.tally.button</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='memo']" position="after">
+                <field name="posted_to_tally"/>
+                <field name="tally_guid"/>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_bank_id']" position="after">
+                <field name="tally_narration" readonly="posted_to_tally == True"/>
+                <field name="tally_response"/>
+            </xpath>
+
+            <xpath expr="//header" position="inside">
+
+                <button name="action_push_to_tally"
+                        string="Push to Tally"
+                        type="object"
+                        class="btn-primary"
+                        invisible="state != 'paid' or posted_to_tally == True"
+                />
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
