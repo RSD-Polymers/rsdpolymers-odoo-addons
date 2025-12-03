@@ -22,12 +22,17 @@
                                 string="Import Ledgers"
                                 type="object"
                                 class="oe_highlight"/>
+                        <button name="action_import_tally_cost_centres"
+                                string="Import Cost Centres"
+                                type="object"
+                                class="oe_highlight"/>
                         <button name="action_import_tally_partner_data"
                                 string="Import Partner Data"
                                 type="object"
                                 class="oe_highlight"/>
-                        <button name="action_create_opening_balance_journal_entries" string="Process Opening Balances" type="object" class="oe_highlight o_secondary_button"
-                        help="Creates journal entries for imported Tally ledger opening balances."/>
+                        <button name="action_create_opening_balance_journal_entries" string="Process Opening Balances"
+                                type="object" class="oe_highlight o_secondary_button"
+                                help="Creates journal entries for imported Tally ledger opening balances."/>
                         <button string="Cancel" class="btn-secondary" special="cancel"/>
                     </footer>
                 </form>

@@ -1047,3 +1047,124 @@ class TallyImportWizard(models.TransientModel):
                     'sticky': False,
                 }
             }
+
+    def action_import_tally_cost_centres(self):
+        self.ensure_one()
+
+        try:
+            # --- CONNECTION SETTINGS ---
+            tally_company_name, tally_api_url, _ = self._get_tally_connection_details()
+
+            xml_payload = f"""
+            <ENVELOPE>
+              <HEADER>
+                <VERSION>1</VERSION>
+                <TALLYREQUEST>Export</TALLYREQUEST>
+                <TYPE>Collection</TYPE>
+                <ID>CostCentre Collection</ID>
+              </HEADER>
+              <BODY>
+                <DESC>
+                  <STATICVARIABLES>
+                    <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                    <SVCURRENTCOMPANY>{tally_company_name}</SVCURRENTCOMPANY>
+                  </STATICVARIABLES>
+                  <TDL>
+                    <TDLMESSAGE>
+                      <COLLECTION NAME="CostCentre Collection" ISMODIFY="No">
+                        <TYPE>CostCentre</TYPE>
+                        <FETCH>NAME,GUID,PARENT,CATEGORY</FETCH>
+                      </COLLECTION>
+                    </TDLMESSAGE>
+                  </TDL>
+                </DESC>
+              </BODY>
+            </ENVELOPE>
+            """
+
+            headers = {"Content-Type": "application/xml"}
+
+            # --- SEND REQUEST ---
+            response = requests.post(tally_api_url, data=xml_payload.encode("utf-8"), headers=headers, timeout=20)
+
+            if response.status_code != 200:
+                raise UserError(f"Tally error {response.status_code}: {response.text}")
+
+            # --- CLEAN INVALID XML ---
+            cleaned = _clean_invalid_xml_chars(response.text)
+
+            try:
+                xml_tree = etree.fromstring(cleaned.encode("utf-8"))
+            except Exception as e:
+                raise UserError(f"Invalid XML format received from Tally: {e}")
+
+            cost_centres = xml_tree.xpath("//COSTCENTRE")
+            if not cost_centres:
+                raise UserError("No COSTCENTRE nodes found. Tally returned empty data.")
+
+            plan_model = self.env['account.analytic.plan']
+            acc_model = self.env['account.analytic.account']
+
+            plan_cache = {}
+            imported = 0
+
+            # --- PROCESS EACH COST CENTRE ---
+            for cc in cost_centres:
+                name = cc.findtext(".//LANGUAGENAME.LIST/NAME.LIST/NAME")
+                guid = cc.findtext("GUID")
+                category = cc.findtext("CATEGORY")
+
+                if not name or not guid:
+                    continue
+
+                # ---------- CREATE / CACHE ANALYTIC PLAN ----------
+                plan_id = False
+                if category:
+                    if category not in plan_cache:
+                        plan = plan_model.search([('name', '=', category)], limit=1)
+                        if not plan:
+                            plan = plan_model.create({'name': category})
+                        plan_cache[category] = plan.id
+                    plan_id = plan_cache[category]
+
+                # ---------- CREATE ANALYTIC ACCOUNT ----------
+                vals = {
+                    'name': name,
+                    'plan_id': plan_id,
+                    'tally_guid': guid,
+                    'active': True,
+                }
+
+                existing = acc_model.search([('tally_guid', '=', guid)], limit=1)
+                if existing:
+                    existing.write(vals)
+                else:
+                    acc_model.create(vals)
+
+                imported += 1
+
+            # --- SUCCESS NOTIFICATION ---
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': "Cost Centres Imported",
+                    'message': f"Imported/Updated {imported} cost centres.",
+                    'type': 'success',
+                }
+            }
+
+        # --- SPECIFIC CATCHES ---
+        except requests.exceptions.Timeout:
+            raise UserError("Connection to Tally timed out. Is Tally running? Is ODBC/XML API enabled?")
+
+        except requests.exceptions.ConnectionError:
+            raise UserError(f"Cannot connect to Tally at {tally_api_url}. Check host & port.")
+
+        except UserError:
+            raise
+
+        # --- FINAL SAFETY NET ---
+        except Exception as e:
+            _logger.exception("Unexpected error while importing Tally cost centres.")
+            raise UserError(f"Unexpected error: {e}")

@@ -33,3 +33,9 @@ class AccountAccount(models.Model):
                                                       help="True if the Tally opening balance is a Debit, False if Credit. Used for staging.")
     tally_opening_balance_imported = fields.Boolean(string="Opening Balance Journal Entry Created", default=False,
                                                       help="Indicates if the Tally opening balance has been successfully processed into an Odoo journal entry.")
+
+
+class AnalyticAccount(models.Model):
+    _inherit = 'account.analytic.account'
+
+    tally_guid = fields.Char("Tally GUID", index=True)
