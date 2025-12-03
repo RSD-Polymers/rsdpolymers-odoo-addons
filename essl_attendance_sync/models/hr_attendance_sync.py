@@ -1,5 +1,5 @@
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 from datetime import datetime, timedelta
 import logging
 
@@ -42,66 +42,165 @@ class HRAttendanceCronMethods(models.Model):
 
     def _create_or_update_attendance(self, parsed_punches):
         """
-        Processes parsed punches to create or update hr.attendance records safely.
-        Handles overlapping attendance records by updating existing ones instead of creating duplicates.
+        Robust attendance updater:
+        - Groups punches per employee, processes chronologically.
+        - Closes open attendances when appropriate.
+        - Extends overlapping attendances.
+        - Guards against duplicate check-ins.
+        - Catches Odoo ValidationError on create and recovers by attaching to existing open record.
         """
         # 1. Group punches by employee
         punches_by_employee = {}
         for punch in parsed_punches:
-            employee_id = punch['employee_id']
-            punches_by_employee.setdefault(employee_id, []).append(punch)
+            punches_by_employee.setdefault(punch["employee_id"], []).append(punch)
 
-        # 2. Process each employee's punches
+        # 2. Process each employee
         for employee_id, punches in punches_by_employee.items():
-
-            # Sort punches chronologically
-            punches.sort(key=lambda p: p['punch_time'])
-            employee = self.env['hr.employee'].browse(employee_id)
+            punches.sort(key=lambda x: x["punch_time"])
+            employee = self.env["hr.employee"].browse(employee_id)
 
             for punch in punches:
-                punch_time = punch['punch_time']
+                punch_time = punch["punch_time"]
 
-                # 2a. Check for any existing attendance overlapping this punch
-                overlapping_attendance = self.env['hr.attendance'].search([
+                # -------- STEP A: Auto-close any stale open attendances older than 24h before this punch ----------
+                # (This prevents very-old opens from blocking new creations when backfilling.)
+                try:
+                    stale_open = self.env['hr.attendance'].search([
+                        ('employee_id', '=', employee_id),
+                        ('check_out', '=', False),
+                        ('check_in', '<', punch_time - timedelta(hours=24))
+                    ])
+                    for att in stale_open:
+                        forced_out = att.check_in.replace(hour=23, minute=59, second=59)
+                        att.write({'check_out': forced_out})
+                        _logger.info(
+                            f"Auto-closed stale open attendance for {employee.name}: {att.check_in} -> {forced_out}"
+                        )
+                except Exception as e:
+                    _logger.exception(f"Error auto-closing stale for {employee.name}: {e}")
+
+                # -------- STEP B: If there's an open attendance now, treat this punch as checkout ----------
+                open_attendance = self.env["hr.attendance"].search([
                     ('employee_id', '=', employee_id),
-                    '|',
-                    '&', ('check_in', '<=', punch_time), ('check_out', '>=', punch_time),
-                    '&', ('check_in', '=', punch_time), ('check_out', '=', False)
+                    ('check_out', '=', False)
+                ], limit=1, order="check_in DESC")
+
+                if open_attendance:
+                    # if punch is before check-in, skip it (bad/duplicate out-of-order)
+                    if punch_time <= open_attendance.check_in:
+                        _logger.warning(
+                            f"Skipping punch {punch_time} for {employee.name}: earlier than open check-in {open_attendance.check_in}."
+                        )
+                        continue
+
+                    # Otherwise close it
+                    try:
+                        open_attendance.write({'check_out': punch_time})
+                        _logger.info(
+                            f"Closed open attendance for {employee.name}: {open_attendance.check_in} -> {punch_time}"
+                        )
+                    except Exception as e:
+                        _logger.exception(f"Failed to close open attendance for {employee.name}: {e}")
+                    # done with this punch
+                    continue
+
+                # -------- STEP C: If this punch lies inside an existing attendance, extend checkout if needed ----------
+                overlapping_attendance = self.env["hr.attendance"].search([
+                    ('employee_id', '=', employee_id),
+                    ('check_in', '<=', punch_time),
+                    ('check_out', '>=', punch_time),
                 ], limit=1)
 
                 if overlapping_attendance:
-                    # If the punch is within an existing attendance, update check_out if needed
-                    if not overlapping_attendance.check_out or punch_time > overlapping_attendance.check_out:
-                        overlapping_attendance.write({'check_out': punch_time})
-                        _logger.info(f"Updated existing attendance for {employee.name}: set check_out to {punch_time}")
+                    # If punch_time is after existing checkout, extend it
+                    if overlapping_attendance.check_out and punch_time > overlapping_attendance.check_out:
+                        try:
+                            overlapping_attendance.write({'check_out': punch_time})
+                            _logger.info(
+                                f"Extended overlapping attendance for {employee.name}: new check_out = {punch_time}"
+                            )
+                        except Exception as e:
+                            _logger.exception(f"Failed to extend overlapping attendance for {employee.name}: {e}")
                     else:
                         _logger.info(
-                            f"Skipping punch for {employee.name} at {punch_time}: already covered by existing attendance.")
+                            f"Punch {punch_time} for {employee.name} already covered by attendance {overlapping_attendance.id}.")
                     continue
 
-                # 2b. Check if the employee has an open attendance (check_out=False)
-                open_attendance = self.env['hr.attendance'].search([
+                # -------- STEP D: If exact check_in exists, skip ----------
+                exact_match = self.env["hr.attendance"].search([
+                    ('employee_id', '=', employee_id),
+                    ('check_in', '=', punch_time),
+                ], limit=1)
+
+                if exact_match:
+                    _logger.info(f"Duplicate check-in detected for {employee.name} at {punch_time}. Skipping.")
+                    continue
+
+                # -------- STEP E: Create a new check-in (but re-check for open attendance & handle ValidationError) ----------
+                # Re-check open attendance immediately before create to reduce race conditions
+                open_now = self.env["hr.attendance"].search([
                     ('employee_id', '=', employee_id),
                     ('check_out', '=', False)
-                ], limit=1, order='check_in DESC')
+                ], limit=1, order="check_in DESC")
 
-                if open_attendance:
-                    # Close the open attendance with this punch
-                    if punch_time <= open_attendance.check_in:
+                if open_now:
+                    # If an open attendance appeared since last check, try to close it (if punch_time > check_in)
+                    if punch_time <= open_now.check_in:
                         _logger.warning(
-                            f"Skipping punch for {employee.name} at {punch_time}: before existing open check-in.")
+                            f"Skipping punch {punch_time} for {employee.name}: found open attendance {open_now.check_in} newer or equal."
+                        )
                         continue
-                    open_attendance.write({'check_out': punch_time})
-                    _logger.info(f"Closed open attendance for {employee.name} at {punch_time}")
+                    try:
+                        open_now.write({'check_out': punch_time})
+                        _logger.info(
+                            f"Closed newly found open attendance for {employee.name}: {open_now.check_in} -> {punch_time}")
+                    except Exception as e:
+                        _logger.exception(f"Failed to close newly found open attendance for {employee.name}: {e}")
                     continue
 
-                # 2c. Otherwise, create a new check-in attendance
-                new_attendance = self.create({
-                    'employee_id': employee_id,
-                    'check_in': punch_time,
-                    'check_out': False,
-                })
-                _logger.info(f"Created new attendance for {employee.name}: Check-in at {punch_time}")
+                # attempt create
+                try:
+                    new_att = self.create({
+                        'employee_id': employee_id,
+                        'check_in': punch_time,
+                        'check_out': False,
+                    })
+                    _logger.info(
+                        f"Created NEW attendance for {employee.name}: check-in = {punch_time} (id={new_att.id})")
+                except ValidationError as ve:
+                    # Typical message: "Cannot create new attendance record for X, the employee was already checked in on ...".
+                    _logger.warning(
+                        f"ValidationError while creating attendance for {employee.name} at {punch_time}: {ve}")
+                    # Try to detect existing open attendance and attach to it instead of failing
+                    try:
+                        existing_open = self.env['hr.attendance'].search([
+                            ('employee_id', '=', employee_id),
+                            ('check_out', '=', False)
+                        ], limit=1, order="check_in DESC")
+                        if existing_open:
+                            # if the incoming punch_time is after existing_open.check_in, consider that an OUT for it
+                            if punch_time > existing_open.check_in:
+                                try:
+                                    existing_open.write({'check_out': punch_time})
+                                    _logger.info(
+                                        f"(Recovery) Closed existing open attendance for {employee.name}: {existing_open.check_in} -> {punch_time}"
+                                    )
+                                except Exception as e:
+                                    _logger.exception(
+                                        f"(Recovery) Failed to close existing open attendance for {employee.name}: {e}")
+                            else:
+                                # If punch_time <= existing_open.check_in, we just skip
+                                _logger.warning(
+                                    f"(Recovery) Punch {punch_time} <= existing open check-in {existing_open.check_in} for {employee.name}. Skipping."
+                                )
+                            continue
+                    except Exception as e:
+                        _logger.exception(f"While recovering from ValidationError for {employee.name}: {e}")
+                    # if recovery didn't work, skip this punch
+                    continue
+                except Exception as e:
+                    _logger.exception(f"Failed to create attendance for {employee.name} at {punch_time}: {e}")
+                    continue
 
         return True
 
