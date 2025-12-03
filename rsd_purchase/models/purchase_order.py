@@ -23,6 +23,15 @@ class PurchaseOrder(models.Model):
     dispatch_through = fields.Char(string="Dispatched Through")
     delivery_terms = fields.Text(string="Terms of Delivery")
 
+    state = fields.Selection([
+        ('draft', 'Draft'),
+        ('sent', 'RFQ Sent'),
+        ('to approve', 'To Approve'),
+        ('purchase', 'Purchase Order'),
+        ('done', 'Locked'),
+        ('cancel', 'Cancelled'),
+    ], string='Status', readonly=True, index=True, copy=False, default='draft', tracking=True)
+
     @api.model
     def _get_ship_to_domain(self):
         """
