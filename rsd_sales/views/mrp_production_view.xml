@@ -9,6 +9,7 @@
                 <!-- Add the origin_sale_id field to the form view -->
                 <xpath expr="//field[@name='user_id']" position="after">
                     <field name="origin_sale_id" readonly="1"/>
+                    <field name="production_request_type" readonly="1"/>
                 </xpath>
             </field>
         </record>

@@ -55,7 +55,7 @@ class SaleOrder(models.Model):
         selection=[
             ('min_inventory', 'Minimum Inventory Level'),
             ('trial', 'Trial for Process Development'),
-            # 'scale_up' option has been removed
+            ('order', 'Customer Order'),
         ],
         string="Type Of Production Request",
         default=_get_default_production_request_type,
@@ -274,6 +274,7 @@ class SaleOrder(models.Model):
                     'origin': order.name,
                     'company_id': order.company_id.id,
                     'origin_sale_id': order.id,
+                    'production_request_type': order.production_request_type,
                 })
                 _logger.info("SALES ORDER: Created Manufacturing Order %s for product %s.", mo.name, line.product_id.name)
 
