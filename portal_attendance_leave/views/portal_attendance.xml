@@ -15,40 +15,40 @@
 
             <div class="checkin-welcome">Welcome!</div>
 
-            <t t-if="not user.attendance_state == 'checked_in'">
-                <form action="/checkin/do" method="POST" style="display:inline;">
-                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                    <button type="submit" class="check-btn btn-check-in">
-                        <i class="fa fa-sign-in-alt"></i>
-                    </button>
-                </form>
-                <div class="checkin-text">Click to check in</div>
+<!--            <t t-if="not user.attendance_state == 'checked_in'">-->
+<!--                <form action="/checkin/do" method="POST" style="display:inline;">-->
+<!--                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>-->
+<!--                    <button type="submit" class="check-btn btn-check-in">-->
+<!--                        <i class="fa fa-sign-in-alt"></i>-->
+<!--                    </button>-->
+<!--                </form>-->
+<!--                <div class="checkin-text">Click to check in</div>-->
 
-                <t t-if="worked_hours">
-                    <div class="checkin-time">
-                        ⏱ Hours Worked:
-                        <strong>
-                            <t t-esc="worked_hours"/>
-                        </strong>
-                    </div>
-                </t>
-            </t>
-            <t t-else="">
-                <form action="/checkout/do" method="POST" style="display:inline;">
-                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                    <button type="submit" class="check-btn btn-check-out">
-                        <i class="fa fa-sign-out-alt"></i>
-                    </button>
-                </form>
-                <div class="checkin-text">Click to check out</div>
+<!--                <t t-if="worked_hours">-->
+<!--                    <div class="checkin-time">-->
+<!--                        ⏱ Hours Worked:-->
+<!--                        <strong>-->
+<!--                            <t t-esc="worked_hours"/>-->
+<!--                        </strong>-->
+<!--                    </div>-->
+<!--                </t>-->
+<!--            </t>-->
+<!--            <t t-else="">-->
+<!--                <form action="/checkout/do" method="POST" style="display:inline;">-->
+<!--                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>-->
+<!--                    <button type="submit" class="check-btn btn-check-out">-->
+<!--                        <i class="fa fa-sign-out-alt"></i>-->
+<!--                    </button>-->
+<!--                </form>-->
+<!--                <div class="checkin-text">Click to check out</div>-->
 
-                <div class="checkin-time">
-                    ⏱ Hours Worked:
-                    <strong>
-                        <t t-esc="worked_hours"/>
-                    </strong>
-                </div>
-            </t>
+<!--                <div class="checkin-time">-->
+<!--                    ⏱ Hours Worked:-->
+<!--                    <strong>-->
+<!--                        <t t-esc="worked_hours"/>-->
+<!--                    </strong>-->
+<!--                </div>-->
+<!--            </t>-->
         </div>
         <div class="action-buttons">
             <a href="/" class="action-link">
@@ -513,7 +513,7 @@
 
                         <label for="leave_type">Leave Type</label>
                         <select name="leave_type_id" class="form-input">
-                            <t t-foreach="request.env['hr.leave.type'].sudo().search([])" t-as="type">
+                            <t t-foreach="request.env['hr.leave.type'].sudo().search([('active', '=', True)])" t-as="type">
                                 <option t-att-value="type.id">
                                     <t t-esc="type.name"/>
                                 </option>
