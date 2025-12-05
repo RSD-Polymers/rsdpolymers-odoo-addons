@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
 
             <xpath expr="//field[@name='coach_id']" position="after">
-                <field name="essl_device_id"/>
+<!--                <field name="essl_device_id"/>-->
             </xpath>
 
         </field>

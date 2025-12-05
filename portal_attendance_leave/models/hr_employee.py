@@ -14,3 +14,4 @@ class HrEmployee(models.Model):
     esi_number = fields.Char('ESI No.')
     account_number = fields.Char('Account No.')
     date_of_joining = fields.Date('Joining Date')
+    ifs_code = fields.Char('IFS Code')

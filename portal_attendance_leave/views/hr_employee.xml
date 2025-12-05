@@ -6,10 +6,13 @@
             <xpath expr="//field[@name='job_id']" position="after">
                 <field name="date_of_joining"/>
                 <field name="account_number"/>
-                <field name="esi_number"/>
-                <field name="account_number"/>
-                <field name="uan"/>
                 <field name="pf_number"/>
+                <field name="ifs_code"/>
+            </xpath>
+            <xpath expr="//group/group/field[@name='company_id']" position="after">
+                <field name="esi_number"/>
+                <field name="uan"/>
+                <field name="essl_device_id"/>
             </xpath>
         </field>
     </record>
