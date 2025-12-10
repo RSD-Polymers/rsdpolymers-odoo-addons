@@ -11,7 +11,14 @@
                     <field name="origin_sale_id" readonly="1"/>
                     <field name="production_request_type"/>
                 </xpath>
+                <xpath expr="//div[@name='bom_div']" position="after">
+                    <field name="is_packing_order"/>
+                </xpath>
+                <xpath expr="//page[@name='components']//field[@name='product_id']" position="attributes">
+                    <attribute name="domain">[('type', 'in', ['product','consu'])]</attribute>
+                </xpath>
             </field>
         </record>
+
     </data>
 </odoo>
