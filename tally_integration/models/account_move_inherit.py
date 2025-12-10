@@ -43,6 +43,12 @@ class AccountMove(models.Model):
     tally_guid = fields.Char(string="Tally GUID", copy=False, readonly=True, index=True,
                              help="Unique Identifier for the voucher in TallyPrime for import/alteration purposes.")
 
+    tally_narration = fields.Text(
+        string="Narration",
+        copy=False,
+        help="Narration for Tally"
+    )
+
     def _get_tally_connection_details(self):
         ICPSudo = self.env['ir.config_parameter'].sudo()
         tally_company_name = ICPSudo.get_param('odoo_tally_integration.tally_company_name')
@@ -70,7 +76,7 @@ class AccountMove(models.Model):
             raise ValidationError(f"Move {move.name} does not have a date.")
 
         move_date_str = move.date.strftime('%Y%m%d')
-        narration = move.narration
+        narration = move.tally_narration
 
         # --- Escape narration for XML ---
         if narration:
@@ -86,9 +92,9 @@ class AccountMove(models.Model):
         ledger_entries_xml_parts = []
 
         # ==============================
-        # CASE 1: Journal Entries (Salary, Manual JVs, etc.)
+        # CASE 1: Journal Entries (Salary JVs)
         # ==============================
-        if move.move_type == 'entry':
+        if move.move_type == 'entry' and move.journal_id.name == 'Salaries':
 
             # Map ledger names for salary merging
             combine_map = {
@@ -277,6 +283,69 @@ class AccountMove(models.Model):
             voucher_type = "Purchase"
             party = vendor_ledger_name
 
+        # ==============================
+        # CASE 4: Manual JVs
+        # ==============================
+        elif move.move_type == 'entry' and move.journal_id.type == 'general':
+            entry = move
+
+            for line in entry.line_ids:
+                if line.debit > 0:
+                    amount = line.debit
+                    tally_amount = f"-{amount}"
+                    is_deemed_positive = "Yes"
+                else:
+                    amount = line.credit
+                    tally_amount = str(amount)
+                    is_deemed_positive = "No"
+
+                bill_allocations_xml = ""
+                if line.partner_id:
+                    bill_allocations_xml += f"""
+                    <BILLALLOCATIONS.LIST>
+                       <NAME>{entry.ref}</NAME>
+                       <BILLTYPE>Agst Ref</BILLTYPE>
+                       <AMOUNT>{tally_amount}</AMOUNT>
+                   </BILLALLOCATIONS.LIST>
+                """
+
+                costcenter_xml = ""
+                if line.analytic_distribution:
+                    for analytic_id, percentage in line.analytic_distribution.items():
+                        # FIX — convert analytic_id safely to int
+                        try:
+                            aid = int(analytic_id)
+                        except Exception:
+                            continue  # skip bad IDs
+
+                        analytic = self.env['account.analytic.account'].browse(aid)
+                        if not analytic:
+                            continue
+
+                        costcenter_xml += f"""
+                                    <CATEGORYALLOCATIONS.LIST>
+                                        <CATEGORY>{analytic.plan_id.name}</CATEGORY>
+                                        <ISDEEMEDPOSITIVE>{is_deemed_positive}</ISDEEMEDPOSITIVE>
+                                        <COSTCENTREALLOCATIONS.LIST>
+                                            <NAME>{analytic.name}</NAME>
+                                            <AMOUNT>{tally_amount}</AMOUNT>
+                                        </COSTCENTREALLOCATIONS.LIST>
+                                    </CATEGORYALLOCATIONS.LIST>
+                                    """
+
+                ledger_entries_xml_parts.append (f"""
+                <ALLLEDGERENTRIES.LIST>
+                    <LEDGERNAME>{line.account_id.name}</LEDGERNAME>
+                    <ISDEEMEDPOSITIVE>{is_deemed_positive}</ISDEEMEDPOSITIVE>
+                    <AMOUNT>{tally_amount}</AMOUNT>
+                    {bill_allocations_xml}
+                    {costcenter_xml}
+                </ALLLEDGERENTRIES.LIST>
+                """
+                )
+
+                voucher_type = "Journal"
+
         else:
             raise ValidationError(f"Tally XML generation not implemented for move type {move.move_type}")
 
@@ -287,45 +356,54 @@ class AccountMove(models.Model):
         # ==================================
         obj_view = "Accounting Voucher View"
 
+        party = move.partner_id.name if move.partner_id else ""
+
+        party_xml = ""
+        if move.move_type in ['out_invoice', 'in_invoice'] and party:
+            party_xml = f"""
+                <PARTYLEDGERNAME>{party}</PARTYLEDGERNAME>
+                <PARTYNAME>{party}</PARTYNAME>
+            """
+
         xml_string = f"""
-            <ENVELOPE>
-                <HEADER>
-                    <TALLYREQUEST>Import Data</TALLYREQUEST>
-                </HEADER>
-                <BODY>
-                    <IMPORTDATA>
-                        <REQUESTDESC>
-                            <REPORTNAME>Vouchers</REPORTNAME>
-                            <STATICVARIABLES>
-                                <SVCURRENTCOMPANY>{tally_company_name}</SVCURRENTCOMPANY>
-                            </STATICVARIABLES>
-                        </REQUESTDESC>
-                        <REQUESTDATA>
-                            <TALLYMESSAGE xmlns:UDF="TallyUDF">
-                                <VOUCHER REMOTEID="{voucher_guid}"
-                                         VCHTYPE="{voucher_type}"
-                                         ACTION="{tally_action}"
-                                         OBJVIEW="{obj_view}">
-                                    <DATE>{move_date_str}</DATE>
-                                    <REFERENCEDATE>{move_date_str}</REFERENCEDATE>
-                                    <GUID>{voucher_guid}</GUID>
-                                    <NARRATION>{narration}</NARRATION>
-                                    <VOUCHERTYPENAME>{voucher_type}</VOUCHERTYPENAME>
-                                    <VOUCHERNUMBER>{move.name}</VOUCHERNUMBER>
-                                    <REFERENCE>{move.name}</REFERENCE>
-                                    <EFFECTIVEDATE>{move_date_str}</EFFECTIVEDATE>
-                                    <PERSISTEDVIEW>"{obj_view}"</PERSISTEDVIEW>
-                                    <ISINVOICE>{"Yes" if move.move_type in ['out_invoice', 'in_invoice'] else "No"}</ISINVOICE>
-                                    {f"<PARTYLEDGERNAME>{party}</PARTYLEDGERNAME>" if party else ""}
-                                    {f"<PARTYNAME>{party}</PARTYNAME>" if party else ""}
-                                    {all_ledger_entries_xml}
-                                </VOUCHER>
-                            </TALLYMESSAGE>
-                        </REQUESTDATA>
-                    </IMPORTDATA>
-                </BODY>
-            </ENVELOPE>
+        <ENVELOPE>
+            <HEADER>
+                <TALLYREQUEST>Import Data</TALLYREQUEST>
+            </HEADER>
+            <BODY>
+                <IMPORTDATA>
+                    <REQUESTDESC>
+                        <REPORTNAME>Vouchers</REPORTNAME>
+                        <STATICVARIABLES>
+                            <SVCURRENTCOMPANY>{tally_company_name}</SVCURRENTCOMPANY>
+                        </STATICVARIABLES>
+                    </REQUESTDESC>
+                    <REQUESTDATA>
+                        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                            <VOUCHER REMOTEID="{voucher_guid}"
+                                     VCHTYPE="{voucher_type}"
+                                     ACTION="{tally_action}"
+                                     OBJVIEW="{obj_view}">
+                                <DATE>{move_date_str}</DATE>
+                                <REFERENCEDATE>{move_date_str}</REFERENCEDATE>
+                                <GUID>{voucher_guid}</GUID>
+                                <NARRATION>{narration}</NARRATION>
+                                <VOUCHERTYPENAME>{voucher_type}</VOUCHERTYPENAME>
+                                <VOUCHERNUMBER>{move.name}</VOUCHERNUMBER>
+                                <REFERENCE>{move.name}</REFERENCE>
+                                <EFFECTIVEDATE>{move_date_str}</EFFECTIVEDATE>
+                                <PERSISTEDVIEW>"{obj_view}"</PERSISTEDVIEW>
+                                <ISINVOICE>{"Yes" if move.move_type in ['out_invoice', 'in_invoice'] else "No"}</ISINVOICE>
+                                {party_xml}
+                                {all_ledger_entries_xml}
+                            </VOUCHER>
+                        </TALLYMESSAGE>
+                    </REQUESTDATA>
+                </IMPORTDATA>
+            </BODY>
+        </ENVELOPE>
         """
+
         return xml_string
 
     def _push_to_tally_core(self):

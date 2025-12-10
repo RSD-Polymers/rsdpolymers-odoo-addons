@@ -16,6 +16,7 @@
                        position="after">
                     <field name="posted_to_tally" widget="boolean_toggle"/>
                     <field name="tally_guid"/>
+                    <field name="tally_narration" readonly="posted_to_tally == True"/>
                 </xpath>
             </field>
         </record>
