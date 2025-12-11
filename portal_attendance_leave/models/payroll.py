@@ -30,3 +30,7 @@ class HrPayrollPayslip(models.Model):
             sundays = [day for day in cal.itermonthdates(rec.date_from.year, rec.date_from.month) if day.weekday() == 6 and day.month == rec.date_from.month]
             rec.weakoff = len(sundays)
 
+    def action_print_payslip(self):
+        return self.env.ref(
+            'portal_attendance_leave.action_custom_payslip_report'
+        ).report_action(self, config=False)
