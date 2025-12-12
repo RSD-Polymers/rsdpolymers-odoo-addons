@@ -762,6 +762,8 @@ class TallyImportWizard(models.TransientModel):
                         'is_company': True,
                         'customer_rank': 1 if is_customer else 0,
                         'supplier_rank': 1 if is_vendor else 0,
+                        'is_customer': is_customer,
+                        'is_vendor': is_vendor,
                         'street': street,
                         'street2': street2,
                         'zip': pincode,

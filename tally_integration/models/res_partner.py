@@ -32,3 +32,15 @@ class ResPartner(models.Model):
     string='Tally Purchase Account',
     help='Default purchase ledger (Tally) to use on vendor bill lines for this partner.'
     )
+
+    is_customer = fields.Boolean(
+        string='Is Customer',
+        default=False,
+        help='A helper field to quickly identify customers.'
+    )
+
+    is_vendor = fields.Boolean(
+        string='Is Vendor',
+        default=False,
+        help='A helper field to quickly identify vendors/suppliers.'
+    )
