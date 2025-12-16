@@ -1,6 +1,6 @@
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError, ValidationError
-from datetime import datetime, timedelta
+from odoo.exceptions import UserError
+from datetime import datetime, timedelta, time
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -11,156 +11,73 @@ try:
     from zeep.exceptions import Fault
 except ImportError:
     _logger.warning("The 'zeep' library is not installed. SOAP integration will not work.")
-    Client = None  # Dummy assignment for safety
+    Client = None
 
-# Try to import 'pytz' for timezone conversion
+# Try pytz for API date-range formatting
 try:
     import pytz
 except ImportError:
-    _logger.warning("The 'pytz' library is not installed. Timezone handling may be incorrect. Install pytz!")
+    _logger.warning("The 'pytz' library is not installed.")
     pytz = None
 
 
-# --- 1. Inheritance for hr.employee (Adds the mapping field) ---
+# ================================
+# 1) EXTEND hr.employee
+# ================================
 class HREmployeeSync(models.Model):
     _inherit = 'hr.employee'
 
-    # Add a field to hr.employee to map to the biometric device's Employee ID
-    essl_device_id = fields.Char(string="eSSL Device ID", copy=False, groups="hr.group_hr_user")
+    essl_device_id = fields.Char(
+        string="eSSL Device ID",
+        copy=False,
+        groups="hr.group_hr_user"
+    )
 
     attendance_manager_id = fields.Many2one(
         'res.users',
         string="Attendance Manager",
-        groups="hr_attendance.group_hr_attendance_officer",  # 👈 add officer group here
-        help="The user set in Attendance will access the attendance of the employee "
-             "through the dedicated app and will be able to edit them.",
+        groups="hr_attendance.group_hr_attendance_officer",
+        help="User responsible for attendance corrections.",
     )
 
-# --- 2. Inheritance for hr.attendance (Hosts the Cron Job function) ---
+
+# ================================
+# 2) EXTEND hr.attendance
+# (METHOD NAMES UNCHANGED)
+# ================================
 class HRAttendanceCronMethods(models.Model):
     _inherit = 'hr.attendance'
 
+    # -------------------------------------------------------
+    # KEEP METHOD NAME AS IS, BUT NOW IT *DOES NOTHING*
+    # (We will not use this anymore. Processing handled later.)
+    # -------------------------------------------------------
     def _create_or_update_attendance(self, parsed_punches, extend_tolerance_minutes=10):
         """
-        FINAL VERSION – Per-day attendance logic with night shift support,
-        duplicate protection, and idempotent re-processing.
-
-        RULES:
-        - One attendance per day (local date of check-in)
-        - First punch of the date becomes check_in
-        - Last punch of the date becomes check_out
-        - Night shifts (IN before midnight, OUT next morning) remain ONE record
-        - Duplicate/backdated punches never create new attendance
+        Deprecated in new design.
+        Raw punches are NOT processed here anymore.
         """
-
-        Attendance = self.env["hr.attendance"]
-        extend_tolerance = timedelta(minutes=extend_tolerance_minutes)
-
-        # Group punches per employee
-        punches_by_employee = {}
-        for punch in parsed_punches:
-            punches_by_employee.setdefault(punch["employee_id"], []).append(punch)
-
-        # IST timezone
-        import pytz
-        ist = pytz.timezone("Asia/Kolkata")
-
-        for employee_id, punches in punches_by_employee.items():
-            employee = self.env["hr.employee"].browse(employee_id)
-
-            # Sort punches chronologically
-            punches.sort(key=lambda x: x["punch_time"])
-
-            for punch in punches:
-                punch_time = punch["punch_time"]
-
-                # Determine local date of punch
-                punch_local_date = ist.localize(punch_time).date()
-
-                # Find an attendance whose CHECK-IN belongs to this date
-                same_day_att = Attendance.search([
-                    ('employee_id', '=', employee_id),
-                    ('check_in', '>=', datetime.combine(punch_local_date, datetime.min.time())),
-                    ('check_in', '<=', datetime.combine(punch_local_date, datetime.max.time())),
-                ], limit=1)
-
-                # ------------------------------------------------------------
-                # CASE 1: SAME-DAY ATTENDANCE EXISTS → MERGE PUNCHES
-                # ------------------------------------------------------------
-                if same_day_att:
-
-                    # If punch after current checkout → extend
-                    last_checkout = same_day_att.check_out or same_day_att.check_in
-                    if punch_time > last_checkout:
-                        gap = punch_time - last_checkout
-
-                        # small gaps = extend checkout
-                        if gap <= extend_tolerance:
-                            same_day_att.write({'check_out': punch_time})
-                            continue
-                        else:
-                            # large gaps → still extend (office staff leaves & returns)
-                            same_day_att.write({'check_out': punch_time})
-                            continue
-
-                    # Punch is before check_in OR inside attendance → ignore it
-                    continue
-
-                # ------------------------------------------------------------
-                # CASE 2: NO SAME-DAY ATTENDANCE → CHECK NIGHT SHIFT
-                # ------------------------------------------------------------
-                previous_att = Attendance.search([
-                    ('employee_id', '=', employee_id),
-                    ('check_out', '!=', False)
-                ], limit=1, order="check_out DESC")
-
-                if previous_att:
-                    # If punch is AFTER check_out AND
-                    # check_in and punch are on consecutive days → night shift case
-                    prev_ci_local = ist.localize(previous_att.check_in).date()
-                    prev_co_local = ist.localize(previous_att.check_out).date()
-
-                    # Example: check-in 22:00, check-out 06:00 next day
-                    if prev_ci_local != prev_co_local and punch_local_date == prev_co_local:
-                        # Night shift: extend previous attendance
-                        if punch_time > previous_att.check_out:
-                            previous_att.write({'check_out': punch_time})
-                        continue
-
-                    # Also allow morning punches within tolerance to extend night-shift checkout
-                    if punch_time <= previous_att.check_out + extend_tolerance:
-                        if punch_time > previous_att.check_out:
-                            previous_att.write({'check_out': punch_time})
-                        continue
-
-                # ------------------------------------------------------------
-                # CASE 3: CREATE NEW SAME-DAY ATTENDANCE
-                # ------------------------------------------------------------
-                try:
-                    new_att = Attendance.create({
-                        'employee_id': employee_id,
-                        'check_in': punch_time,
-                        'check_out': False,
-                    })
-                except Exception as e:
-                    # Any error means punch is conflicting with existing entries → ignore
-                    continue
-
+        _logger.info("Skipping attendance creation. New design imports raw logs only.")
         return True
 
-    @api.model
+    # -------------------------------------------------------
+    # MAIN CRON — NOW ONLY IMPORTS RAW LOGS INTO CUSTOM MODEL
+    # -------------------------------------------------------
     @api.model
     def sync_essl_attendance_logs(self):
         """
-        Fetches attendance logs from all configured eSSL devices and creates Odoo hr.attendance records.
-        Supports multiple devices by reading comma-separated serial numbers from Odoo config.
+        Fetches attendance logs from eSSL devices and stores them ONLY in the custom raw log model.
+        Does NOT create hr.attendance records here.
+        Stores:
+            - punch_time_local (Char) -> raw IST from device
+            - punch_time (UTC) -> converted UTC datetime
         """
         if not Client:
             raise UserError(_("The 'zeep' library is required but not installed on the Odoo server."))
 
         _logger.info("--- Starting eSSL Attendance Synchronization ---")
 
-        # 1. READ CONFIGURATIONS
+        # 1. READ CONFIG
         config_param = self.env['ir.config_parameter'].sudo()
         wsdl_url = config_param.get_param('essl_attendance_sync.wsdl_url')
         username = config_param.get_param('essl_attendance_sync.username')
@@ -169,33 +86,32 @@ class HRAttendanceCronMethods(models.Model):
 
         serial_numbers = [s.strip() for s in serial_numbers_str.split(',') if s.strip()]
         if not all([wsdl_url, username, password]) or not serial_numbers:
-            _logger.error("eSSL synchronization failed: Missing configuration parameters or Serial Numbers.")
+            _logger.error("Missing configuration for eSSL sync.")
             return
 
-        # 2. CALCULATE DATE RANGE (Last N FULL Days, Converted to IST for API)
-        server_now_utc = datetime.now()
-        days_to_sync = 1
-        to_datetime_utc = server_now_utc + timedelta(days=1)
-        to_datetime_utc = to_datetime_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-        from_datetime_utc = to_datetime_utc - timedelta(days=days_to_sync)
+        # 2. DATE RANGE (use UTC internally)
+        server_now = datetime.now()
+        days_to_sync = 11
+        to_datetime = (server_now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        from_datetime = to_datetime - timedelta(days=days_to_sync)
 
         if pytz:
-            ist_tz = pytz.timezone('Asia/Kolkata')
-            from_dt_ist = pytz.utc.localize(from_datetime_utc, is_dst=None).astimezone(ist_tz)
-            to_dt_ist = pytz.utc.localize(to_datetime_utc, is_dst=None).astimezone(ist_tz)
+            ist = pytz.timezone('Asia/Kolkata')
+            from_dt_ist = pytz.utc.localize(from_datetime).astimezone(ist)
+            to_dt_ist = pytz.utc.localize(to_datetime).astimezone(ist)
             from_dt_str = from_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
             to_dt_str = to_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
         else:
-            from_dt_str = from_datetime_utc.strftime("%Y-%m-%dT%H:%M:%S")
-            to_dt_str = to_datetime_utc.strftime("%Y-%m-%dT%H:%M:%S")
+            from_dt_str = from_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+            to_dt_str = to_datetime.strftime("%Y-%m-%dT%H:%M:%S")
 
-        _logger.info(f"Syncing logs from {from_dt_str} to {to_dt_str} (Last {days_to_sync} full days)")
+        _logger.info(f"Fetching logs {from_dt_str} → {to_dt_str}")
 
         all_logs = []
+        LogModel = self.env["essl.attendance.log"]
 
-        # 3. LOOP THROUGH ALL SERIAL NUMBERS
+        # 3. FETCH LOGS FROM ALL DEVICES
         for serial_number in serial_numbers:
-            _logger.info(f"Fetching logs from device: {serial_number}")
             try:
                 client = Client(wsdl_url)
                 response = client.service.GetTransactionsLog(
@@ -207,99 +123,214 @@ class HRAttendanceCronMethods(models.Model):
                     strDataList=''
                 )
 
-                if isinstance(response, dict):
-                    log_data_list = response.get('strDataList')
-                else:
-                    log_data_list = getattr(response, 'strDataList', None)
+                log_data_list = response.get('strDataList') if isinstance(response, dict) else getattr(response,
+                                                                                                       'strDataList',
+                                                                                                       None)
 
                 if not log_data_list:
-                    _logger.warning(f"No logs returned from device {serial_number}. Skipping.")
-                    continue
-                if log_data_list == 'Unathorised User':
-                    _logger.error(f"Unauthorized access for device {serial_number}. Check credentials.")
+                    _logger.warning(f"No logs from device {serial_number}")
                     continue
 
-                logs = log_data_list.replace('\r\n', '\n').replace('\r', '\n').split('\n')
-                logs = [line.strip() for line in logs if line.strip()]
+                if log_data_list == 'Unathorised User':
+                    _logger.error(f"Unauthorized for device {serial_number}")
+                    continue
+
+                logs = log_data_list.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+                logs = [l.strip() for l in logs if l.strip()]
                 all_logs.extend(logs)
+
                 _logger.info(f"Fetched {len(logs)} logs from device {serial_number}")
 
-            except Fault as e:
-                _logger.error(f"SOAP Fault while fetching logs from device {serial_number}: {e}")
             except Exception as e:
-                _logger.error(f"Error fetching logs from device {serial_number}: {e}")
+                _logger.error(f"Error fetching logs from {serial_number}: {e}")
 
         if not all_logs:
-            _logger.info("No attendance logs found from any devices. Exiting sync.")
+            _logger.info("No logs received.")
             return
 
-        # 4. AUTO-CLOSE STALE OPEN ATTENDANCES BEFORE PROCESSING NEW LOGS
-        try:
-            stale_threshold = datetime.now() - timedelta(hours=16)
-            stale_open_attendances = self.env['hr.attendance'].search([
-                ('check_out', '=', False),
-                ('check_in', '<', stale_threshold)
-            ])
-            _logger.info(f"Found {len(stale_open_attendances)} stale open attendances to auto-close.")
-
-            for attendance in stale_open_attendances:
-                close_time = attendance.check_in.replace(hour=23, minute=59, second=59)
-                attendance.write({'check_out': close_time})
-                _logger.info(f"Auto-closed stale attendance for {attendance.employee_id.name} "
-                             f"from {attendance.check_in} → {close_time}.")
-        except Exception as e:
-            _logger.error(f"Error auto-closing stale attendances: {e}")
-
-        # 5. PARSE ALL LOGS
-        parsed_punches = []
+        # 4. PARSE & SAVE RAW LOGS
         employee_obj = self.env['hr.employee']
-        processed_logs_count = 0
+        processed = 0
+        offset = timedelta(hours=5, minutes=30)  # IST offset
 
-        for log_line in all_logs:
-            if not log_line:
-                continue
+        skipped = 0
+
+        for line in all_logs:
             try:
-                fields_data = log_line.strip().split('\t')
-                if len(fields_data) < 2:
-                    _logger.warning(f"Skipping malformed log: {log_line}")
+                parts = line.split("\t")
+                if len(parts) < 2:
                     continue
 
-                employee_device_id = fields_data[0]
-                # target_essl_id = "1"
-                # if employee_device_id != target_essl_id:
-                #     continue
-                punch_time_str = fields_data[1].strip()
-                punch_status = '0'
-                punch_datetime = datetime.strptime(punch_time_str, "%Y-%m-%d %H:%M:%S")
+                device_emp_id = parts[0].strip()
+                raw_ist_str = parts[1].strip()  # IST string from device
 
-                punch_time_utc = punch_datetime
-                if pytz:
-                    ist = pytz.timezone('Asia/Kolkata')
-                    local_punch_datetime = ist.localize(punch_datetime, is_dst=None)
-                    punch_time_utc = local_punch_datetime.astimezone(pytz.utc).replace(tzinfo=None)
+                exists = LogModel.search_count([
+                    ("employee_device_id", "=", device_emp_id),
+                    ("punch_time_local", "=", raw_ist_str),
+                ])
 
-                employee = employee_obj.search([('essl_device_id', '=', employee_device_id)], limit=1)
-                if not employee:
-                    _logger.warning(
-                        f"No Odoo Employee found for Device ID: {employee_device_id}. Skipping punch at {punch_time_str}.")
+                if exists:
+                    skipped += 1
                     continue
 
-                parsed_punches.append({
-                    'employee_id': employee.id,
-                    'punch_time': punch_time_utc,
-                    'is_checkout': punch_status == '1',
+                # Parse raw IST to datetime
+                ist_dt = datetime.strptime(raw_ist_str, "%Y-%m-%d %H:%M:%S")
+
+                # Convert IST→UTC
+                utc_dt = ist_dt - offset
+
+                # Detect employee
+                employee = employee_obj.search([('essl_device_id', '=', device_emp_id)], limit=1)
+
+                # Store raw IST (Char) and UTC datetime
+                LogModel.create({
+                    "employee_device_id": device_emp_id,
+                    "employee_id": employee.id if employee else False,
+                    "punch_time_local": raw_ist_str,  # EXACT from device
+                    "punch_time": utc_dt,  # for attendance processing later
+                    "raw_line": line,
+                    "processed": False,
                 })
-                processed_logs_count += 1
 
-            except ValueError:
-                _logger.error(f"Date/Time format error in log: {log_line}. Expected YYYY-MM-DD HH:MM:SS.")
+                processed += 1
+
             except Exception as e:
-                _logger.error(f"Error processing log line: {log_line}. Error: {e}")
+                _logger.error(f"[Parse Error] {line}: {e}")
 
-        _logger.info(f"Successfully parsed {processed_logs_count} valid punches from {len(all_logs)} raw log lines.")
+        _logger.info(
+            f"eSSL Raw Logs Sync Complete → Inserted: {processed}, Skipped (duplicates): {skipped}"
+        )
 
-        # 6. CREATE OR UPDATE ODOO ATTENDANCE RECORDS
-        self._create_or_update_attendance(parsed_punches)
+    @api.model
+    def process_essl_attendance_logs(self):
+        """
+        Reads all unprocessed raw logs from essl.attendance.log,
+        applies Option A logic (one attendance per day),
+        supports night shift (20:00 → 08:00),
+        and creates/updates hr.attendance.
+        """
 
-        _logger.info("--- eSSL Attendance Synchronization finished ---")
+        Log = self.env["essl.attendance.log"]
+        Employee = self.env["hr.employee"]
+        Attendance = self.env["hr.attendance"]
 
+        # Fetch unprocessed logs
+        logs = Log.search([("processed", "=", False)], order="punch_time_local asc")
+
+        if not logs:
+            _logger.info("No unprocessed eSSL logs found.")
+            return
+
+        # Group punches by employee → by local date (IST)
+        punches = {}  # punches[employee_id][date] = list of datetimes
+
+        for log in logs:
+            try:
+                emp_id = log.employee_id.id
+                if not emp_id:
+                    log.status = "error"
+                    log.error_message = "Employee not mapped to eSSL Device ID"
+                    log.processed = True
+                    continue
+
+                punch_dt = log.punch_time  # IST datetime
+
+                # Determine "logical attendance date" (handles night shift)
+                punch_dt_ist = punch_dt + timedelta(hours=5, minutes=30)
+                punch_date = punch_dt_ist.date()
+
+                # Build grouping structure
+                punches.setdefault(emp_id, {})
+                punches[emp_id].setdefault(punch_date, [])
+                punches[emp_id][punch_date].append((log, punch_dt))
+
+            except Exception as e:
+                _logger.error(f"Error grouping log {log.id}: {e}")
+                log.status = "error"
+                log.error_message = f"Grouping failed: {e}"
+                log.processed = True
+
+        night_start = time(20, 0)  # 08:00 PM
+        night_end = time(8, 0)  # 08:00 AM
+
+        # Process each employee
+        for emp_id, emp_days in punches.items():
+
+            # Sort days chronologically
+            for punch_date in sorted(emp_days.keys()):
+                day_punches = emp_days[punch_date]
+
+                # Sort punches within the day
+                day_punches.sort(key=lambda x: x[1])
+
+                first_log, first_dt = day_punches[0]
+                last_log, last_dt = day_punches[-1]
+
+                # ----------------------------
+                # NIGHT SHIFT CHECK
+                # ----------------------------
+                # If this is early morning (<8am), check if yesterday had a night punch
+                if first_dt.time() <= night_end:
+
+                    prev_date = punch_date - timedelta(days=1)
+
+                    # Get yesterday punches if any
+                    prev_logs = punches.get(emp_id, {}).get(prev_date, [])
+                    if prev_logs:
+                        # Check last punch of previous day
+                        prev_last_log, prev_last_dt = sorted(prev_logs, key=lambda x: x[1])[-1]
+
+                        # Night-shift logic:
+                        if prev_last_dt.time() >= night_start:
+                            # Extend previous day's attendance
+
+                            prev_att = Attendance.search([
+                                ("employee_id", "=", emp_id),
+                                ("check_in", ">=", datetime.combine(prev_date, time(0, 0, 0))),
+                                ("check_in", "<=", datetime.combine(prev_date, time(23, 59, 59))),
+                            ], limit=1)
+
+                            if prev_att:
+                                prev_att.check_out = last_dt
+                            else:
+                                # Create new night attendance
+                                Attendance.create({
+                                    "employee_id": emp_id,
+                                    "check_in": prev_last_dt,
+                                    "check_out": last_dt,
+                                })
+
+                            # Mark today's logs as processed
+                            for log, _dt in day_punches:
+                                log.status = "success"
+                                log.processed = True
+
+                            continue  # DO NOT create a new attendance day record
+
+                # ----------------------------
+                # NORMAL DAY — OPTION A LOGIC
+                # ----------------------------
+                existing_att = Attendance.search([
+                    ("employee_id", "=", emp_id),
+                    ("check_in", ">=", datetime.combine(punch_date, time(0, 0, 0))),
+                    ("check_in", "<=", datetime.combine(punch_date, time(23, 59, 59))),
+                ], limit=1)
+
+                if existing_att:
+                    # Extend end time
+                    if last_dt > (existing_att.check_out or existing_att.check_in):
+                        existing_att.check_out = last_dt
+                else:
+                    # Create new attendance record
+                    Attendance.create({
+                        "employee_id": emp_id,
+                        "check_in": first_dt,
+                        "check_out": last_dt,
+                    })
+
+                # Mark all logs of that day as processed
+                for log, _dt in day_punches:
+                    log.status = "success"
+                    log.processed = True
+
+        _logger.info("eSSL Attendance Processing Completed Successfully.")

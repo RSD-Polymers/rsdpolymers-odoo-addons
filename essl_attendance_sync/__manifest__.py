@@ -18,6 +18,7 @@
         'views/res_config_settings_views.xml',
         'data/ir_cron_data.xml',
         'views/employee_inherit_views.xml',
+        'views/essl_attendance_log_views.xml',
     ],
     'installable': True,
     'application': False,
