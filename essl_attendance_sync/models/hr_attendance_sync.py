@@ -68,9 +68,11 @@ class HRAttendanceCronMethods(models.Model):
         """
         Fetches attendance logs from eSSL devices and stores them ONLY in the custom raw log model.
         Does NOT create hr.attendance records here.
+
         Stores:
             - punch_time_local (Char) -> raw IST from device
-            - punch_time (UTC) -> converted UTC datetime
+            - punch_time (Datetime UTC) -> for attendance processing
+            - status / error_message for traceability
         """
         if not Client:
             raise UserError(_("The 'zeep' library is required but not installed on the Odoo server."))
@@ -89,28 +91,26 @@ class HRAttendanceCronMethods(models.Model):
             _logger.error("Missing configuration for eSSL sync.")
             return
 
-        # 2. DATE RANGE (use UTC internally)
-        server_now = datetime.now()
-        days_to_sync = 11
-        to_datetime = (server_now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        from_datetime = to_datetime - timedelta(days=days_to_sync)
+        ist = pytz.timezone("Asia/Kolkata")
 
-        if pytz:
-            ist = pytz.timezone('Asia/Kolkata')
-            from_dt_ist = pytz.utc.localize(from_datetime).astimezone(ist)
-            to_dt_ist = pytz.utc.localize(to_datetime).astimezone(ist)
-            from_dt_str = from_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
-            to_dt_str = to_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
-        else:
-            from_dt_str = from_datetime.strftime("%Y-%m-%dT%H:%M:%S")
-            to_dt_str = to_datetime.strftime("%Y-%m-%dT%H:%M:%S")
+        # End: now (IST)
+        to_dt_ist = datetime.now(ist)
+
+        # Start: beginning of previous day (IST)
+        from_dt_ist = (to_dt_ist - timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        from_dt_str = from_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
+        to_dt_str = to_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
 
         _logger.info(f"Fetching logs {from_dt_str} → {to_dt_str}")
 
         all_logs = []
         LogModel = self.env["essl.attendance.log"]
+        employee_obj = self.env["hr.employee"]
 
-        # 3. FETCH LOGS FROM ALL DEVICES
+        # 3. FETCH LOGS FROM DEVICES
         for serial_number in serial_numbers:
             try:
                 client = Client(wsdl_url)
@@ -123,9 +123,11 @@ class HRAttendanceCronMethods(models.Model):
                     strDataList=''
                 )
 
-                log_data_list = response.get('strDataList') if isinstance(response, dict) else getattr(response,
-                                                                                                       'strDataList',
-                                                                                                       None)
+                log_data_list = (
+                    response.get('strDataList')
+                    if isinstance(response, dict)
+                    else getattr(response, 'strDataList', None)
+                )
 
                 if not log_data_list:
                     _logger.warning(f"No logs from device {serial_number}")
@@ -148,12 +150,10 @@ class HRAttendanceCronMethods(models.Model):
             _logger.info("No logs received.")
             return
 
-        # 4. PARSE & SAVE RAW LOGS
-        employee_obj = self.env['hr.employee']
-        processed = 0
-        offset = timedelta(hours=5, minutes=30)  # IST offset
-
+        # 4. PARSE & SAVE RAW LOGS (WITH DEDUP + ERROR INFO)
+        inserted = 0
         skipped = 0
+        offset = timedelta(hours=5, minutes=30)  # IST offset
 
         for line in all_logs:
             try:
@@ -162,43 +162,65 @@ class HRAttendanceCronMethods(models.Model):
                     continue
 
                 device_emp_id = parts[0].strip()
-                raw_ist_str = parts[1].strip()  # IST string from device
+                raw_ist_str = parts[1].strip()
 
+                # Dedup check
                 exists = LogModel.search_count([
                     ("employee_device_id", "=", device_emp_id),
                     ("punch_time_local", "=", raw_ist_str),
                 ])
-
                 if exists:
                     skipped += 1
                     continue
 
-                # Parse raw IST to datetime
+                # Parse IST → UTC
                 ist_dt = datetime.strptime(raw_ist_str, "%Y-%m-%d %H:%M:%S")
-
-                # Convert IST→UTC
                 utc_dt = ist_dt - offset
 
-                # Detect employee
-                employee = employee_obj.search([('essl_device_id', '=', device_emp_id)], limit=1)
+                employee = employee_obj.search(
+                    [('essl_device_id', '=', device_emp_id)],
+                    limit=1
+                )
 
-                # Store raw IST (Char) and UTC datetime
+                error_msg = False
+                status = False
+
+                if not employee:
+                    status = "error"
+                    error_msg = "Employee not mapped to eSSL Device ID"
+
                 LogModel.create({
                     "employee_device_id": device_emp_id,
                     "employee_id": employee.id if employee else False,
-                    "punch_time_local": raw_ist_str,  # EXACT from device
-                    "punch_time": utc_dt,  # for attendance processing later
+                    "punch_time_local": raw_ist_str,
+                    "punch_time": utc_dt,
                     "raw_line": line,
                     "processed": False,
+                    "status": status,
+                    "error_message": error_msg,
                 })
 
-                processed += 1
+                inserted += 1
 
             except Exception as e:
                 _logger.error(f"[Parse Error] {line}: {e}")
 
+                # best-effort save of failed log
+                try:
+                    LogModel.create({
+                        "employee_device_id": device_emp_id if 'device_emp_id' in locals() else False,
+                        "employee_id": False,
+                        "punch_time_local": raw_ist_str if 'raw_ist_str' in locals() else False,
+                        "raw_line": line,
+                        "processed": True,
+                        "status": "error",
+                        "error_message": str(e),
+                    })
+                except Exception:
+                    pass
+
         _logger.info(
-            f"eSSL Raw Logs Sync Complete → Inserted: {processed}, Skipped (duplicates): {skipped}"
+            f"eSSL Raw Logs Sync Complete → Inserted: {inserted}, Skipped (duplicates): {skipped}"
         )
 
     @api.model
