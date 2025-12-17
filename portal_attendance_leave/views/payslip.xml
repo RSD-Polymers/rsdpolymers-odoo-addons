@@ -104,7 +104,7 @@
                             </td>
                             <td style="border:1px solid #000; padding:5px;">Bank</td>
                             <td style="border:1px solid #000; padding:5px;">
-                                <t t-esc="doc.employee_id.bank_account_id.name if doc.employee_id.bank_account_id else 'HDFC'"/>
+                                <t t-esc="doc.employee_id.bank_account_id.name if doc.employee_id.bank_account_id else ''"/>
                             </td>
                         </tr>
                         <tr>
@@ -121,16 +121,19 @@
 
                     <!-- Working Days -->
                     <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
-
+                        <t t-set="calendar_days"
+                           t-value="(doc.date_to - doc.date_from).days + 1"/>
+                        <t t-set="paid_days"
+                           t-value="calendar_days - doc.weakoff - doc.leaves"/>
                         <tr>
                             <td style="border:1px solid #000; padding:5px;">Total Working Days</td>
                             <td style="border:1px solid #000; padding:5px; text-align:right;">
-                                <t t-esc="'%.2f' % doc.number_of_days"/>
+                                <t t-esc="'%.2f' % calendar_days"/>
                             </td>
 
                             <td style="border:1px solid #000; padding:5px;">Paid Days</td>
                             <td style="border:1px solid #000; padding:5px; text-align:right;">
-                                <t t-esc="'%.2f' % doc.leaves"/>
+                                <t t-esc="'%.2f' % paid_days"/>
                             </td>
                         </tr>
 
@@ -142,7 +145,7 @@
 
                             <td style="border:1px solid #000; padding:5px;">Present Days</td>
                             <td style="border:1px solid #000; padding:5px; text-align:right;">
-                                <t t-esc="'%.2f' % (doc.number_of_days - doc.leaves - doc.weakoff)"/>
+                                <t t-esc="'%.2f' % (calendar_days - doc.leaves - doc.weakoff)"/>
                             </td>
                         </tr>
 
@@ -222,7 +225,7 @@
                         <tr>
                             <td style="border:1px solid #000; padding:5px;">Medical Allowance</td>
                             <td style="border:1px solid #000; padding:5px; text-align:right;">
-                                <t t-esc="'%.2f' % (sum(line.amount for line in doc.line_ids if line.name=='MEDICAL REIMB.'))"/>
+                                <t t-esc="'%.2f' % (sum(line.amount for line in doc.line_ids if line.code=='MED_REIMB'))"/>
                             </td>
 
                             <td style="border:1px solid #000; padding:5px;">TDS</td>
@@ -276,7 +279,11 @@
 
                             <td style="border:1px solid #000; padding:5px; font-weight:bold;">Total Deductions</td>
                             <td style="border:1px solid #000; padding:5px; text-align:right; font-weight:bold;">
-                                <t t-esc="'%.2f' % (sum(line.amount for line in doc.line_ids if line.name in ['Basic Salary','PF','ESIC','Profession Tax','TDS','Advance','Loan']))"/>
+                                <t t-esc="'%.2f' % sum(
+                                        doc.line_ids
+                                           .filtered(lambda l: l.category_id.code == 'NET_DED')
+                                           .mapped('amount')
+                                    )"/>
                             </td>
                         </tr>
                     </table>
