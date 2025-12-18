@@ -22,10 +22,14 @@ class SaleOrderLine(models.Model):
 
     qty_packed_inventory = fields.Float(
         string='Packed Inventory',
+        compute='_compute_inventory_quantities',
+        store=False,
         readonly=True,
     )
     qty_unpacked_inventory = fields.Float(
         string='Unpacked Inventory',
+        compute='_compute_inventory_quantities',
+        store=False,
         readonly=True,
     )
 
@@ -84,27 +88,30 @@ class SaleOrderLine(models.Model):
         # Trigger the re-computation of the all_in_stock field on the parent order
         self.order_id._compute_all_in_stock()
 
-    @api.onchange('product_id')
-    def _onchange_product_id_inventory(self):
-        if self.product_id:
-            # Find the stock locations for packed and unpacked inventory
-            packed_loc = self.env['stock.location'].search([('name', '=', 'FG/Packed')], limit=1)
-            unpacked_loc = self.env['stock.location'].search([('name', '=', 'FG/Unpacked')], limit=1)
+    @api.depends('product_id')  # <--- Triggered when product_id changes
+    def _compute_inventory_quantities(self):
 
-            # Get the quantities from these locations
-            if packed_loc:
-                self.qty_packed_inventory = sum(self.env['stock.quant'].search(
-                    [('product_id', '=', self.product_id.id), ('location_id', '=', packed_loc.id)]
-                ).mapped('quantity'))
-            else:
-                self.qty_packed_inventory = 0.0
+        packed_loc = self.env['stock.location'].search([('name', '=', 'Packed - FG')], limit=1)
+        unpacked_loc = self.env['stock.location'].search([('name', '=', 'Un Packed - FG')], limit=1)
 
-            if unpacked_loc:
-                self.qty_unpacked_inventory = sum(self.env['stock.quant'].search(
-                    [('product_id', '=', self.product_id.id), ('location_id', '=', unpacked_loc.id)]
-                ).mapped('quantity'))
+        for line in self:
+            if line.product_id:
+                if packed_loc:
+                    line.qty_packed_inventory = sum(self.env['stock.quant'].search([
+                        ('product_id', '=', line.product_id.id),
+                        ('location_id', '=', packed_loc.id)
+                    ]).mapped('quantity'))
+                else:
+                    line.qty_packed_inventory = 0.0
+
+                # Unpacked Quantity
+                if unpacked_loc:
+                    line.qty_unpacked_inventory = sum(self.env['stock.quant'].search([
+                        ('product_id', '=', line.product_id.id),
+                        ('location_id', '=', unpacked_loc.id)
+                    ]).mapped('quantity'))
+                else:
+                    line.qty_unpacked_inventory = 0.0
             else:
-                self.qty_unpacked_inventory = 0.0
-        else:
-            self.qty_packed_inventory = 0.0
-            self.qty_unpacked_inventory = 0.0
+                line.qty_packed_inventory = 0.0
+                line.qty_unpacked_inventory = 0.0

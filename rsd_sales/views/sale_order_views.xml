@@ -57,7 +57,7 @@
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
                 <field name="qty_available" readonly="1" string="Qty Available" title="Quantity Available"/>
                 <field name="qty_packed_inventory" readonly="1" string="FG Packed Qty" title="Packed Inventory"/>
-                <field name="qty_unpacked_inventory" readonly="1" string="FG Unpacked Qty" title="Unpacked Inventory"/>
+                <field name="qty_unpacked_inventory" width="120" readonly="1" string="FG Unpacked Qty" title="Unpacked Inventory"/>
             </xpath>
 
             <!-- Hide all customer and pricing details from the production users and managers. -->
