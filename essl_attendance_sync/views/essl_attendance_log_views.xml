@@ -1,6 +1,42 @@
 <odoo>
 
     <!-- ====================================================== -->
+    <!-- Search View -->
+    <!-- ====================================================== -->
+    <record id="view_essl_attendance_log_search" model="ir.ui.view">
+        <field name="name">essl.attendance.log.search</field>
+        <field name="model">essl.attendance.log</field>
+        <field name="priority">1</field>
+        <field name="arch" type="xml">
+            <search string="Search Attendance Logs">
+
+                <field name="employee_id"
+                       string="Employee"
+                       filter_domain="[('employee_id.name', 'ilike', self)]"/>
+                <field name="processed"/>
+                <field name="status"/>
+
+                <filter name="processed"
+                        string="Processed"
+                        domain="[('processed','=',True)]"/>
+
+                <filter name="unprocessed"
+                        string="Unprocessed"
+                        domain="[('processed','=',False)]"/>
+
+                <filter name="error"
+                        string="Error"
+                        domain="[('status','=','error')]"/>
+
+                <filter string="Archived"
+                        name="archived"
+                        domain="[('active','=',False)]"/>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- ====================================================== -->
     <!-- Action -->
     <!-- ====================================================== -->
     <record id="action_essl_attendance_log" model="ir.actions.act_window">
@@ -49,6 +85,7 @@
         <field name="arch" type="xml">
             <form string="eSSL Attendance Log">
                 <sheet>
+                    <field name="active" invisible="1"/>
                     <!-- ===== HEADER INFO ===== -->
                     <group string="Basic Information" col="2">
                         <field name="employee_device_id" readonly="1"/>

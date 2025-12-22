@@ -226,133 +226,121 @@ class HRAttendanceCronMethods(models.Model):
     @api.model
     def process_essl_attendance_logs(self):
         """
-        Reads all unprocessed raw logs from essl.attendance.log,
-        applies Option A logic (one attendance per day),
-        supports night shift (20:00 → 08:00),
-        and creates/updates hr.attendance.
+        Process raw eSSL logs into hr.attendance
+
+        Rules:
+        - Night shift supported (20:00 → 08:00)
+        - Single punch => attendance with check_in only (Option A)
+        - No silent skipping
         """
 
         Log = self.env["essl.attendance.log"]
-        Employee = self.env["hr.employee"]
         Attendance = self.env["hr.attendance"]
 
-        # Fetch unprocessed logs
-        logs = Log.search([("processed", "=", False)], order="punch_time_local asc")
-
-        if not logs:
-            _logger.info("No unprocessed eSSL logs found.")
-            return
-
-        # Group punches by employee → by local date (IST)
-        punches = {}  # punches[employee_id][date] = list of datetimes
-
-        for log in logs:
-            try:
-                emp_id = log.employee_id.id
-                if not emp_id:
-                    log.status = "error"
-                    log.error_message = "Employee not mapped to eSSL Device ID"
-                    log.processed = True
-                    continue
-
-                punch_dt = log.punch_time  # IST datetime
-
-                # Determine "logical attendance date" (handles night shift)
-                punch_dt_ist = punch_dt + timedelta(hours=5, minutes=30)
-                punch_date = punch_dt_ist.date()
-
-                # Build grouping structure
-                punches.setdefault(emp_id, {})
-                punches[emp_id].setdefault(punch_date, [])
-                punches[emp_id][punch_date].append((log, punch_dt))
-
-            except Exception as e:
-                _logger.error(f"Error grouping log {log.id}: {e}")
-                log.status = "error"
-                log.error_message = f"Grouping failed: {e}"
-                log.processed = True
-
-        night_start = time(20, 0)  # 08:00 PM
         night_end = time(8, 0)  # 08:00 AM
 
-        # Process each employee
-        for emp_id, emp_days in punches.items():
+        logs = Log.search(
+            [("processed", "=", False)],
+            order="punch_time asc"
+        )
 
-            # Sort days chronologically
-            for punch_date in sorted(emp_days.keys()):
-                day_punches = emp_days[punch_date]
+        if not logs:
+            _logger.info("No unprocessed logs found.")
+            return
 
-                # Sort punches within the day
-                day_punches.sort(key=lambda x: x[1])
+        # punches[employee_id][attendance_date] = [(log, datetime)]
+        punches = {}
 
-                first_log, first_dt = day_punches[0]
-                last_log, last_dt = day_punches[-1]
+        # -------------------------------------------------
+        # 1️⃣ GROUP LOGS BY *LOGICAL ATTENDANCE DATE*
+        # -------------------------------------------------
+        for log in logs:
+            try:
+                if not log.employee_id:
+                    log.status = "error"
+                    log.error_message = "Employee not mapped"
+                    continue
 
-                # ----------------------------
-                # NIGHT SHIFT CHECK
-                # ----------------------------
-                # If this is early morning (<8am), check if yesterday had a night punch
-                if first_dt.time() <= night_end:
+                punch_dt = log.punch_time
+                punch_time = punch_dt.time()
 
-                    prev_date = punch_date - timedelta(days=1)
-
-                    # Get yesterday punches if any
-                    prev_logs = punches.get(emp_id, {}).get(prev_date, [])
-                    if prev_logs:
-                        # Check last punch of previous day
-                        prev_last_log, prev_last_dt = sorted(prev_logs, key=lambda x: x[1])[-1]
-
-                        # Night-shift logic:
-                        if prev_last_dt.time() >= night_start:
-                            # Extend previous day's attendance
-
-                            prev_att = Attendance.search([
-                                ("employee_id", "=", emp_id),
-                                ("check_in", ">=", datetime.combine(prev_date, time(0, 0, 0))),
-                                ("check_in", "<=", datetime.combine(prev_date, time(23, 59, 59))),
-                            ], limit=1)
-
-                            if prev_att:
-                                prev_att.check_out = last_dt
-                            else:
-                                # Create new night attendance
-                                Attendance.create({
-                                    "employee_id": emp_id,
-                                    "check_in": prev_last_dt,
-                                    "check_out": last_dt,
-                                })
-
-                            # Mark today's logs as processed
-                            for log, _dt in day_punches:
-                                log.status = "success"
-                                log.processed = True
-
-                            continue  # DO NOT create a new attendance day record
-
-                # ----------------------------
-                # NORMAL DAY — OPTION A LOGIC
-                # ----------------------------
-                existing_att = Attendance.search([
-                    ("employee_id", "=", emp_id),
-                    ("check_in", ">=", datetime.combine(punch_date, time(0, 0, 0))),
-                    ("check_in", "<=", datetime.combine(punch_date, time(23, 59, 59))),
-                ], limit=1)
-
-                if existing_att:
-                    # Extend end time
-                    if last_dt > (existing_att.check_out or existing_att.check_in):
-                        existing_att.check_out = last_dt
+                # Night-shift date logic
+                if punch_time <= night_end:
+                    attendance_date = punch_dt.date() - timedelta(days=1)
                 else:
-                    # Create new attendance record
-                    Attendance.create({
-                        "employee_id": emp_id,
-                        "check_in": first_dt,
-                        "check_out": last_dt,
-                    })
+                    attendance_date = punch_dt.date()
 
-                # Mark all logs of that day as processed
-                for log, _dt in day_punches:
-                    log.status = "success"
-                    log.processed = True
+                emp_id = log.employee_id.id
 
-        _logger.info("eSSL Attendance Processing Completed Successfully.")
+                punches.setdefault(emp_id, {})
+                punches[emp_id].setdefault(attendance_date, [])
+                punches[emp_id][attendance_date].append((log, punch_dt))
+
+            except Exception as e:
+                log.status = "error"
+                log.error_message = f"Grouping error: {e}"
+
+        # -------------------------------------------------
+        # 2️⃣ CREATE / UPDATE ATTENDANCE
+        # -------------------------------------------------
+        for emp_id, emp_days in punches.items():
+            for att_date, records in emp_days.items():
+                try:
+                    records.sort(key=lambda r: r[1])
+                    dts = [dt for _, dt in records]
+
+                    first_dt = dts[0]
+                    last_dt = dts[-1]
+
+                    attendance = Attendance.search([
+                        ("employee_id", "=", emp_id),
+                        ("check_in", ">=", datetime.combine(att_date, time.min)),
+                        ("check_in", "<=", datetime.combine(att_date, time.max)),
+                    ], limit=1)
+
+                    # ------------------------------------
+                    # OPTION A — SINGLE PUNCH
+                    # ------------------------------------
+                    if len(dts) == 1:
+                        if not attendance:
+                            Attendance.create({
+                                "employee_id": emp_id,
+                                "check_in": first_dt,
+                                "check_out": False,
+                            })
+
+                        for log, _ in records:
+                            log.status = "success"
+                            log.error_message = "Single punch (missing check-out)"
+                            log.processed = True
+
+                        continue
+
+                    # ------------------------------------
+                    # NORMAL IN / OUT
+                    # ------------------------------------
+                    if attendance:
+                        attendance.check_out = max(
+                            attendance.check_out or first_dt,
+                            last_dt
+                        )
+                    else:
+                        Attendance.create({
+                            "employee_id": emp_id,
+                            "check_in": first_dt,
+                            "check_out": last_dt,
+                        })
+
+                    for log, _ in records:
+                        log.status = "success"
+                        log.error_message = False
+                        log.processed = True
+
+                except Exception as e:
+                    for log, _ in records:
+                        log.status = "error"
+                        log.error_message = f"Attendance creation failed: {e}"
+
+        _logger.info("eSSL attendance processing completed successfully.")
+
+

@@ -18,6 +18,7 @@ class EsslAttendanceLog(models.Model):
         ("error", "Error"),
     ])
     error_message = fields.Text(string="Error Message")
+    active = fields.Boolean(default=True)
 
     _sql_constraints = [
         (
