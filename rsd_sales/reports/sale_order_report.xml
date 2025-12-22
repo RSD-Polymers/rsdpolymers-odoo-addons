@@ -232,6 +232,9 @@
                             <th style="width:35%; border-right:1px solid black; padding: 5px; border-bottom:1px solid black;">
                                 Description of Goods
                             </th>
+                            <th style="width:10%; border-right:1px solid black; padding: 5px; border-bottom:1px solid black;">
+                                HSN/SAC
+                            </th>
                             <th class="text-right"
                                 style="width:10%; border-right:1px solid black; padding: 5px; border-bottom:1px solid black; text-align: right;">
                                 Quantity
@@ -267,6 +270,10 @@
                                             <span t-field="line.product_packaging_id"/>
                                         </t>
                                     </td>
+                                    <td class="text-center"
+                                        style="border-right:1px solid black; padding: 5px; white-space: nowrap;">
+                                        <span t-field="line.product_id.l10n_in_hsn_code"/>
+                                    </td>
                                     <td class="text-right"
                                         style="border-right:1px solid black; padding: 5px; text-align: right;">
                                         <span t-field="line.product_uom_qty"/>
@@ -295,12 +302,12 @@
                             <t t-if="not line.display_type">
                                 <t t-set="computed"
                                    t-value="line.tax_id.compute_all(
-        line.price_unit * (1 - line.discount / 100.0),
-        o.currency_id,
-        line.product_uom_qty,
-        product=line.product_id,
-        partner=o.partner_shipping_id
-    )"/>
+                                    line.price_unit * (1 - line.discount / 100.0),
+                                    o.currency_id,
+                                    line.product_uom_qty,
+                                    product=line.product_id,
+                                    partner=o.partner_shipping_id
+                                )"/>
                                 <t t-set="line_taxes" t-value="computed.get('taxes', [])"/>
 
                                 <t t-foreach="line_taxes" t-as="tax_item">
@@ -314,7 +321,7 @@
                         </t>
 
                         <tr>
-                            <td colspan="4" style=""></td>
+                            <td colspan="5" style=""></td>
                             <td class="text-right" style="padding: 5px; text-align: right;">
                                 <strong>Untaxed Amount</strong>
                             </td>
@@ -328,7 +335,7 @@
                             <t t-set="tamt" t-value="pair[1]"/>
 
                             <tr>
-                                <td colspan="4" style=""></td>
+                                <td colspan="5" style=""></td>
                                 <td class="text-right" style="padding: 5px; text-align: right;">
                                     <strong>
                                         <t t-esc="tname"/>
@@ -341,7 +348,7 @@
                         </t>
 
                         <tr style="border-top:1px solid black; border-bottom:1px solid black;">
-                            <td colspan="4" style=""></td>
+                            <td colspan="5" style=""></td>
                             <td class="text-right" style="padding: 5px; text-align: right;">
                                 <strong>Total</strong>
                             </td>
