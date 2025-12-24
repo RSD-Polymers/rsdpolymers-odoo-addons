@@ -779,14 +779,23 @@ class TallyImportWizard(models.TransientModel):
 
                     partner_vals = {k: v for k, v in partner_vals.items() if v is not None and v != ''}
 
+                    company_partner = self.env.company.partner_id
+
                     if existing_partner:
+                        if existing_partner.id == company_partner.id:
+                            _logger.warning(
+                                f"Blocked update of company partner from Tally ledger '{name}' (GUID: {guid})"
+                            )
+                            skipped_count += 1
+                            continue
+
+                        partner_vals.pop('name', None)  # never rename existing partners
                         existing_partner.write(partner_vals)
                         updated_count += 1
-                        _logger.info(f"Updated existing partner: {name} (ID: {existing_partner.id})")
                     else:
+                        partner_vals['x_tally_guid'] = guid
                         res_partner_model.create(partner_vals)
                         created_count += 1
-                        _logger.info(f"Created new partner: {name}")
 
                     existing_tally_group = tally_group_model.search([
                         ('name', '=', parent_group),
