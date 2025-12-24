@@ -52,7 +52,7 @@
             </xpath>
             <xpath expr="//field[@name='sale_order_template_id']" position="after">
                 <field name="dispatch_date" readonly="state in ['sale', 'done']"/>
-                <field name="delivery_terms" readonly="state in ['sale', 'done']"/>
+                <field name="dispatch_through" readonly="state in ['sale', 'done']"/>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
                 <field name="qty_available" readonly="1" string="Qty Available" title="Quantity Available"/>

@@ -88,6 +88,7 @@ class SaleOrder(models.Model):
         help="Indicates if the current user is in the Production or Manufacturing department."
     )
     delivery_terms = fields.Text(string="Terms of Delivery")
+    dispatch_through = fields.Char(string="Dispatched Through")
 
     def _confirmation_error_message(self):
         """
