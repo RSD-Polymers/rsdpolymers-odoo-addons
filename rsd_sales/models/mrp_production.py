@@ -28,7 +28,7 @@ class MrpProduction(models.Model):
             # Check if the work order flag is set AND the name is not yet set
             if vals.get('is_packing_order') and vals.get('name', 'New') == 'New':
                 # Fetch the next sequence number for the Work Order
-                vals['name'] = self.env['ir.sequence'].next_by_code('mrp.packing.order') or '/'
+                vals['name'] = self.env['ir.sequence'].next_by_code('rsd.pi.sequence') or '/'
 
         return super(MrpProduction, self).create(vals_list)
 
