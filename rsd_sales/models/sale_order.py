@@ -343,3 +343,25 @@ class SaleOrder(models.Model):
             'domain': [('id', 'in', mrp_orders.ids)],
             'context': {'create': False},
         }
+
+    def _prepare_invoice(self):
+        vals = super()._prepare_invoice()
+
+        # --- Delivery Order (Picking) ---
+        picking = self.picking_ids.filtered(
+            lambda p: p.state == 'done'
+        )[:1]
+
+        if picking:
+            vals.update({
+                'delivery_note': picking.name,
+                'delivery_date': picking.date_done,
+            })
+
+        # --- From Sales Order ---
+        vals.update({
+            'ref': self.client_order_ref,
+            'dispatch_through': self.dispatch_through,
+        })
+
+        return vals
