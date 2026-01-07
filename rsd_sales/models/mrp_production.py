@@ -5,6 +5,13 @@ from odoo import models, fields, api
 class MrpProduction(models.Model):
     _inherit = 'mrp.production'
 
+    def _get_packing_picking_type(self):
+        return self.env['stock.picking.type'].search([
+            ('sequence_code', '=', 'PI'),
+            ('code', '=', 'mrp_operation'),
+            ('company_id', '=', self.company_id.id),
+        ], limit=1)
+
     # Add a Many2one field to link a Manufacturing Order back to its Sales Order
     origin_sale_id = fields.Many2one('sale.order', string='Sales Order', help='The sales order that originated this manufacturing order.')
     production_request_type = fields.Selection(
@@ -24,16 +31,37 @@ class MrpProduction(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        for vals in vals_list:
-            # Check if the work order flag is set AND the name is not yet set
-            if vals.get('is_packing_order') and vals.get('name', 'New') == 'New':
-                # Fetch the next sequence number for the Work Order
-                vals['name'] = self.env['ir.sequence'].next_by_code('rsd.pi.sequence') or '/'
+        packing_picking_type = self._get_packing_picking_type()
 
-        return super(MrpProduction, self).create(vals_list)
+        for vals in vals_list:
+            if vals.get('is_packing_order'):
+                # 1️⃣ Set Packing Order sequence
+                if vals.get('name', 'New') == 'New':
+                    vals['name'] = (
+                            self.env['ir.sequence']
+                            .next_by_code('rsd.pi.sequence') or '/'
+                    )
+
+                # 2️⃣ Set Packing Operation Type (CRITICAL)
+                if packing_picking_type and not vals.get('picking_type_id'):
+                    vals['picking_type_id'] = packing_picking_type.id
+
+        return super().create(vals_list)
 
     @api.onchange('product_id', 'move_raw_ids', 'never_product_template_attribute_value_ids')
     def _onchange_product_id(self):
         """Override to disable the restriction that prevents finished product from being a component."""
         # Do NOT call super — we completely replace the method
         return
+
+    @api.onchange('is_packing_order')
+    def _onchange_is_packing_order(self):
+        if self.is_packing_order:
+            picking_type = self.env['stock.picking.type'].search([
+                ('name', '=', 'Packing Instruction'),
+                ('code', '=', 'mrp_operation'),
+                ('company_id', '=', self.company_id.id),
+            ], limit=1)
+
+            if picking_type:
+                self.picking_type_id = picking_type
