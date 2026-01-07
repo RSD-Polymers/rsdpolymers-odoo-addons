@@ -1,9 +1,13 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date
 import logging
 
 _logger = logging.getLogger(__name__)
+
+
+MAX_SHIFT_HOURS = 18        # hard cap
+MAX_PUNCH_GAP_HOURS = 14
 
 # Try to import 'zeep'
 try:
@@ -97,7 +101,7 @@ class HRAttendanceCronMethods(models.Model):
         to_dt_ist = datetime.now(ist)
 
         # Start: beginning of previous day (IST)
-        from_dt_ist = (to_dt_ist - timedelta(days=1)).replace(
+        from_dt_ist = (to_dt_ist - timedelta(days=2)).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
 
@@ -225,122 +229,77 @@ class HRAttendanceCronMethods(models.Model):
 
     @api.model
     def process_essl_attendance_logs(self):
-        """
-        Process raw eSSL logs into hr.attendance
-
-        Rules:
-        - Night shift supported (20:00 → 08:00)
-        - Single punch => attendance with check_in only (Option A)
-        - No silent skipping
-        """
-
         Log = self.env["essl.attendance.log"]
         Attendance = self.env["hr.attendance"]
 
-        night_end = time(8, 0)  # 08:00 AM
+        MAX_SHIFT_HOURS = 20
 
         logs = Log.search(
-            [("processed", "=", False)],
-            order="punch_time asc"
+            [("processed", "=", False), ("employee_id", "!=", False)],
+            order="employee_id, punch_time asc"
         )
 
         if not logs:
-            _logger.info("No unprocessed logs found.")
             return
 
-        # punches[employee_id][attendance_date] = [(log, datetime)]
-        punches = {}
-
-        # -------------------------------------------------
-        # 1️⃣ GROUP LOGS BY *LOGICAL ATTENDANCE DATE*
-        # -------------------------------------------------
+        emp_logs = {}
         for log in logs:
-            try:
-                if not log.employee_id:
-                    log.status = "error"
-                    log.error_message = "Employee not mapped"
-                    continue
+            emp_logs.setdefault(log.employee_id.id, []).append(log)
 
-                punch_dt = log.punch_time
-                punch_time = punch_dt.time()
+        for emp_id, records in emp_logs.items():
+            records.sort(key=lambda l: l.punch_time)
 
-                # Night-shift date logic
-                if punch_time <= night_end:
-                    attendance_date = punch_dt.date() - timedelta(days=1)
-                else:
-                    attendance_date = punch_dt.date()
+            open_att = Attendance.search([
+                ("employee_id", "=", emp_id),
+                ("check_out", "=", False)
+            ], order="check_in desc", limit=1)
 
-                emp_id = log.employee_id.id
+            for log in records:
+                dt = log.punch_time
 
-                punches.setdefault(emp_id, {})
-                punches[emp_id].setdefault(attendance_date, [])
-                punches[emp_id][attendance_date].append((log, punch_dt))
-
-            except Exception as e:
-                log.status = "error"
-                log.error_message = f"Grouping error: {e}"
-
-        # -------------------------------------------------
-        # 2️⃣ CREATE / UPDATE ATTENDANCE
-        # -------------------------------------------------
-        for emp_id, emp_days in punches.items():
-            for att_date, records in emp_days.items():
                 try:
-                    records.sort(key=lambda r: r[1])
-                    dts = [dt for _, dt in records]
-
-                    first_dt = dts[0]
-                    last_dt = dts[-1]
-
-                    attendance = Attendance.search([
-                        ("employee_id", "=", emp_id),
-                        ("check_in", ">=", datetime.combine(att_date, time.min)),
-                        ("check_in", "<=", datetime.combine(att_date, time.max)),
-                    ], limit=1)
-
-                    # ------------------------------------
-                    # OPTION A — SINGLE PUNCH
-                    # ------------------------------------
-                    if len(dts) == 1:
-                        if not attendance:
-                            Attendance.create({
-                                "employee_id": emp_id,
-                                "check_in": first_dt,
-                                "check_out": False,
-                            })
-
-                        for log, _ in records:
-                            log.status = "success"
-                            log.error_message = "Single punch (missing check-out)"
-                            log.processed = True
-
-                        continue
-
-                    # ------------------------------------
-                    # NORMAL IN / OUT
-                    # ------------------------------------
-                    if attendance:
-                        attendance.check_out = max(
-                            attendance.check_out or first_dt,
-                            last_dt
-                        )
-                    else:
-                        Attendance.create({
+                    # ------------------------------------------------
+                    # NO OPEN ATTENDANCE → CREATE CHECK-IN
+                    # ------------------------------------------------
+                    if not open_att:
+                        open_att = Attendance.create({
                             "employee_id": emp_id,
-                            "check_in": first_dt,
-                            "check_out": last_dt,
+                            "check_in": dt,
+                            "check_out": False,
                         })
 
-                    for log, _ in records:
-                        log.status = "success"
-                        log.error_message = False
-                        log.processed = True
+                        log.write({
+                            "processed": True,
+                            "status": "success",
+                            "error_message": "Check-in",
+                        })
+                        continue
+
+                    # ------------------------------------------------
+                    # OPEN ATTENDANCE → CLOSE IT
+                    # ------------------------------------------------
+                    gap_hours = (dt - open_att.check_in).total_seconds() / 3600
+
+                    if gap_hours > MAX_SHIFT_HOURS:
+                        # abnormal → force close
+                        open_att.write({
+                            "check_out": open_att.check_in + timedelta(hours=8)
+                        })
+                        open_att = None
+                        continue
+
+                    open_att.write({"check_out": dt})
+                    open_att = None
+
+                    log.write({
+                        "processed": True,
+                        "status": "success",
+                        "error_message": False,
+                    })
 
                 except Exception as e:
-                    for log, _ in records:
-                        log.status = "error"
-                        log.error_message = f"Attendance creation failed: {e}"
-
-        _logger.info("eSSL attendance processing completed successfully.")
-
-
+                    log.write({
+                        "processed": True,
+                        "status": "error",
+                        "error_message": str(e),
+                    })
