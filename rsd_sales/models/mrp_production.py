@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
+
 
 class MrpProduction(models.Model):
     _inherit = 'mrp.production'
@@ -65,3 +67,30 @@ class MrpProduction(models.Model):
 
             if picking_type:
                 self.picking_type_id = picking_type
+
+    @api.constrains('move_raw_ids', 'product_qty')
+    def _check_packaging_product_integer_qty(self):
+        for mo in self:
+            for move in mo.move_raw_ids:
+                product = move.product_id
+
+                # Packaging product = packaging defined on product
+                if not product.packaging_ids:
+                    continue
+
+                qty = move.product_uom_qty
+
+                if qty and not float(qty).is_integer():
+                    message = (
+                        "Invalid quantity for packaging product '%s'.\n\n"
+                        "Computed quantity is %.2f %s.\n\n"
+                        "Packaging products must always have a whole number quantity.\n\n"
+                        "Please adjust the Manufacturing Order quantity so that "
+                        "the packaging quantity becomes an integer."
+                    ) % (
+                                  product.display_name,
+                                  qty,
+                                  move.product_uom.name,
+                              )
+
+                    raise ValidationError(message)

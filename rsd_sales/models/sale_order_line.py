@@ -1,6 +1,8 @@
 from odoo import models, fields, _, api
 import logging
 
+from odoo.exceptions import ValidationError
+
 _logger = logging.getLogger(__name__)
 
 
@@ -115,3 +117,35 @@ class SaleOrderLine(models.Model):
             else:
                 line.qty_packed_inventory = 0.0
                 line.qty_unpacked_inventory = 0.0
+
+    @api.constrains('product_uom_qty', 'product_packaging_id')
+    def _check_packaging_qty_integer(self):
+        for line in self:
+            if not line.product_packaging_id:
+                continue
+
+            packaging = line.product_packaging_id
+            qty = line.product_uom_qty
+            pack_qty = line.product_packaging_qty
+
+            # product_packaging_qty is computed by Odoo
+            if pack_qty and not float(pack_qty).is_integer():
+                message = _(
+                    "Invalid packaging quantity for product '%s'.\n\n"
+                    "Ordered quantity: %.2f %s\n"
+                    "Packaging: %s (%.2f %s per pack)\n\n"
+                    "Computed packaging quantity is %.2f, but packaging "
+                    "must always be a whole number.\n\n"
+                    "Please adjust the ordered quantity so that the "
+                    "packaging quantity becomes an integer."
+                ) % (
+                              line.product_id.display_name,
+                              qty,
+                              line.product_uom.name,
+                              packaging.display_name,
+                              packaging.qty,
+                              packaging.product_uom_id.name,
+                              pack_qty,
+                          )
+
+                raise ValidationError(message)
