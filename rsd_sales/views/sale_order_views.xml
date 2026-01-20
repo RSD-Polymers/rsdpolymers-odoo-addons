@@ -57,7 +57,8 @@
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
                 <field name="qty_available" readonly="1" string="Qty Available" title="Quantity Available"/>
                 <field name="qty_packed_inventory" readonly="1" string="FG Packed Qty" title="Packed Inventory"/>
-                <field name="qty_unpacked_inventory" width="120" readonly="1" string="FG Unpacked Qty" title="Unpacked Inventory"/>
+                <field name="qty_unpacked_inventory" width="120" readonly="1" string="FG Unpacked Qty"
+                       title="Unpacked Inventory"/>
             </xpath>
 
             <!-- Hide all customer and pricing details from the production users and managers. -->
@@ -81,11 +82,11 @@
                     False)]
                 </attribute>
             </xpath>
-<!--            <xpath expr="//button[@id='create_invoice']" position="attributes">-->
-<!--                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',-->
-<!--                    False)]-->
-<!--                </attribute>-->
-<!--            </xpath>-->
+            <!--            <xpath expr="//button[@id='create_invoice']" position="attributes">-->
+            <!--                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',-->
+            <!--                    False)]-->
+            <!--                </attribute>-->
+            <!--            </xpath>-->
             <xpath expr="//button[@name='action_confirm']" position="after">
                 <button name="action_confirm_from_readiness"
                         type="object"
@@ -94,11 +95,16 @@
                         class="oe_highlight"
                 />
                 <field name="is_production_request_sent" invisible="1"/>
-                <button name="action_create_mrp_orders"
-                        type="object"
+                <!--                <button name="action_create_mrp_orders"-->
+                <!--                        type="object"-->
+                <!--                        string="Create MO"-->
+                <!--                        invisible="state != 'awaiting_readiness' or mrp_order_count != 0"-->
+                <!--                        class="oe_highlight"/>-->
+                <button name="%(action_sale_create_mo_wizard)d"
+                        type="action"
                         string="Create MO"
-                        invisible="state != 'awaiting_readiness' or mrp_order_count != 0"
-                        class="oe_highlight"/>
+                        class="oe_highlight"
+                        invisible="state != 'awaiting_readiness' or mrp_order_count != 0"/>
             </xpath>
 
             <xpath expr="//button[@name='action_view_invoice']" position="after">
@@ -111,5 +117,12 @@
                 </button>
             </xpath>
         </field>
+    </record>
+
+    <record id="action_sale_create_mo_wizard" model="ir.actions.act_window">
+        <field name="name">Create Manufacturing Order</field>
+        <field name="res_model">sale.create.mo.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
     </record>
 </odoo>

@@ -75,7 +75,7 @@ class MrpProduction(models.Model):
                 product = move.product_id
 
                 # Packaging product = packaging defined on product
-                if not product.packaging_ids:
+                if not product.categ_id.is_packaging_category:
                     continue
 
                 qty = move.product_uom_qty

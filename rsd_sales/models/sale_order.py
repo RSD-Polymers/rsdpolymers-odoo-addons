@@ -236,7 +236,10 @@ class SaleOrder(models.Model):
 
         return True
 
-    def action_create_mrp_orders(self):
+    def _action_create_mrp_orders_from_wizard(self, is_packing_order=False):
+        return self.action_create_mrp_orders(is_packing_order=is_packing_order)
+
+    def action_create_mrp_orders(self, is_packing_order=False):
         """
         Creates Manufacturing Orders for products on the sales order.
         For trials, it creates for all lines. For standard orders, it's for out-of-stock.
@@ -276,8 +279,9 @@ class SaleOrder(models.Model):
                     'company_id': order.company_id.id,
                     'origin_sale_id': order.id,
                     'production_request_type': order.production_request_type,
+                    'is_packing_order': is_packing_order,
                 })
-                _logger.info("SALES ORDER: Created Manufacturing Order %s for product %s.", mo.name, line.product_id.name)
+                _logger.info("SALES ORDER: Created Manufacturing Order %s for product %s.", mo.name, line.product_id.name, is_packing_order)
 
         # Add the chatter message
         self.message_post(

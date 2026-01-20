@@ -121,7 +121,9 @@ class SaleOrderLine(models.Model):
     @api.constrains('product_uom_qty', 'product_packaging_id')
     def _check_packaging_qty_integer(self):
         for line in self:
-            if not line.product_packaging_id:
+            product = line.product_id
+
+            if not product.categ_id.is_packaging_category:
                 continue
 
             packaging = line.product_packaging_id
