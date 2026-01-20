@@ -119,10 +119,4 @@
         </field>
     </record>
 
-    <record id="action_sale_create_mo_wizard" model="ir.actions.act_window">
-        <field name="name">Create Manufacturing Order</field>
-        <field name="res_model">sale.create.mo.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-    </record>
 </odoo>

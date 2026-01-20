@@ -12,6 +12,7 @@
     'depends': ['base', 'sale', 'sale_management', 'mrp', 'product', 'web', 'account', 'l10n_in_edi'],
     'data': [
         'security/ir.model.access.csv',
+        'views/create_mo_wizard_action.xml',
         'reports/sale_order_report.xml',
         'reports/report_custom_sales_invoice.xml',
         'views/create_mo_wizard_view.xml',
