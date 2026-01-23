@@ -1,13 +1,9 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
-from datetime import datetime, timedelta, time, date
+from datetime import datetime, timedelta, time
 import logging
 
 _logger = logging.getLogger(__name__)
-
-
-MAX_SHIFT_HOURS = 18        # hard cap
-MAX_PUNCH_GAP_HOURS = 14
 
 # Try to import 'zeep'
 try:
@@ -23,7 +19,6 @@ try:
 except ImportError:
     _logger.warning("The 'pytz' library is not installed.")
     pytz = None
-
 
 # ================================
 # 1) EXTEND hr.employee
@@ -101,9 +96,10 @@ class HRAttendanceCronMethods(models.Model):
         to_dt_ist = datetime.now(ist)
 
         # Start: beginning of previous day (IST)
-        from_dt_ist = (to_dt_ist - timedelta(days=2)).replace(
+        from_dt_ist = (to_dt_ist - timedelta(days=1)).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
+        # from_dt_ist = ist.localize(datetime(2026, 1, 1, 0, 0, 0))
 
         from_dt_str = from_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
         to_dt_str = to_dt_ist.strftime("%Y-%m-%dT%H:%M:%S")
@@ -231,75 +227,62 @@ class HRAttendanceCronMethods(models.Model):
     def process_essl_attendance_logs(self):
         Log = self.env["essl.attendance.log"]
         Attendance = self.env["hr.attendance"]
+        MAX_NIGHT_SHIFT_HOURS = 14  # Extended slightly for long shifts
 
-        MAX_SHIFT_HOURS = 20
-
-        logs = Log.search(
-            [("processed", "=", False), ("employee_id", "!=", False)],
-            order="employee_id, punch_time asc"
-        )
+        logs = Log.search([
+            ("processed", "=", False),
+            ("employee_id", "!=", False),
+        ], order="employee_id, punch_time asc")
 
         if not logs:
             return
 
-        emp_logs = {}
+        logs_by_employee = {}
         for log in logs:
-            emp_logs.setdefault(log.employee_id.id, []).append(log)
+            logs_by_employee.setdefault(log.employee_id.id, []).append(log)
 
-        for emp_id, records in emp_logs.items():
-            records.sort(key=lambda l: l.punch_time)
+        for emp_id, emp_logs in logs_by_employee.items():
+            for log in emp_logs:
+                punch_dt = log.punch_time
 
-            open_att = Attendance.search([
-                ("employee_id", "=", emp_id),
-                ("check_out", "=", False)
-            ], order="check_in desc", limit=1)
-
-            for log in records:
-                dt = log.punch_time
+                # Look for the most recent attendance for this employee
+                last_att = Attendance.search([
+                    ("employee_id", "=", emp_id)
+                ], order="check_in desc", limit=1)
 
                 try:
-                    # ------------------------------------------------
-                    # NO OPEN ATTENDANCE → CREATE CHECK-IN
-                    # ------------------------------------------------
-                    if not open_att:
-                        open_att = Attendance.create({
+                    # CASE 1: No previous record or previous record is fully closed
+                    # AND it's a new day/shift
+                    if not last_att or (last_att.check_out and (
+                            punch_dt - last_att.check_in).total_seconds() / 3600 > MAX_NIGHT_SHIFT_HOURS):
+                        Attendance.create({
                             "employee_id": emp_id,
-                            "check_in": dt,
-                            "check_out": False,
+                            "check_in": punch_dt,
                         })
 
-                        log.write({
-                            "processed": True,
-                            "status": "success",
-                            "error_message": "Check-in",
-                        })
-                        continue
+                    # CASE 2: Open record exists
+                    elif not last_att.check_out:
+                        gap = (punch_dt - last_att.check_in).total_seconds() / 3600
 
-                    # ------------------------------------------------
-                    # OPEN ATTENDANCE → CLOSE IT
-                    # ------------------------------------------------
-                    gap_hours = (dt - open_att.check_in).total_seconds() / 3600
+                        if gap <= MAX_NIGHT_SHIFT_HOURS:
+                            # It's a valid checkout (even if it's the 3rd or 4th punch)
+                            last_att.write({"check_out": punch_dt})
+                        else:
+                            # It's a new day, but the old one was never closed.
+                            # Odoo 18 requires a check_out to allow a new check_in.
+                            # We "force close" the old one at +1 minute or same time.
+                            last_att.write({"check_out": last_att.check_in})
+                            Attendance.create({
+                                "employee_id": emp_id,
+                                "check_in": punch_dt,
+                            })
 
-                    if gap_hours > MAX_SHIFT_HOURS:
-                        # abnormal → force close
-                        open_att.write({
-                            "check_out": open_att.check_in + timedelta(hours=8)
-                        })
-                        open_att = None
-                        continue
+                    # CASE 3: Previous record is closed, but this punch is within the
+                    # MAX_NIGHT_SHIFT_HOURS window (Treat as an updated checkout)
+                    else:
+                        last_att.write({"check_out": punch_dt})
 
-                    open_att.write({"check_out": dt})
-                    open_att = None
-
-                    log.write({
-                        "processed": True,
-                        "status": "success",
-                        "error_message": False,
-                    })
+                    log.write({"processed": True, "status": "success"})
 
                 except Exception as e:
-                    log.write({
-                        "processed": True,
-                        "status": "error",
-                        "error_message": str(e),
-                    })
+                    log.write({"processed": True, "status": "error", "error_message": str(e)})
