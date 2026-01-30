@@ -512,272 +512,202 @@
                      as computed fields like tax_line_ids and price_tax are not available. -->
 
                 <!-- Outer container for the entire footer structure (Amount in Words, HSN Summary, Declaration) -->
-                <div class="o_main_table" style="font-size: 14px; width: 100%; clear: both;">
+                <!-- 1. Amount in Words & E.&O.E. Section (Top Border) -->
+                <div style="width: 100%; clear: both; padding: 0;">
+                    <table class="table table-sm w-100"
+                           style="table-layout: fixed; border-collapse: collapse; border: 1px solid black; margin-bottom: 0;">
+                        <tr>
+                            <!-- Single TD spans the entire width to hold both sections and the border -->
+                            <td class="p-2" style="width: 100%; vertical-align: top;">
 
-                    <!-- 1. Amount in Words & E.&O.E. Section (Top Border) -->
-                    <div style="width: 100%; clear: both; padding: 0;">
-                        <table class="table table-sm w-100"
-                               style="table-layout: fixed; border-collapse: collapse; border: 1px solid black; margin-bottom: 0;">
+                                <!-- Left Side: Amount Chargeable in Words (50% width, floating left) -->
+                                <div style="width: 50%; float: left;">
+                                    <div class="font-weight-bold">Amount Chargeable (in words)</div>
+                                    <!-- REDUCED FONT SIZE HERE TO COMPACT SPACE for long strings -->
+                                    <div style="font-size: 12px; font-weight: normal;">
+                                        <strong>Indian Rupees</strong>
+                                        <t t-if="o.currency_id">
+                                            <strong>
+                                                <span t-esc="o.currency_id.amount_to_text(round(o.amount_total or 0.0))"/>
+                                            </strong>
+                                        </t>
+                                        <t t-else="">
+                                            <strong>
+                                                <span t-esc="round(o.amount_total or 0.0)"/>
+                                            </strong>
+                                        </t>
+                                        <strong>Only</strong>
+                                    </div>
+                                </div>
+
+                                <!-- Right Side: E. & O.E. (50% width, floating right, content aligned right) -->
+                                <div style="width: 50%; float: right; text-align: right;">
+                                    <div class="small font-weight-bold">E. &amp; O.E.</div>
+                                </div>
+
+                                <!-- Clear float to ensure the TD wraps around the floated divs -->
+                                <div style="clear: both;"/>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- ================= HSN SUMMARY + FOOTER (SINGLE BLOCK) ================= -->
+
+                <t t-set="company_bank"
+                   t-value="o.company_id.partner_id.bank_ids.filtered(
+                       lambda b: (not b.company_id or b.company_id == o.company_id)
+                   )[:1]"/>
+
+                <table class="table table-sm w-100"
+                       style="table-layout: fixed;border-collapse: collapse;border-left: 1px solid black;border-right: 1px solid black;border-bottom: 1px solid black;margin-top: 0;">
+
+                    <!-- ================== HSN HEADER ================== -->
+                    <thead>
+                        <tr style="background-color:#f0f0f0; border-top:1px solid black;">
+                            <th class="p-1 text-center" style="width:10%; border-right:1px solid black;">HSN/SAC</th>
+                            <th class="p-1 text-center" style="width:15%; border-right:1px solid black;">Taxable Value
+                            </th>
+                            <th class="p-1 text-center" style="width:8%; border-right:1px solid black;">CGST %</th>
+                            <th class="p-1 text-center" style="width:12%; border-right:1px solid black;">CGST Amt</th>
+                            <th class="p-1 text-center" style="width:8%; border-right:1px solid black;">SGST %</th>
+                            <th class="p-1 text-center" style="width:12%; border-right:1px solid black;">SGST Amt</th>
+                            <th class="p-1 text-center" style="width:8%; border-right:1px solid black;">IGST %</th>
+                            <th class="p-1 text-center" style="width:12%; border-right:1px solid black;">IGST Amt</th>
+                            <th class="p-1 text-center" style="width:15%;">Total Tax Amt</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <t t-set="hsn_summary" t-value="o._get_hsn_summary_data()"/>
+
+                        <t t-foreach="hsn_summary" t-as="data">
                             <tr>
-                                <!-- Single TD spans the entire width to hold both sections and the border -->
-                                <td class="p-2" style="width: 100%; vertical-align: top;">
-
-                                    <!-- Left Side: Amount Chargeable in Words (50% width, floating left) -->
-                                    <div style="width: 50%; float: left;">
-                                        <div class="font-weight-bold">Amount Chargeable (in words)</div>
-                                        <!-- REDUCED FONT SIZE HERE TO COMPACT SPACE for long strings -->
-                                        <div style="font-size: 12px; font-weight: normal;">
-                                            <strong>Indian Rupees</strong>
-                                            <t t-if="o.currency_id">
-                                                <strong>
-                                                    <span t-esc="o.currency_id.amount_to_text(round(o.amount_total or 0.0))"/>
-                                                </strong>
-                                            </t>
-                                            <t t-else="">
-                                                <strong>
-                                                    <span t-esc="round(o.amount_total or 0.0)"/>
-                                                </strong>
-                                            </t>
-                                            <strong>Only</strong>
-                                        </div>
-                                    </div>
-
-                                    <!-- Right Side: E. & O.E. (50% width, floating right, content aligned right) -->
-                                    <div style="width: 50%; float: right; text-align: right;">
-                                        <div class="small font-weight-bold">E. &amp; O.E.</div>
-                                    </div>
-
-                                    <!-- Clear float to ensure the TD wraps around the floated divs -->
-                                    <div style="clear: both;"/>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <span t-esc="data['hsn_code']"/>
                                 </td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <!-- 2. HSN Summary (Full Width) - Tax Breakdown Section -->
-                    <div style="width: 100%; clear: both; padding: 0;">
-                        <table class="table table-sm w-100"
-                               style="table-layout: fixed; font-size: 10px; border-collapse: collapse; border: 1px solid black; border-top: none; margin-bottom: 0;">
-                            <thead>
-                                <tr style="background-color: #f0f0f0;">
-                                    <!-- All labels are now centered for consistent header display -->
-                                    <th class="p-1 text-center" style="width: 10%; border-right: 1px solid black;">
-                                        HSN/SAC
-                                    </th>
-                                    <th class="p-1 text-center" style="width: 15%; border-right: 1px solid black;">
-                                        Taxable Value
-                                    </th>
-
-                                    <th class="p-1 text-center" style="width: 8%; border-right: 1px solid black;">CGST
-                                        Rate
-                                    </th>
-                                    <th class="p-1 text-center" style="width: 12%; border-right: 1px solid black;">CGST
-                                        Amt
-                                    </th>
-                                    <th class="p-1 text-center" style="width: 8%; border-right: 1px solid black;">SGST
-                                        Rate
-                                    </th>
-                                    <th class="p-1 text-center" style="width: 12%; border-right: 1px solid black;">SGST
-                                        Amt
-                                    </th>
-
-                                    <!-- Explicit IGST Columns Added -->
-                                    <th class="p-1 text-center" style="width: 8%; border-right: 1px solid black;">IGST
-                                        Rate
-                                    </th>
-                                    <th class="p-1 text-center" style="width: 12%; border-right: 1px solid black;">IGST
-                                        Amt
-                                    </th>
-
-                                    <th class="p-1 text-center" style="width: 15%;">Total Tax Amt</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Call Python method to get pre-calculated and grouped data -->
-                                <t t-set="hsn_summary" t-value="o._get_hsn_summary_data()"/>
-
-                                <t t-if="hsn_summary">
-
-                                    <t t-foreach="hsn_summary" t-as="data">
-
-                                        <!-- Display the Aggregated Row (9 Columns) -->
-                                        <tr t-att-style="'border-top: 1px solid black;'">
-                                            <!-- HSN/SAC (Centered) -->
-                                            <td class="p-1 text-center" style="border-right: 1px solid black;">
-                                                <span t-esc="data['hsn_code']"/>
-                                            </td>
-                                            <!-- Taxable Value (Kept Right-aligned for Monies) -->
-                                            <td class="p-1 text-right"
-                                                style="border-right: 1px solid black; text-align: right !important;">
-                                                <span t-esc="data['taxable_value']"
-                                                      t-options='{"widget":"monetary", "display_currency": o.currency_id}'/>
-                                            </td>
-
-                                            <!-- CGST Rate (Centered) -->
-                                            <td class="p-1 text-center"
-                                                style="border-right: 1px solid black; text-align: right !important;">
-                                                <t t-if="data['cgst_rate'] > 0">
-                                                    <span t-esc="data['cgst_rate']"
-                                                          t-options="{'widget': 'float', 'precision': 2}"/>%
-                                                </t>
-                                                <t t-else="">
-                                                    <span>-</span>
-                                                </t>
-                                            </td>
-                                            <!-- CGST Amount (Kept Right-aligned for Monies) -->
-                                            <td class="p-1 text-right"
-                                                style="border-right: 1px solid black; text-align: right !important;">
-                                                <t t-if="data['cgst_amount'] > 0">
-                                                    <span t-esc="data['cgst_amount']"
-                                                          t-options='{"widget":"monetary", "display_currency": o.currency_id}'/>
-                                                </t>
-                                                <t t-else="">
-                                                    <span>-</span>
-                                                </t>
-                                            </td>
-
-                                            <!-- SGST Rate (Centered) -->
-                                            <td class="p-1 text-center"
-                                                style="border-right: 1px solid black; text-align: right !important;">
-                                                <t t-if="data['sgst_rate'] > 0">
-                                                    <span t-esc="data['sgst_rate']"
-                                                          t-options="{'widget': 'float', 'precision': 2}"/>%
-                                                </t>
-                                                <t t-else="">
-                                                    <span>-</span>
-                                                </t>
-                                            </td>
-                                            <!-- SGST Amount (Kept Right-aligned for Monies) -->
-                                            <td class="p-1 text-right"
-                                                style="border-right: 1px solid black; text-align: right !important;">
-                                                <t t-if="data['sgst_amount'] > 0">
-                                                    <span t-esc="data['sgst_amount']"
-                                                          t-options='{"widget":"monetary", "display_currency": o.currency_id}'/>
-                                                </t>
-                                                <t t-else="">
-                                                    <span>-</span>
-                                                </t>
-                                            </td>
-
-                                            <!-- IGST Rate (Centered) -->
-                                            <td class="p-1 text-center"
-                                                style="border-right: 1px solid black; text-align: right !important;">
-                                                <t t-if="data['igst_rate'] > 0">
-                                                    <span t-esc="data['igst_rate']"
-                                                          t-options="{'widget': 'float', 'precision': 2}"/>%
-                                                </t>
-                                                <t t-else="">
-                                                    <span>-</span>
-                                                </t>
-                                            </td>
-                                            <!-- IGST Amount (Kept Right-aligned for Monies) -->
-                                            <td class="p-1 text-right"
-                                                style="border-right: 1px solid black; text-align: right !important;">
-                                                <t t-if="data['igst_amount'] > 0">
-                                                    <span t-esc="data['igst_amount']"
-                                                          t-options='{"widget":"monetary", "display_currency": o.currency_id}'/>
-                                                </t>
-                                                <t t-else="">
-                                                    <span>-</span>
-                                                </t>
-                                            </td>
-
-                                            <!-- Total Tax Amount (Kept Right-aligned for Monies) -->
-                                            <td class="p-1 text-right" style="text-align: right !important;">
-                                                <span t-esc="data['total_tax_amount_hsn']"
-                                                      t-options='{"widget":"monetary", "display_currency": o.currency_id}'/>
-                                            </td>
-                                        </tr>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <span t-esc="data['taxable_value']"
+                                          t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                </td>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <t t-if="data['cgst_rate']"><span t-esc="data['cgst_rate']"/>%
                                     </t>
+                                    <t t-else="">-</t>
+                                </td>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <t t-if="data['cgst_amount']">
+                                        <span t-esc="data['cgst_amount']"
+                                              t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                    </t>
+                                    <t t-else="">-</t>
+                                </td>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <t t-if="data['sgst_rate']"><span t-esc="data['sgst_rate']"/>%
+                                    </t>
+                                    <t t-else="">-</t>
+                                </td>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <t t-if="data['sgst_amount']">
+                                        <span t-esc="data['sgst_amount']"
+                                              t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                    </t>
+                                    <t t-else="">-</t>
+                                </td>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <t t-if="data['igst_rate']"><span t-esc="data['igst_rate']"/>%
+                                    </t>
+                                    <t t-else="">-</t>
+                                </td>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <t t-if="data['igst_amount']">
+                                        <span t-esc="data['igst_amount']"
+                                              t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                    </t>
+                                    <t t-else="">-</t>
+                                </td>
+                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                    <span t-esc="data['total_tax_amount_hsn']"
+                                          t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                                </td>
+                            </tr>
+                        </t>
 
-                                    <!-- Final HSN Total Row -->
-                                    <tr class="font-weight-bold" style="border-top: 1px solid black;">
-                                        <!-- Total label is centered -->
-                                        <td class="p-1 text-center" style="border-right: 1px solid black;">Total</td>
-                                        <!-- Total Taxable Value (Right-aligned) -->
-                                        <td class="p-1 text-right"
-                                            style="border-right: 1px solid black; text-align: right !important;">
-                                            <span t-esc="o.amount_untaxed"
-                                                  t-options='{"widget":"monetary", "display_currency": o.currency_id}'/>
-                                        </td>
-                                        <!-- Total Tax Amount label is centered -->
-                                        <td colspan="6" class="p-1 text-center"
-                                            style="border-right: 1px solid black; text-align: right !important;">
-                                            Total Tax Amount
-                                        </td>
-                                        <!-- Total Tax Amount (Right-aligned) -->
-                                        <td class="p-1 text-right" style="text-align: right !important;">
-                                            <span t-esc="o.amount_tax"
-                                                  t-options='{"widget":"monetary", "display_currency": o.currency_id}'/>
-                                        </td>
-                                    </tr>
-                                </t>
-                                <t t-else="">
-                                    <!-- Fallback (Centered) -->
-                                    <tr>
-                                        <td colspan="9" class="p-1 text-center"
-                                            style="border-top: 1px solid black; font-style: italic;">
-                                            No HSN/SAC summary available (Check if HSN/SAC codes are set on products and
-                                            lines have taxes).
-                                        </td>
-                                    </tr>
-                                </t>
-                            </tbody>
-                        </table>
-                    </div>
+                        <!-- TOTAL -->
+                        <tr class="font-weight-bold" style="border-top:1px solid black;">
+                            <td class="text-center" style="border-right:1px solid black;">Total</td>
+                            <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                <span t-esc="o.amount_untaxed"
+                                      t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                            </td>
+                            <td colspan="6" style="border-right:1px solid black;" class="text-center">
+                                Total Tax Amount
+                            </td>
+                            <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                <span t-esc="o.amount_tax"
+                                      t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
+                            </td>
+                        </tr>
 
-                    <!-- 3. Declaration and Signatory Block (Using fixed layout table) -->
-                    <div style="width: 100%; clear: both; padding: 0;">
-                        <table class="table table-sm w-100"
-                               style="table-layout: fixed; font-size: 14px; border-collapse: collapse; border: 1px solid black; border-top: none;">
+                        <!-- TAX IN WORDS -->
+                        <tr>
+                            <td colspan="9" style="border-top:1px solid black; padding:4px;">
+                                <b>Tax Amount (in words):</b>
+                                <span t-esc="o.currency_id.amount_to_text(o.amount_tax)"/>
+                            </td>
+                        </tr>
 
-                            <!-- TAX AMOUNT IN WORDS ROW -->
-                            <tr>
-                                <td colspan="2" class="p-1" style="border-bottom: 1px solid black;">
-                                    <span class="font-weight-bold">Tax Amount (in words):</span>
+                        <!-- BANK + SIGN -->
+                        <tr>
+                            <td colspan="5" style="border-right:1px solid black; padding:4px;">
+                                <b>Company’s Bank Details</b>
+                                <br/>
+                                A/c Holder :
+                                <span t-esc="o.company_id.name"/>
+                                <br/>
+                                Bank Name :
+                                <span t-esc="company_bank and company_bank[0].bank_id.name or ''"/>
+                                <br/>
+                                A/c No :
+                                <span t-esc="company_bank and company_bank[0].acc_number or ''"/>
+                                <br/>
+                                IFSC Code :
+                                <span t-esc="company_bank and company_bank[0].bank_id.bic or ''"/>
+                            </td>
+                            <td colspan="4" style="text-align:center; padding:4px; vertical-align:top;">
+                                <div style="margin-bottom: 40px;">
+                                    for
                                     <strong>
-                                        <span t-esc="o.currency_id.amount_to_text(o.amount_tax)"/>
-                                    </strong>
-                                </td>
-                            </tr>
-                            <tr>
-                                <!-- Left Column: Declaration (50%) - CHANGED p-2 to p-1 for less vertical space -->
-                                <td class="p-1" style="width: 50%; border-right: 1px solid black; vertical-align: top;">
-                                    <!-- Declaration (Inline fix) -->
-                                    <span class="font-weight-bold">Declaration:</span>
-                                    <small>We declare that this invoice shows the actual price of the goods described
-                                        and that
-                                        all particulars are true and correct.
-                                    </small>
-                                </td>
-                                <!-- Right Column: Authorized Signatory (50%) - CHANGED p-2 to p-1 for less vertical space -->
-                                <td class="p-1 text-right"
-                                    style="width: 50%; vertical-align: top; text-align: right !important;">
-                                    <!-- Company Name/For -->
-                                    <p class="mb-1">for
                                         <span t-field="o.company_id.name"/>
-                                    </p>
-                                    <!-- E-SIGN SPACE (adjust height as needed) -->
-                                    <div style="height: 40px;"></div>
-                                    <!-- Signature Line -->
-                                    <div class="pt-2" style="border-top: 1px solid black;">
-                                        Authorised Signatory
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
+                                    </strong>
+                                </div>
+                                <div style="border-top:1px solid black; display:inline-block; padding-top:4px; width: 250px; margin: 0 auto; padding-top: 4px;">
+                                    Authorised Signatory
+                                </div>
+                            </td>
+                        </tr>
 
-                </div>
+                        <!-- DECLARATION -->
+                        <tr>
+                            <td colspan="9" style="border-top:1px solid black; padding:4px;">
+                                <b>Declaration:</b>
+                                We declare that this invoice shows the actual price of the goods described
+                                and that all particulars are true and correct.
+                            </td>
+                        </tr>
 
-                <!-- Computer Generated Invoice Note (Kept margin minimal) -->
-                <div class="row mt-2">
-                    <div class="col-12 text-center" style="font-size: 10px;">
-                        *This is a Computer Generated Invoice
-                    </div>
-                </div>
+                        <!-- FOOT NOTE -->
+                        <tr>
+                            <td colspan="9" style="text-align:center; font-size:11px;">
+                                *This is a Computer Generated Invoice
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+                <!-- ================================================================ -->
                 <div class="oe_structure"/>
-            </div> <!-- End of class="page" -->
+            </div>
         </t> <!-- End of t t-call="web.external_layout" -->
     </template> <!-- End of standard_sales_invoice_layout -->
 </odoo> <!-- End of XML document -->
