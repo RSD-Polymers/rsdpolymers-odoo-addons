@@ -39,6 +39,20 @@
         <t t-set="tax_lines" t-value="o.line_ids.filtered(lambda l: l.tax_line_id)"/>
 
         <t t-call="web.external_layout">
+            <style>
+                * {
+                font-family: DejaVu Sans, sans-serif !important;
+                }
+
+                table, td, th {
+                padding-top: 3px !important;
+                padding-bottom: 3px !important;
+                }
+
+                p {
+                margin: 0 !important;
+                }
+            </style>
             <div class="page" style="font-size:12px; font-family: DejaVu Sans, sans-serif;">
                 <div class="oe_structure"/>
 
@@ -338,7 +352,7 @@
                             <th class="w-10" style="border-right: 1px solid black; padding: 5px;">HSN/SAC</th>
                             <th class="w-10" style="border-right: 1px solid black; padding: 5px;">Quantity</th>
                             <th class="w-10" style="border-right: 1px solid black; padding: 5px;">Rate</th>
-                            <th class="w-5" style="border-right: 1px solid black; padding: 5px;">per</th>
+                            <th class="w-5" style="border-right: 1px solid black; padding: 5px;">UOM</th>
                             <th class="w-10" style="padding: 5px;">Amount</th>
                         </tr>
                     </thead>
@@ -564,7 +578,7 @@
 
                     <!-- ================== HSN HEADER ================== -->
                     <thead>
-                        <tr style="background-color:#f0f0f0; border-top:1px solid black;">
+                        <tr style="background-color:#f0f0f0;">
                             <th class="p-1 text-center" style="width:10%; border-right:1px solid black;">HSN/SAC</th>
                             <th class="p-1 text-center" style="width:15%; border-right:1px solid black;">Taxable Value
                             </th>
@@ -577,7 +591,6 @@
                             <th class="p-1 text-center" style="width:15%;">Total Tax Amt</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         <t t-set="hsn_summary" t-value="o._get_hsn_summary_data()"/>
 
@@ -626,7 +639,7 @@
                                     </t>
                                     <t t-else="">-</t>
                                 </td>
-                                <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                                <td class="p-1" style="text-align:right !important;">
                                     <span t-esc="data['total_tax_amount_hsn']"
                                           t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
                                 </td>
@@ -640,10 +653,10 @@
                                 <span t-esc="o.amount_untaxed"
                                       t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
                             </td>
-                            <td colspan="6" style="border-right:1px solid black;" class="text-center">
+                            <td colspan="6" class="text-center" style="border-right:1px solid black;">
                                 Total Tax Amount
                             </td>
-                            <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
+                            <td class="p-1" style="text-align:right !important;">
                                 <span t-esc="o.amount_tax"
                                       t-options='{"widget":"monetary","display_currency":o.currency_id}'/>
                             </td>
@@ -656,6 +669,8 @@
                                 <span t-esc="o.currency_id.amount_to_text(o.amount_tax)"/>
                             </td>
                         </tr>
+                    </tbody>
+                    <tbody style="page-break-inside: avoid; break-inside: avoid;">
 
                         <!-- BANK + SIGN -->
                         <tr>
@@ -674,14 +689,15 @@
                                 IFSC Code :
                                 <span t-esc="company_bank and company_bank[0].bank_id.bic or ''"/>
                             </td>
+
                             <td colspan="4" style="text-align:center; padding:4px; vertical-align:top;">
-                                <div style="margin-bottom: 40px;">
+                                <div style="margin-bottom:40px;">
                                     for
                                     <strong>
                                         <span t-field="o.company_id.name"/>
                                     </strong>
                                 </div>
-                                <div style="border-top:1px solid black; display:inline-block; padding-top:4px; width: 250px; margin: 0 auto; padding-top: 4px;">
+                                <div style="border-top:1px solid black; width:250px; margin:0 auto; padding-top:4px;">
                                     Authorised Signatory
                                 </div>
                             </td>
