@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hr_leave_allocation_view_form_inherit_custom" model="ir.ui.view">
+        <field name="name">hr.leave.allocation.view.form.inherit.custom</field>
+        <field name="model">hr.leave.allocation</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_allocation_view_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='holiday_status_id']" position="after">
+                <field name="holiday_status_id_name" invisible="1"/>
+                <field name="worked_date"
+                       invisible="holiday_status_id_name not in ['Comp Off', 'Comp Off (PAPL)']"
+                       required="holiday_status_id_name in ['Comp Off', 'Comp Off (PAPL)']"/>
+            </xpath>
+
+            <xpath expr="//div[@name='validity_label']" position="attributes">
+                <attribute name="invisible">holiday_status_id_name in ['Comp Off', 'Comp Off (PAPL)'] and not worked_date</attribute>
+            </xpath>
+
+            <xpath expr="//div[@name='validity']" position="attributes">
+                 <attribute name="invisible">holiday_status_id_name in ['Comp Off', 'Comp Off (PAPL)'] and not worked_date</attribute>
+            </xpath>
+
+            <xpath expr="//div[@name='validity']/field[@name='date_from']" position="attributes">
+                <attribute name="force_save">1</attribute>
+            </xpath>
+            <xpath expr="//div[@name='validity']/field[@name='date_to']" position="attributes">
+                <attribute name="force_save">1</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='notes']" position="before">
+                <div class="alert alert-info" role="alert"
+                     invisible="holiday_status_id_name not in ['Comp Off', 'Comp Off (PAPL)']">
+                    Note: Validity is automatically set to 45 days from the <strong>Date Worked</strong>.
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

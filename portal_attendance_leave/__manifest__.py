@@ -8,6 +8,7 @@
         'views/website_template.xml',
         'views/payslip.xml',
         'views/hr_employee.xml',
+        'views/hr_leave_allocation_view.xml',
     ],
 
     'installable': True,
