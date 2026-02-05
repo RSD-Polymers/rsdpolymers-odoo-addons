@@ -37,18 +37,19 @@ class HrPayrollPayslip(models.Model):
             'portal_attendance_leave.action_custom_payslip_report'
         ).report_action(self, config=False)
 
-    @api.model
-    def create(self, vals):
-        slip = super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        slips = super().create(vals_list)
 
-        if slip.employee_id and slip.contract_id:
-            structure = self.env["hr.payroll.structure"].search([
-                ("name", "=", slip.employee_id.name),
-                ("type_id", "=", slip.contract_id.structure_type_id.id)
-            ], limit=1)
+        for slip in slips:
+            if slip.employee_id and slip.contract_id:
+                structure = self.env["hr.payroll.structure"].search([
+                    ("name", "=", slip.employee_id.name),
+                    ("type_id", "=", slip.contract_id.structure_type_id.id)
+                ], limit=1)
 
-            if structure and slip.struct_id != structure:
-                slip.struct_id = structure.id
+                if structure and slip.struct_id != structure:
+                    slip.struct_id = structure.id
 
-        return slip
+        return slips
 
