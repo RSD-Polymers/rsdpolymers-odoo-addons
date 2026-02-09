@@ -1,6 +1,8 @@
 import logging
 import pytz
 from pytz import timezone, UTC
+
+from odoo.exceptions import ValidationError
 from odoo.tools.translate import _
 from odoo import api, Command, fields, models, tools
 
@@ -45,3 +47,49 @@ class HrLeaves(models.Model):
                 ),
                 partner_ids=notify_partner_ids)
 
+    @api.constrains("holiday_status_id", "request_hour_from", "request_hour_to", "employee_id", "request_date_from")
+    def _check_concession_limit(self):
+        # fetch concession leave type once
+        concession_type = self.env["hr.leave.type"].search([
+            ("name", "=", "Concession - (Late Coming & Early Going)")
+        ], limit=1)
+
+        for leave in self:
+            if leave.holiday_status_id != concession_type:
+                continue
+
+            if not leave.request_hour_from or not leave.request_hour_to:
+                continue
+
+            duration = leave.request_hour_to - leave.request_hour_from
+
+            # --- max 1 hour ---
+            if duration > 1:
+                raise ValidationError(
+                    "Only 1 hour concession allowed.\n"
+                    "Please apply for Half Day leave."
+                )
+
+            # --- max 3 per month ---
+            start = leave.request_date_from
+            month_start = start.replace(day=1)
+
+            if start.month == 12:
+                month_end = start.replace(day=31)
+            else:
+                month_end = start.replace(month=start.month + 1, day=1)
+
+            existing = self.search([
+                ("employee_id", "=", leave.employee_id.id),
+                ("holiday_status_id", "=", concession_type.id),
+                ("request_date_from", ">=", month_start),
+                ("request_date_from", "<", month_end),
+                ("state", "in", ["confirm", "validate1", "validate"]),
+                ("id", "!=", leave.id),
+            ])
+
+            if len(existing) >= 3:
+                raise ValidationError(
+                    "Monthly concession limit exceeded.\n"
+                    "Please apply for Half Day leave."
+                )
