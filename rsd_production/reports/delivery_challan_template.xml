@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="report_custom_delivery_challan">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="rsd_production.standard_delivery_challan_layout"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="standard_delivery_challan_layout">
+
+        <t t-set="o" t-value="o"/>
+
+        <!-- get SO data -->
+        <t t-set="so" t-value="o.sale_id or env['sale.order'].search([('name','=',o.origin)], limit=1)"/>
+        <!-- get INVOICE data -->
+        <t t-set="invoice"
+           t-value="env['account.move'].search([
+        ('move_type','=','out_invoice'),
+        ('invoice_origin','ilike', o.origin)
+            ], limit=1)"/>
+        <!-- Partners -->
+        <t t-set="shipping_partner" t-value="o.partner_id"/>
+        <t t-set="billing_partner"
+           t-value="so.partner_invoice_id if so and so.partner_invoice_id else o.partner_id"/>
+
+        <t t-call="web.external_layout">
+            <div class="page" style="font-size:12px; font-family: DejaVu Sans, sans-serif;">
+
+                <!-- TITLE -->
+                <div style="text-align:center; font-size:16px; font-weight:bold; margin-bottom:6px;">
+                    DELIVERY CHALLAN
+                </div>
+                <br/>
+
+                <table style="width:100%; border:1px solid black; border-collapse:collapse;">
+                    <tr>
+
+                        <!-- LEFT BLOCK -->
+                        <!-- LEFT BLOCK WITH INTERNAL LINES -->
+                        <td style="width:55%; border-right:1px solid black; padding:0; vertical-align:top;">
+
+                            <table style="width:100%; border-collapse:collapse;">
+
+                                <!-- COMPANY -->
+                                <tr>
+                                    <td style="padding:8px; border-bottom:1px solid black;">
+
+                                        <b>
+                                            <span t-field="o.company_id.name"/>
+                                        </b>
+                                        <br/>
+                                        <span t-field="o.company_id.partner_id.street"/>
+                                        <br/>
+                                        <span t-field="o.company_id.partner_id.city"/>
+                                        -
+                                        <span t-field="o.company_id.partner_id.zip"/>
+                                        <br/>
+                                        GSTIN/UIN:
+                                        <span t-field="o.company_id.vat"/>
+                                        <br/>
+                                        State Name:
+                                        <span t-field="o.company_id.state_id.name"/>
+                                        , Code :
+                                        <span t-field="o.company_id.state_id.l10n_in_tin"/>
+                                        <br/>
+                                        E-Mail:
+                                        <span t-field="o.company_id.email"/>
+
+                                    </td>
+                                </tr>
+
+                                <!-- CONSIGNEE -->
+                                <tr>
+                                    <td style="padding:8px; border-bottom:1px solid black;">
+
+                                        <b>Consignee (Ship to)</b>
+                                        <br/>
+                                        <b>
+                                            <span t-field="shipping_partner.name"/>
+                                        </b>
+                                        <br/>
+                                        <span t-field="shipping_partner.street"/>
+                                        <br/>
+                                        <span t-field="shipping_partner.city"/>
+                                        -
+                                        <span t-field="shipping_partner.zip"/>
+                                        <br/>
+                                        GSTIN/UIN:
+                                        <span t-field="shipping_partner.vat"/>
+                                        <br/>
+                                        State Name:
+                                        <span t-field="shipping_partner.state_id.name"/>
+                                        , Code :
+                                        <span t-field="shipping_partner.state_id.l10n_in_tin"/>
+
+                                    </td>
+                                </tr>
+
+                                <!-- BUYER -->
+                                <tr>
+                                    <td style="padding:8px;">
+
+                                        <b>Buyer (Bill to)</b>
+                                        <br/>
+                                        <b>
+                                            <span t-field="billing_partner.name"/>
+                                        </b>
+                                        <br/>
+                                        <span t-field="billing_partner.street"/>
+                                        <br/>
+                                        <span t-field="billing_partner.city"/>
+                                        -
+                                        <span t-field="billing_partner.zip"/>
+                                        <br/>
+                                        GSTIN/UIN:
+                                        <span t-field="billing_partner.vat"/>
+                                        <br/>
+                                        State Name:
+                                        <span t-field="billing_partner.state_id.name"/>
+                                        , Code :
+                                        <span t-field="billing_partner.state_id.l10n_in_tin"/>
+
+                                    </td>
+                                </tr>
+
+                            </table>
+
+                        </td>
+
+                        <!-- RIGHT GRID -->
+                        <td style="width:45%; padding:0; vertical-align:top;">
+
+                            <table style="width:100%; border-collapse:collapse;">
+
+                                <!-- ROW 1 -->
+                                <tr>
+                                    <td style="border-bottom:1px solid black; padding:6px;">
+                                        Delivery Note No.
+                                        <br/>
+                                        <b t-esc="o.name"/>
+                                    </td>
+
+                                    <td style="border-left:1px solid black; border-bottom:1px solid black; padding:6px;">
+                                        Dated
+                                        <br/>
+                                        <b>
+                                            <span t-esc="o.scheduled_date and o.scheduled_date.strftime('%d-%b-%y').lstrip('0')"/>
+                                        </b>
+                                    </td>
+                                </tr>
+
+                                <!-- ROW 2 (NEW eWAY ROW) -->
+                                <tr>
+                                    <td style="border-bottom:1px solid black; padding:6px;">
+                                        e-Way Bill No.
+                                        <br/>
+                                    </td>
+
+                                    <td style="border-left:1px solid black; border-bottom:1px solid black; padding:6px;">
+                                        Mode/Terms of Payment
+                                        <br/>
+                                        <b>
+                                            <span t-esc="so.payment_term_id.name if so else ''"/>
+                                        </b>
+                                    </td>
+                                </tr>
+
+                                <!-- ROW 3 -->
+                                <tr>
+                                    <td style="border-bottom:1px solid black; padding:6px;">
+                                        Buyer's Order No.
+                                        <br/>
+                                        <b t-esc="invoice.ref if invoice else ''"/>
+                                    </td>
+
+                                    <td style="border-left:1px solid black; border-bottom:1px solid black; padding:6px;">
+                                        Other References
+                                        <br/>
+                                    </td>
+                                </tr>
+
+                                <!-- ROW 4 -->
+                                <tr>
+                                    <td style="padding:6px;">
+                                        Reference No. &amp; Date
+                                    </td>
+
+                                    <td style="border-left:1px solid black; padding:6px;">
+                                        <b>
+                                            <span t-esc="so.client_order_ref if so else ''"/>
+                                        </b>
+                                    </td>
+                                </tr>
+
+                                <!-- ROW 5 -->
+                                <tr>
+                                    <td style="padding:6px;">
+                                        Dispatch Doc No.
+                                    </td>
+
+                                    <td style="border-left:1px solid black; padding:6px;">
+                                        <b>
+                                            <span t-esc="invoice.dispatch_doc_no if invoice else ''"/>
+                                        </b>
+                                    </td>
+                                </tr>
+
+                                <!-- ROW 6 -->
+                                <tr>
+                                    <td style="border-bottom:1px solid black; padding:6px;">
+                                        Dispatched through
+                                        <br/>
+                                        <b>
+                                            <span t-esc="so.dispatch_through if so else ''"/>
+                                        </b>
+                                    </td>
+
+                                    <td style="border-left:1px solid black; border-bottom:1px solid black; padding:6px;">
+                                        Destination
+                                        <br/>
+                                        <b>
+                                            <span t-esc="shipping_partner.city"/>
+                                        </b>
+                                    </td>
+                                </tr>
+
+                                <!-- FINAL ROW -->
+                                <tr>
+                                    <td colspan="2" style="padding:6px;">
+                                        Terms of Delivery
+                                        <br/>
+                                        <span t-esc="so.note if so else ''"/>
+                                    </td>
+                                </tr>
+
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- ================= ITEMS TABLE ================= -->
+                <table style="width:100%; border-left:1px solid black; border-right:1px solid black; border-bottom:1px solid black; border-collapse:collapse; margin-top:0;">
+
+                    <!-- HEADER -->
+                    <tr style="border-top:1px solid black;">
+                        <th style="width:4%; border-right:1px solid black; padding:5px;">Sl</th>
+                        <th style="width:36%; border-right:1px solid black; padding:5px;">Description of Goods</th>
+                        <th style="width:12%; border-right:1px solid black; padding:5px;">HSN/SAC</th>
+                        <th style="width:12%; border-right:1px solid black; padding:5px;">Quantity</th>
+                        <th style="width:10%; border-right:1px solid black; padding:5px;">Rate</th>
+                        <th style="width:8%; border-right:1px solid black; padding:5px;">UOM</th>
+                        <th style="width:18%; padding:5px;">Amount</th>
+                    </tr>
+
+                    <t t-set="sl" t-value="1"/>
+                    <t t-set="total" t-value="0"/>
+
+                    <!-- ALL INVOICE LINES -->
+                    <t t-foreach="invoice.invoice_line_ids" t-as="line">
+
+                        <!-- PRODUCT -->
+                        <t t-if="line.product_id.type != 'service'">
+                            <tr>
+                                <td style="border-right:1px solid black; padding:5px;">
+                                    <t t-esc="sl"/>
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px;">
+                                    <b t-esc="line.name"/>
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px;">
+                                    <t t-esc="line.product_id.l10n_in_hsn_code or ''"/>
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                    <t t-esc="line.quantity"/>
+                                    <t t-esc="line.product_uom_id.name"/>
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                    <t t-esc="line.price_unit"/>
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px;">
+                                    <t t-esc="line.product_uom_id.name"/>
+                                </td>
+
+                                <td style="text-align:right; padding:5px;">
+                                    <t t-esc="line.price_subtotal"/>
+                                </td>
+                            </tr>
+
+                            <t t-set="total" t-value="total + line.price_subtotal"/>
+                            <t t-set="sl" t-value="sl + 1"/>
+                        </t>
+
+                        <!-- TRANSPORT / SERVICE -->
+                        <t t-if="line.product_id.type == 'service'">
+                            <tr>
+                                <td style="border-right:1px solid black;"></td>
+
+                                <td style="border-right:1px solid black; padding:5px;">
+                                    <i t-esc="line.account_id.name"/>
+                                </td>
+
+                                <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
+
+                                <td style="text-align:right; padding:5px;">
+                                    <t t-esc="line.price_subtotal"/>
+                                </td>
+                            </tr>
+
+                            <t t-set="total" t-value="total + line.price_subtotal"/>
+                        </t>
+
+                    </t>
+
+                    <!-- TAX FROM JOURNAL ITEMS -->
+                    <t t-foreach="invoice.line_ids.filtered(lambda l: l.tax_line_id)" t-as="taxline">
+                        <tr>
+                            <td style="border-right:1px solid black;"></td>
+
+                            <td style="border-right:1px solid black; padding:5px 8px;">
+                                <t t-esc="taxline.account_id.name"/>
+                            </td>
+
+                            <td style="border-right:1px solid black;"></td>
+                            <td style="border-right:1px solid black;"></td>
+
+                            <td style="border-right:1px solid black; text-align:right; padding:5px 8px 5px 5px;">
+                                <t t-esc="taxline.tax_line_id.amount"/>%
+                            </td>
+
+                            <td style="border-right:1px solid black;"></td>
+
+                            <td style="text-align:right; padding:5px;">
+                                <t t-esc="taxline.credit"/>
+                            </td>
+                        </tr>
+
+                        <t t-set="total" t-value="total + taxline.credit"/>
+                    </t>
+
+                    <!-- TOTAL -->
+                    <tr style="border-top:1px solid black; font-weight:bold;">
+                        <td></td>
+
+                        <td style="border-right:1px solid black; text-align:right; padding-right:8px;">
+                            Total
+                        </td>
+
+                        <td style="border-right:1px solid black;"></td>
+                        <td style="border-right:1px solid black;"></td>
+                        <td style="border-right:1px solid black;"></td>
+                        <td style="border-right:1px solid black;"></td>
+
+                        <td style="text-align:right; padding:5px;">
+                            ₹
+                            <t t-esc="total"/>
+                        </td>
+                    </tr>
+                </table>
+                <div style="width: 100%; clear: both; padding: 0;">
+                    <table class="table table-sm w-100"
+                           style="table-layout: fixed; border-collapse: collapse; border: 1px solid black; margin-bottom: 0;">
+                        <tr>
+                            <td class="p-2" style="width: 100%; vertical-align: top; padding:6px 8px;">
+
+                                <!-- TOP LINE -->
+                                <div style="width:100%; overflow:hidden;">
+                                    <div style="float:left;">
+                                        Amount Chargeable (in words)
+                                    </div>
+
+                                    <div style="float:right;">
+                                        E. &amp; O.E
+                                    </div>
+                                </div>
+
+                                <!-- TEXT -->
+                                <div style="clear:both; font-size:12px; margin-top:2px;">
+                                    <strong>Indian Rupees</strong>
+                                    <strong>
+                                        <t t-esc="invoice.currency_id.amount_to_text(total)"/>
+                                    </strong>
+                                    <strong>Only</strong>
+                                </div>
+
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- ================= HSN SUMMARY ================= -->
+                <t t-if="invoice">
+
+                    <!-- build list -->
+                    <t t-set="hsn_lines" t-value="[]"/>
+
+                    <!-- loop invoice lines -->
+                    <t t-foreach="invoice.invoice_line_ids" t-as="l">
+
+                        <t t-set="hsn" t-value="l.product_id.l10n_in_hsn_code or '000000'"/>
+                        <t t-set="taxable" t-value="l.price_subtotal"/>
+
+                        <!-- tax total -->
+                        <t t-set="tax_amt" t-value="0"/>
+                        <t t-foreach="l.tax_ids" t-as="t">
+                            <t t-set="tax_amt" t-value="tax_amt + (taxable * t.amount / 100)"/>
+                        </t>
+
+                        <!-- push row -->
+                        <t t-set="hsn_lines"
+                           t-value="hsn_lines + [{
+                           'hsn': hsn,
+                           'taxable': taxable,
+                           'tax': tax_amt,
+                           'rate': (l.tax_ids and l.tax_ids[0].amount) or 0
+                       }]"/>
+
+                    </t>
+
+                    <!-- table -->
+                    <table style="width:100%; border:1px solid black; border-collapse:collapse;">
+
+                        <tr style="background:#f0f0f0;">
+                            <th style="border-right:1px solid black; padding:5px;">HSN/SAC</th>
+                            <th style="border-right:1px solid black; padding:5px;">Taxable Value</th>
+                            <th style="border-right:1px solid black; padding:5px;">Rate</th>
+                            <th style="border-right:1px solid black; padding:5px;">Tax Amount</th>
+                            <th style="padding:5px;">Total Tax</th>
+                        </tr>
+
+                        <t t-set="tot_taxable" t-value="0"/>
+                        <t t-set="tot_tax" t-value="0"/>
+
+                        <t t-foreach="hsn_lines" t-as="r">
+                            <tr>
+                                <td style="border-right:1px solid black; padding:5px;">
+                                    <t t-esc="r['hsn']"/>
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                    <t t-esc="r['taxable']"/>
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                    <t t-esc="r['rate']"/>%
+                                </td>
+
+                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                    <t t-esc="r['tax']"/>
+                                </td>
+
+                                <td style="padding:5px; text-align:right;">
+                                    <t t-esc="r['tax']"/>
+                                </td>
+                            </tr>
+
+                            <t t-set="tot_taxable" t-value="tot_taxable + r['taxable']"/>
+                            <t t-set="tot_tax" t-value="tot_tax + r['tax']"/>
+
+                        </t>
+
+                        <!-- TOTAL -->
+                        <tr style="font-weight:bold; border-top:1px solid black;">
+                            <td style="border-right:1px solid black; padding:5px;">Total</td>
+                            <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                <t t-esc="tot_taxable"/>
+                            </td>
+                            <td style="border-right:1px solid black;"></td>
+                            <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                <t t-esc="tot_tax"/>
+                            </td>
+                            <td style="text-align:right; padding:5px;">
+                                <t t-esc="tot_tax"/>
+                            </td>
+                        </tr>
+
+                        <!-- TAX AMOUNT WORDS -->
+                        <tr>
+                            <td colspan="5" style="border-top:1px solid black; padding:6px 8px;">
+                                Tax Amount (in words) :
+                                <strong>Indian Rupees
+                                    <t t-esc="invoice.currency_id.amount_to_text(invoice.amount_tax)"/>
+                                    Only
+                                </strong>
+                            </td>
+                        </tr>
+
+                        <!-- COMPANY + SIGNATURE -->
+                        <tr>
+                            <td colspan="3" style="border-right:1px solid black; padding:8px; vertical-align:top;">
+                                <div>
+                                    Company’s VAT TIN :
+                                    <b>
+                                        <t t-esc="o.company_id.vat"/>
+                                    </b>
+                                </div>
+
+                                <div>
+                                    Company’s CST No. :
+                                    <b>
+                                        <t t-esc="o.company_id.company_registry"/>
+                                    </b>
+                                </div>
+
+                                <div>
+                                    Company’s PAN :
+                                    <b>
+                                        <t t-esc="o.company_id.partner_id.l10n_in_pan"/>
+                                    </b>
+                                </div>
+
+                                <div style="margin-top:12px;">
+                                    Recd. in Good Condition
+                                </div>
+                            </td>
+
+                            <td colspan="2" style="padding:8px; text-align:right; vertical-align:top;">
+                                <div style="font-weight:bold;">
+                                    for
+                                    <t t-esc="o.company_id.name"/>
+                                </div>
+
+                                <div style="height:60px;"></div>
+
+                                <div>
+                                    Authorised Signatory
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- FOOT NOTE -->
+                        <tr>
+                            <td colspan="5" style="text-align:center; padding:6px;">
+                                This is a Computer Generated Document
+                            </td>
+                        </tr>
+
+                    </table>
+
+                </t>
+            </div>
+        </t>
+    </template>
+</odoo>
