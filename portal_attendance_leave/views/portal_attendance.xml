@@ -386,6 +386,7 @@
                 z-index: 1000;
                 justify-content: center;
                 align-items: center;
+                overflow-y: auto;
                 }
 
                 .modal-box {
@@ -393,10 +394,12 @@
                 padding: 25px 30px;
                 border-radius: 12px;
                 width: 420px;
-                margin: 100px auto;
+                margin: 60px auto; /* reduced from 100px */
                 position: relative;
                 box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
                 font-family: "Segoe UI", sans-serif;
+                max-height: 90vh;
+                overflow-y: auto;
                 }
 
                 .modal-title {
@@ -480,7 +483,22 @@
                                     <t t-esc="str(leave.request_date_to)"/>
                                 </td>
                                 <td>
-                                    <t t-esc="leave.duration_display"/>
+                                    <!-- If Concession → calculate manually -->
+                                    <t t-if="leave.holiday_status_id.name and 'Concession' in leave.holiday_status_id.name
+                                             and leave.request_hour_from and leave.request_hour_to">
+
+                                        <t t-set="duration" t-value="leave.request_hour_to - leave.request_hour_from"/>
+                                        <t t-set="h" t-value="int(duration)"/>
+                                        <t t-set="m" t-value="int((duration - h) * 60)"/>
+
+                                        <t t-esc="str(h) + ':' + ('%02d' % m) + ' hours'"/>
+
+                                    </t>
+
+                                    <!-- Other leaves → default -->
+                                    <t t-else="">
+                                        <t t-esc="leave.duration_display"/>
+                                    </t>
                                 </td>
                                 <td>
                                     <t t-esc="leave.state.capitalize()"/>
@@ -500,7 +518,7 @@
                     Back to Check in/out
                 </a>
                 <a href="#" class="action-link"
-                   onclick="document.getElementById('applyLeaveModal').style.display='block'">
+                   onclick="document.getElementById('applyLeaveModal').style.display='block'; toggleHourFields();">
                     <i class="fa fa-calendar-minus"></i>
                     Apply Leaves
                 </a>
@@ -512,15 +530,18 @@
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
                         <label for="leave_type">Leave Type</label>
-                        <select name="leave_type_id" class="form-input">
+                        <select id="leave_type_select" name="leave_type_id" class="form-input"
+                                onchange="toggleHourFields()">
                             <t t-foreach="request.env['hr.leave.type'].sudo().search([
-                                ('active', '=', True),
-                                ('company_id', 'in', [request.env.company.id, False])
-                            ])" t-as="type">
-                                <option t-att-value="type.id">
+                                            ('active','=',True),
+                                            ('company_id','in',[request.env.company.id, False])
+                                        ])" t-as="type">
+                                <option t-att-value="type.id"
+                                        t-att-data-name="type.name">
                                     <t t-esc="type.name"/>
                                 </option>
                             </t>
+
                         </select>
 
                         <label for="date_from">From Date</label>
@@ -528,6 +549,14 @@
 
                         <label for="date_to">To Date</label>
                         <input type="date" name="date_to" class="form-input"/>
+
+                        <div id="hour_fields" style="display:none;">
+                            <label>From Hour</label>
+                            <input type="time" name="hour_from" class="form-input"/>
+
+                            <label>To Hour</label>
+                            <input type="time" name="hour_to" class="form-input"/>
+                        </div>
 
                         <label for="reason">Reason</label>
                         <textarea name="reason" rows="3" class="form-input"></textarea>
@@ -541,6 +570,20 @@
                     </form>
                 </div>
             </div>
+
+            <script>
+                function toggleHourFields() {
+                const select = document.getElementById("leave_type_select");
+                const selected = select.options[select.selectedIndex].dataset.name;
+                const hourDiv = document.getElementById("hour_fields");
+
+                if (selected &amp;&amp; selected.includes("Concession")) {
+                hourDiv.style.display = "block";
+                } else {
+                hourDiv.style.display = "none";
+                }
+                }
+            </script>
 
         </t>
     </template>

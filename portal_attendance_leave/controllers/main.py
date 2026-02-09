@@ -106,18 +106,51 @@ class PortalAttendanceLeaves(http.Controller):
             return request.redirect('/my')
 
         leave_type_id = int(post.get('leave_type_id'))
+        leave_type = request.env['hr.leave.type'].sudo().browse(leave_type_id)
         date_from = post.get('date_from')
         date_to = post.get('date_to')
+        hour_from = request.params.get("hour_from")
+        hour_to = request.params.get("hour_to")
         reason = post.get('reason', '')
 
-        request.env['hr.leave'].sudo().create({
+        vals = {
             'employee_id': employee.id,
             'holiday_status_id': leave_type_id,
             'request_date_from': date_from,
             'request_date_to': date_to,
             'name': reason or 'Leave Request',
-            'request_unit_half': False,
-        })
+        }
+
+        # 🔵 If concession → create hourly leave
+        if leave_type.name == "Concession - (Late Coming & Early Going)" and hour_from and hour_to:
+
+            def time_to_float(t):
+                h, m = t.split(":")
+                return float(h) + float(m) / 60
+
+            dt_from = datetime.strptime(f"{date_from} {hour_from}", "%Y-%m-%d %H:%M")
+            dt_to = datetime.strptime(f"{date_to} {hour_to}", "%Y-%m-%d %H:%M")
+
+            vals.update({
+                'request_unit_hours': True,
+                'request_hour_from': time_to_float(hour_from),
+                'request_hour_to': time_to_float(hour_to),
+                'date_from': dt_from,
+                'date_to': dt_to,
+                'resource_calendar_id': employee.resource_calendar_id.id,
+            })
+
+        else:
+            # normal leave
+            vals.update({
+                'request_unit_half': False,
+            })
+
+        leave = request.env['hr.leave'].sudo().create(vals)
+
+        leave._compute_date_from_to()
+        leave._compute_duration()
+        leave._compute_duration_display()
 
         return request.redirect('/my/timeoff')
 
