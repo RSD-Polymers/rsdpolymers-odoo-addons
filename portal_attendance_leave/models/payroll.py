@@ -42,14 +42,21 @@ class HrPayrollPayslip(models.Model):
         slips = super().create(vals_list)
 
         for slip in slips:
-            if slip.employee_id and slip.contract_id:
-                structure = self.env["hr.payroll.structure"].search([
-                    ("name", "=", slip.employee_id.name),
-                    ("type_id", "=", slip.contract_id.structure_type_id.id)
-                ], limit=1)
+            if not slip.employee_id:
+                continue
 
-                if structure and slip.struct_id != structure:
-                    slip.struct_id = structure.id
+            contract = slip.contract_id or slip.employee_id.contract_id
+            if not contract:
+                continue
+
+            structure = self.env["hr.payroll.structure"].search([
+                ("employee_id", "=", slip.employee_id.id),
+                ("type_id", "=", contract.structure_type_id.id),
+            ], limit=1)
+
+            if structure:
+                slip.struct_id = structure.id
 
         return slips
+
 
