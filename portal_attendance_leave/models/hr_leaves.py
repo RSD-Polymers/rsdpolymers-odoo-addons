@@ -14,6 +14,17 @@ _logger = logging.getLogger(__name__)
 class HrLeaves(models.Model):
     _inherit='hr.leave'
 
+    is_concession_leave = fields.Boolean(
+        compute="_compute_is_concession_leave",
+        store=False
+    )
+
+    @api.depends("holiday_status_id")
+    def _compute_is_concession_leave(self):
+        for rec in self:
+            name = rec.holiday_status_id.display_name or ""
+            rec.is_concession_leave = "Concession" in name
+
     def _validate_leave_request(self):
         """ Validate time off requests
         by creating a calendar event and a resource time off. """

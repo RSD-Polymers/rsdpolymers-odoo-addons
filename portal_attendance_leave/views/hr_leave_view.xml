@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="hr_leave_view_form_inherit_concession" model="ir.ui.view">
+        <field name="name">hr.leave.view.form.inherit.concession</field>
+        <field name="model">hr.leave</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_form"/>
+        <field name="arch" type="xml">
+
+            <!-- hide entire HALF DAY row -->
+            <xpath expr="//field[@name='request_unit_half']" position="attributes">
+                <attribute name="readonly">is_concession_leave</attribute>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
