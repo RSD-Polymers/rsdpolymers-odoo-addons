@@ -241,3 +241,40 @@ class PortalAttendanceLeaves(http.Controller):
         ]
 
         return request.make_response(pdf_content, headers=http_headers)
+
+    @http.route('/my/comp-off/apply', type='http', auth='user', website=True, methods=['POST'])
+    def portal_comp_off_apply(self, **post):
+        employee = request.env['hr.employee'].sudo().search([('user_id', '=', request.uid)], limit=1)
+        if not employee:
+            return request.redirect('/my')
+
+        leave_type_id = int(post.get('leave_type_id'))
+        worked_date = post.get('worked_date')
+        reason = post.get('reason', '')
+        days = float(post.get('days', 1))
+
+        leave_type = request.env['hr.leave.type'].sudo().browse(leave_type_id)
+
+        # 🔒 SAME VALIDATION AS INTERNAL USER
+        from datetime import datetime, timedelta
+        worked_date_dt = datetime.strptime(worked_date, "%Y-%m-%d").date()
+
+        attendance = request.env['hr.attendance'].sudo().search([
+            ('employee_id', '=', employee.id),
+            ('check_in', '>=', worked_date_dt),
+            ('check_in', '<', worked_date_dt + timedelta(days=1))
+        ], limit=1)
+
+        if not attendance:
+            return request.redirect('/my/timeoff?no_attendance=1')
+
+        # Create allocation REQUEST (not direct allocation)
+        request.env['hr.leave.allocation'].sudo().create({
+            'employee_id': employee.id,
+            'holiday_status_id': leave_type_id,
+            'number_of_days': days,
+            'name': reason or f"Comp Off for {worked_date}",
+            'state': 'confirm'  # waiting approval
+        })
+
+        return request.redirect('/my/timeoff?comp_off_success=1')

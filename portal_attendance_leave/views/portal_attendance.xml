@@ -460,6 +460,46 @@
 
             <div class="leave-container">
                 <h2>My Leave Requests</h2>
+                <t t-if="request.params.get('no_attendance')">
+                    <div id="portalAlert1" class="alert alert-danger text-center" style="position:relative;">
+                        No attendance found for selected date.
+
+                        <span onclick="this.closest('.alert').remove();"
+                              style="
+                                    position:absolute;
+                                    right:12px;
+                                    top:6px;
+                                    cursor:pointer;
+                                    font-size:18px;
+                                    font-weight:bold;
+                                  ">
+                            ×
+                        </span>
+                    </div>
+                </t>
+
+                <t t-if="request.params.get('comp_off_success')">
+                    <div id="portalAlert2" class="alert alert-success text-center" style="position:relative;">
+                        Comp Off request submitted for approval.
+
+                        <span onclick="this.closest('.alert').remove();"
+                              style="
+                                    position:absolute;
+                                    right:12px;
+                                    top:6px;
+                                    cursor:pointer;
+                                    font-size:18px;
+                                    font-weight:bold;
+                                  ">
+                            ×
+                        </span>
+                    </div>
+                </t>
+                <script>
+                    setTimeout(function(){
+                    document.querySelectorAll('.alert').forEach(el => el.remove());
+                    }, 4000);
+                </script>
                 <table class="leave-table">
                     <thead>
                         <tr>
@@ -522,6 +562,11 @@
                     <i class="fa fa-calendar-minus"></i>
                     Apply Leaves
                 </a>
+                <a href="#" class="action-link"
+                   onclick="document.getElementById('compOffModal').style.display='block';">
+                    <i class="fa fa-calendar-plus"></i>
+                    Comp Off Allocation
+                </a>
             </div>
             <div id="applyLeaveModal" class="modal-overlay">
                 <div class="modal-box">
@@ -564,6 +609,42 @@
                         <div class="modal-actions">
                             <button type="submit" class="modal-btn submit-btn">Submit</button>
                             <a href="#" onclick="document.getElementById('applyLeaveModal').style.display='none'"
+                               class="modal-btn cancel-btn">Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="compOffModal" class="modal-overlay">
+                <div class="modal-box">
+                    <h3 class="modal-title">Allocate Comp Off</h3>
+
+                    <form method="POST" action="/my/comp-off/apply">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                        <label>Comp Off Type</label>
+                        <select name="leave_type_id" class="form-input">
+                            <t t-foreach="request.env['hr.leave.type'].sudo().search([('name','ilike','Comp')])"
+                               t-as="type">
+                                <option t-att-value="type.id">
+                                    <t t-esc="type.name"/>
+                                </option>
+                            </t>
+                        </select>
+
+                        <label>Worked Date</label>
+                        <input type="date" name="worked_date" class="form-input" required="required"/>
+
+                        <label>Days</label>
+                        <input type="number" step="0.5" name="days" class="form-input" value="1"/>
+
+                        <label>Reason</label>
+                        <textarea name="reason" class="form-input"></textarea>
+
+                        <div class="modal-actions">
+                            <button type="submit" class="modal-btn submit-btn">Submit</button>
+                            <a href="#" onclick="document.getElementById('compOffModal').style.display='none'"
                                class="modal-btn cancel-btn">Cancel
                             </a>
                         </div>
