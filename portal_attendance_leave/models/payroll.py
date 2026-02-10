@@ -1,4 +1,5 @@
 import logging
+
 from odoo import api, Command, fields, models, _
 from odoo.exceptions import UserError
 from odoo.tools import format_date
@@ -59,4 +60,19 @@ class HrPayrollPayslip(models.Model):
 
         return slips
 
+    @api.depends('contract_id', 'struct_id', 'payslip_run_id')
+    def _compute_date_from(self):
+        for slip in self:
+            if slip.payslip_run_id:
+                slip.date_from = slip.payslip_run_id.date_start
+            else:
+                super(HrPayrollPayslip, slip)._compute_date_from()
+
+    @api.depends('date_from', 'contract_id', 'struct_id', 'payslip_run_id')
+    def _compute_date_to(self):
+        for slip in self:
+            if slip.payslip_run_id:
+                slip.date_to = slip.payslip_run_id.date_end
+            else:
+                super(HrPayrollPayslip, slip)._compute_date_to()
 
