@@ -460,37 +460,25 @@
 
             <div class="leave-container">
                 <h2>My Leave Requests</h2>
-                <t t-if="request.params.get('no_attendance')">
-                    <div id="portalAlert1" class="alert alert-danger text-center" style="position:relative;">
-                        No attendance found for selected date.
+                <!-- ERROR ALERT -->
+                <t t-if="request.params.get('error')">
+                    <div class="alert alert-danger text-center" style="position:relative;">
+                        <t t-esc="request.params.get('error')"/>
 
                         <span onclick="this.closest('.alert').remove();"
-                              style="
-                                    position:absolute;
-                                    right:12px;
-                                    top:6px;
-                                    cursor:pointer;
-                                    font-size:18px;
-                                    font-weight:bold;
-                                  ">
+                              style="position:absolute; right:12px; top:6px; cursor:pointer; font-size:18px; font-weight:bold;">
                             ×
                         </span>
                     </div>
                 </t>
 
+                <!-- SUCCESS ALERT -->
                 <t t-if="request.params.get('comp_off_success')">
                     <div id="portalAlert2" class="alert alert-success text-center" style="position:relative;">
                         Comp Off request submitted for approval.
 
                         <span onclick="this.closest('.alert').remove();"
-                              style="
-                                    position:absolute;
-                                    right:12px;
-                                    top:6px;
-                                    cursor:pointer;
-                                    font-size:18px;
-                                    font-weight:bold;
-                                  ">
+                              style="position:absolute; right:12px; top:6px; cursor:pointer; font-size:18px; font-weight:bold;">
                             ×
                         </span>
                     </div>

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import logging
 import pytz
 from pytz import timezone, UTC
@@ -104,3 +105,73 @@ class HrLeaves(models.Model):
                     "Monthly concession limit exceeded.\n"
                     "Please apply for Half Day leave."
                 )
+
+    def _validate_comp_off_day(self, employee, work_date, leave_type):
+        """Reusable validation for backend + portal"""
+
+        comp_off_types = ['Comp Off', 'Comp Off (PAPL)']
+        od_type_names = ['Out Duty', 'OD']
+
+        if leave_type.name not in comp_off_types:
+            return True
+
+        formatted_date = work_date.strftime('%d-%m-%Y')
+        calendar = employee.resource_calendar_id
+
+        if not calendar:
+            raise ValidationError(_("Employee has no working schedule."))
+
+        # --------------------------------------------------
+        # 1️⃣ Approved OD (allowed on ANY day)
+        # --------------------------------------------------
+        od_leave = self.env['hr.leave'].search([
+            ('employee_id', '=', employee.id),
+            ('state', '=', 'validate'),
+            ('holiday_status_id.name', 'in', od_type_names),
+            ('request_date_from', '<=', work_date),
+            ('request_date_to', '>=', work_date),
+        ], limit=1)
+
+        if od_leave:
+            return True
+
+        # --------------------------------------------------
+        # 2️⃣ Weekly off / public holiday check
+        # --------------------------------------------------
+        weekday = str(work_date.weekday())
+        working_day = self.env['resource.calendar.attendance'].search([
+            ('calendar_id', '=', calendar.id),
+            ('dayofweek', '=', weekday)
+        ], limit=1)
+
+        is_weekly_off = not bool(working_day)
+
+        holiday = self.env['resource.calendar.leaves'].search([
+            ('calendar_id', '=', calendar.id),
+            ('date_from', '<=', datetime.combine(work_date, datetime.max.time())),
+            ('date_to', '>=', datetime.combine(work_date, datetime.min.time()))
+        ], limit=1)
+
+        is_public_holiday = bool(holiday)
+
+        if not is_weekly_off and not is_public_holiday:
+            raise ValidationError(
+                _("Comp Off can only be applied for Weekly Off or Public Holiday.\n"
+                  "Date %s is a working day.") % formatted_date
+            )
+
+        # --------------------------------------------------
+        # 3️⃣ Attendance check
+        # --------------------------------------------------
+        attendance = self.env['hr.attendance'].search([
+            ('employee_id', '=', employee.id),
+            ('check_in', '>=', work_date),
+            ('check_in', '<', work_date + timedelta(days=1))
+        ], limit=1)
+
+        if not attendance:
+            raise ValidationError(
+                _("No attendance or approved Out Duty found.")
+            )
+
+        return True
