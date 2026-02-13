@@ -122,6 +122,8 @@ class PortalAttendanceLeaves(http.Controller):
         # 🔵 If concession → create hourly leave
         if leave_type.name == "Concession - (Late Coming & Early Going)" and hour_from and hour_to:
 
+            date_to = date_from
+
             def time_to_float(t):
                 h, m = t.split(":")
                 return float(h) + float(m) / 60
@@ -135,6 +137,7 @@ class PortalAttendanceLeaves(http.Controller):
                 'request_hour_to': time_to_float(hour_to),
                 'date_from': dt_from,
                 'date_to': dt_to,
+                'request_date_to': date_from,
                 'resource_calendar_id': employee.resource_calendar_id.id,
             })
 
@@ -144,13 +147,17 @@ class PortalAttendanceLeaves(http.Controller):
                 'request_unit_half': False,
             })
 
-        leave = request.env['hr.leave'].sudo().create(vals)
+        try:
+            leave = request.env['hr.leave'].sudo().create(vals)
 
-        leave._compute_date_from_to()
-        leave._compute_duration()
-        leave._compute_duration_display()
+            leave._compute_date_from_to()
+            leave._compute_duration()
+            leave._compute_duration_display()
 
-        return request.redirect('/my/timeoff')
+        except ValidationError as e:
+            return request.redirect('/my/timeoff?error=%s' % quote(str(e)))
+
+        return request.redirect('/my/timeoff?leave_success=1')
 
     @http.route(['/my/salary-slips', '/my/salary-slips/list'], type='http', auth='user', website=True)
     def portal_salary_slips_list(self, **kw):

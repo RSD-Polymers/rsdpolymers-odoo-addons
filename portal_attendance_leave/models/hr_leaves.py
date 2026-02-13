@@ -4,6 +4,7 @@ import pytz
 from pytz import timezone, UTC
 
 from odoo.exceptions import ValidationError
+from odoo.tools import float_compare
 from odoo.tools.translate import _
 from odoo import api, Command, fields, models, tools
 
@@ -76,7 +77,7 @@ class HrLeaves(models.Model):
             duration = leave.request_hour_to - leave.request_hour_from
 
             # --- max 1 hour ---
-            if duration > 1:
+            if float_compare(duration, 1.0, precision_digits=2) == 1:
                 raise ValidationError(
                     "Only 1 hour concession allowed.\n"
                     "Please apply for Half Day leave."
@@ -175,3 +176,13 @@ class HrLeaves(models.Model):
             )
 
         return True
+
+    @api.onchange('request_hour_from', 'holiday_status_id')
+    def _onchange_concession_auto_to(self):
+        for rec in self:
+            if rec.is_concession_leave and rec.request_hour_from:
+                rec.request_hour_to = rec.request_hour_from + 1.0
+
+
+
+

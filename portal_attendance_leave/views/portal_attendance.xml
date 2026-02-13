@@ -483,6 +483,17 @@
                         </span>
                     </div>
                 </t>
+                <!-- LEAVE SUCCESS ALERT -->
+                <t t-if="request.params.get('leave_success')">
+                    <div class="alert alert-success text-center" style="position:relative;">
+                        Leave request submitted successfully.
+
+                        <span onclick="this.closest('.alert').remove();"
+                              style="position:absolute; right:12px; top:6px; cursor:pointer; font-size:18px; font-weight:bold;">
+                            ×
+                        </span>
+                    </div>
+                </t>
                 <script>
                     setTimeout(function(){
                     document.querySelectorAll('.alert').forEach(el => el.remove());
@@ -578,17 +589,20 @@
                         </select>
 
                         <label for="date_from">From Date</label>
-                        <input type="date" name="date_from" class="form-input"/>
+                        <input type="date" id="date_from" name="date_from" class="form-input"/>
 
-                        <label for="date_to">To Date</label>
-                        <input type="date" name="date_to" class="form-input"/>
+                        <div id="to_date_block">
+                            <label>To Date</label>
+                            <input type="date" id="date_to" name="date_to" class="form-input"/>
+                        </div>
 
                         <div id="hour_fields" style="display:none;">
                             <label>From Hour</label>
-                            <input type="time" name="hour_from" class="form-input"/>
+                            <input type="time" id="hour_from" name="hour_from" class="form-input"
+                                   oninput="calculateToHour()"/>
 
                             <label>To Hour</label>
-                            <input type="time" name="hour_to" class="form-input"/>
+                            <input type="time" id="hour_to" name="hour_to" class="form-input"/>
                         </div>
 
                         <label for="reason">Reason</label>
@@ -643,17 +657,77 @@
             <script>
                 function toggleHourFields() {
                 const select = document.getElementById("leave_type_select");
-                const selected = select.options[select.selectedIndex].dataset.name;
-                const hourDiv = document.getElementById("hour_fields");
+                const selected = select.options[select.selectedIndex].dataset.name || "";
 
-                if (selected &amp;&amp; selected.includes("Concession")) {
+                const hourDiv = document.getElementById("hour_fields");
+                const toDateBlock = document.getElementById("to_date_block");
+
+                const fromDate = document.getElementById("date_from");
+                const toDate = document.getElementById("date_to");
+
+                if (selected.includes("Concession")) {
+
+                // show hours
                 hourDiv.style.display = "block";
+
+                // hide to date
+                toDateBlock.style.display = "none";
+
+                // force same date
+                if (fromDate &amp;&amp; toDate) {
+                toDate.value = fromDate.value;
+                }
+
                 } else {
                 hourDiv.style.display = "none";
+                toDateBlock.style.display = "block";
+                }
+                }
+
+                // keep To-date synced when from-date changes
+                document.addEventListener("DOMContentLoaded", function () {
+                const fromDate = document.getElementById("date_from");
+                const toDate = document.getElementById("date_to");
+
+                if (fromDate) {
+                fromDate.addEventListener("change", function () {
+                const select = document.getElementById("leave_type_select");
+                const selected = select.options[select.selectedIndex].dataset.name || "";
+
+                if (selected.includes("Concession") &amp;&amp; toDate) {
+                toDate.value = fromDate.value;
+                }
+                });
+                }
+                });
+
+                function calculateToHour() {
+                const fromInput = document.getElementById("hour_from");
+                const toInput = document.getElementById("hour_to");
+
+                if (!fromInput || !toInput || !fromInput.value) return;
+
+                try {
+                const parts = fromInput.value.split(':');
+                let h = parseInt(parts[0], 10);
+                let m = parseInt(parts[1], 10);
+
+                let newH = h + 1;
+                if (newH >= 24) newH -= 24;
+
+                const strH = newH
+                &lt;
+                10 ? "0" + newH : "" + newH;
+                const strM = m
+                &lt;
+                10 ? "0" + m : "" + m;
+
+                toInput.value = strH + ":" + strM;
+                } catch(e) {
+                console.error("Time calc error:", e);
                 }
                 }
             </script>
-
         </t>
     </template>
 
