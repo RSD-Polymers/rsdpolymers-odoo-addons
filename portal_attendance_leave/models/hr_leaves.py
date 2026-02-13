@@ -183,6 +183,21 @@ class HrLeaves(models.Model):
             if rec.is_concession_leave and rec.request_hour_from:
                 rec.request_hour_to = rec.request_hour_from + 1.0
 
+    def _check_working_hours(self):
+        normal = self.filtered(lambda l: not l.holiday_status_id.is_out_duty)
+        if normal:
+            return super(HrLeaves, normal)._check_working_hours()
+        return True
+
+    def _compute_duration(self):
+        super()._compute_duration()
+
+        for leave in self:
+            if leave.holiday_status_id.is_out_duty:
+                if leave.request_date_from and leave.request_date_to:
+                    delta = (leave.request_date_to - leave.request_date_from).days + 1
+                    leave.number_of_days = float(delta)
+
 
 
 

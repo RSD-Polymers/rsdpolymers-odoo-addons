@@ -11,6 +11,7 @@
         'views/hr_leave_allocation_view.xml',
         'views/hr_payroll_structure_view.xml',
         'views/hr_leave_view.xml',
+        'views/hr_leave_type_views.xml',
     ],
 
     'installable': True,
