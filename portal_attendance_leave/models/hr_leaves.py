@@ -193,10 +193,25 @@ class HrLeaves(models.Model):
         super()._compute_duration()
 
         for leave in self:
+            if not leave.holiday_status_id:
+                continue
+
+            # 🟢 OUT DUTY
             if leave.holiday_status_id.is_out_duty:
                 if leave.request_date_from and leave.request_date_to:
                     delta = (leave.request_date_to - leave.request_date_from).days + 1
                     leave.number_of_days = float(delta)
+
+            # 🟢 COMP OFF AGAINST OD
+            if leave.holiday_status_id.is_od_comp_off:
+                if leave.request_date_from and leave.request_date_to:
+                    delta = (leave.request_date_to - leave.request_date_from).days + 1
+                    leave.number_of_days = float(delta)
+
+                    # optional but recommended
+                    leave.number_of_hours = delta * (
+                            leave.employee_id.resource_calendar_id.hours_per_day or 8
+                    )
 
     def _has_od_for_date(self, employee_id, date):
         if not employee_id or not date:
@@ -228,4 +243,23 @@ class HrLeaves(models.Model):
             }
         }
 
+    def _check_date(self):
+        if self.env.context.get("skip_od_overlap"):
+            return super()._check_date()
+
+        for leave in self:
+            if leave.holiday_status_id.is_od_comp_off:
+                has_od = self.env["hr.leave"].search_count([
+                    ("employee_id", "=", leave.employee_id.id),
+                    ("state", "=", "validate"),
+                    ("holiday_status_id.is_out_duty", "=", True),
+                    ("request_date_from", "<=", leave.request_date_from),
+                    ("request_date_to", ">=", leave.request_date_from),
+                ]) > 0
+
+                if has_od:
+                    # allow overlap with OD
+                    return
+
+        return super()._check_date()
 
