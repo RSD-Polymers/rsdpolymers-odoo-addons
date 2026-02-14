@@ -12,6 +12,15 @@
                 <attribute name="readonly">is_concession_leave</attribute>
             </xpath>
 
+            <xpath expr="//field[@name='holiday_status_id']" position="attributes">
+                <attribute name="context">
+                    {
+                    'employee_id': employee_id,
+                    'request_date_from': request_date_from
+                    }
+                </attribute>
+            </xpath>
+
         </field>
     </record>
 </odoo>

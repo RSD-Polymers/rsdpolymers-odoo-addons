@@ -198,6 +198,34 @@ class HrLeaves(models.Model):
                     delta = (leave.request_date_to - leave.request_date_from).days + 1
                     leave.number_of_days = float(delta)
 
+    def _has_od_for_date(self, employee_id, date):
+        if not employee_id or not date:
+            return False
 
+        return bool(self.env['hr.leave'].search_count([
+            ('employee_id', '=', employee_id),
+            ('state', '=', 'validate'),
+            ('holiday_status_id.is_out_duty', '=', True),
+            ('request_date_from', '<=', date),
+            ('request_date_to', '>=', date),
+        ]))
+
+    @api.onchange('request_date_from', 'employee_id')
+    def _onchange_filter_comp_od(self):
+        if not self.employee_id or not self.request_date_from:
+            return
+
+        has_od = self._has_od_for_date(self.employee_id.id, self.request_date_from)
+
+        if has_od:
+            domain = []
+        else:
+            domain = [('is_comp_off_od', '=', False)]
+
+        return {
+            'domain': {
+                'holiday_status_id': domain
+            }
+        }
 
 

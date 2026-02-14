@@ -10,6 +10,7 @@
             <!-- Place checkbox in General Information section -->
             <xpath expr="//field[@name='requires_allocation']" position="after">
                 <field name="is_out_duty"/>
+                <field name="is_od_comp_off"/>
             </xpath>
 
         </field>
