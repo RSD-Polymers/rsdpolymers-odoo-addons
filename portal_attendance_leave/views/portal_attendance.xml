@@ -1003,28 +1003,27 @@
                             <th>Remaining</th>
                         </tr>
                     </thead>
-
                     <tbody>
-                        <t t-if="allocations">
-                            <t t-foreach="allocations" t-as="a">
+                        <t t-if="balances">
+                            <t t-foreach="balances" t-as="b">
                                 <tr>
                                     <td>
-                                        <t t-esc="a.holiday_status_id.name"/>
+                                        <t t-esc="b['type']"/>
                                     </td>
                                     <td>
-                                        <t t-esc="a.number_of_days"/>
+                                        <t t-esc="b['allocated']"/> <t t-esc="b['unit']"/>
                                     </td>
                                     <td>
-                                        <t t-esc="a.leaves_taken"/>
+                                        <t t-esc="b['used']"/> <t t-esc="b['unit']"/>
                                     </td>
                                     <td>
-                                        <t t-esc="a.number_of_days - a.leaves_taken"/>
+                                        <t t-esc="b['remaining']"/> <t t-esc="b['unit']"/>
                                     </td>
                                 </tr>
                             </t>
                         </t>
 
-                        <t t-if="not allocations">
+                        <t t-if="not balances">
                             <tr>
                                 <td colspan="4">No leave balance found</td>
                             </tr>

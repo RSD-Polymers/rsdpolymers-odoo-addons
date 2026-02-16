@@ -286,7 +286,7 @@ class PortalAttendanceLeaves(http.Controller):
         return request.redirect('/my/timeoff?comp_off_success=1')
 
     @http.route(['/my/leave-balance'], type='http', auth='user', website=True)
-    def portal_leave_balance_page(self, **kw):
+    def portal_leave_balance(self, **kw):
 
         employee = request.env['hr.employee'].sudo().search(
             [('user_id', '=', request.uid)], limit=1)
@@ -296,11 +296,56 @@ class PortalAttendanceLeaves(http.Controller):
             ('state', '=', 'validate')
         ])
 
+        balance_data = []
+
+        for alloc in allocations:
+
+            leave_type = alloc.holiday_status_id
+
+            # 🔵 GET ALL LEAVES (approved + pending)
+            leaves = request.env['hr.leave'].sudo().search([
+                ('employee_id', '=', employee.id),
+                ('holiday_status_id', '=', leave_type.id),
+                ('state', 'in', ['confirm', 'validate', 'validate1'])
+            ])
+
+            # 🟣 HOURLY LEAVE
+            if leave_type.request_unit == 'hour':
+
+                allocated = alloc.number_of_hours_display
+
+                used = sum(
+                    (l.request_hour_to - l.request_hour_from)
+                    for l in leaves
+                    if l.request_hour_from and l.request_hour_to
+                )
+
+                remaining = allocated - used
+                unit = "hours"
+
+            # 🔵 DAY LEAVE
+            else:
+                allocated = alloc.number_of_days
+                used = sum(l.number_of_days for l in leaves)
+                remaining = allocated - used
+                unit = "days"
+
+            balance_data.append({
+                'type': leave_type.name,
+                'allocated': round(allocated, 2),
+                'used': round(used, 2),
+                'remaining': round(remaining, 2),
+                'unit': unit,
+            })
+
         return request.render(
             'portal_attendance_leave.leave_balance_page_template',
             {
-                'allocations': allocations,
+                'balances': balance_data,
                 'user': employee,
             }
         )
+
+
+
 
