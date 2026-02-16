@@ -921,4 +921,119 @@
         </t>
     </template>
 
+    <!-- ====================================================== -->
+    <!--        HEADER DROPDOWN → LEAVES (ALL PAGES)            -->
+    <!-- ====================================================== -->
+    <template id="portal_header_leaves_dropdown" inherit_id="website.layout">
+
+        <!-- replace the existing "Leaves" menu link -->
+        <xpath expr="//a[@href='/my/timeoff']" position="replace">
+
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle"
+                   href="#"
+                   role="button"
+                   data-bs-toggle="dropdown"
+                   aria-expanded="false">
+                    Leaves
+                </a>
+
+                <ul class="dropdown-menu">
+
+                    <li>
+                        <a class="dropdown-item" href="/my/timeoff">
+                            Apply Leave
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item" href="/my/leave-balance">
+                            Leave Balance
+                        </a>
+                    </li>
+
+                </ul>
+            </li>
+
+        </xpath>
+
+    </template>
+
+    <!-- ============================================= -->
+    <!--              LEAVE BALANCE PAGE               -->
+    <!-- ============================================= -->
+    <template id="leave_balance_page_template" name="Leave Balance Page">
+        <t t-call="website.layout">
+            <t t-set="title">Leave Balance</t>
+
+            <style>
+                .balance-container{
+                max-width:900px;
+                margin:40px auto;
+                background:white;
+                padding:25px;
+                border-radius:12px;
+                box-shadow:0 4px 12px rgba(0,0,0,0.1);
+                font-family:'Segoe UI', sans-serif;
+                }
+                .balance-table{
+                width:100%;
+                border-collapse:collapse;
+                font-size:14px;
+                }
+                .balance-table th,.balance-table td{
+                border:1px solid #ccc;
+                padding:10px;
+                text-align:center;
+                }
+                .balance-table th{
+                background:#f0f0ff;
+                }
+            </style>
+
+            <div class="balance-container">
+                <h2 style="text-align:center;">Leave Balance</h2>
+
+                <table class="balance-table">
+                    <thead>
+                        <tr>
+                            <th>Leave Type</th>
+                            <th>Allocated</th>
+                            <th>Used</th>
+                            <th>Remaining</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <t t-if="allocations">
+                            <t t-foreach="allocations" t-as="a">
+                                <tr>
+                                    <td>
+                                        <t t-esc="a.holiday_status_id.name"/>
+                                    </td>
+                                    <td>
+                                        <t t-esc="a.number_of_days"/>
+                                    </td>
+                                    <td>
+                                        <t t-esc="a.leaves_taken"/>
+                                    </td>
+                                    <td>
+                                        <t t-esc="a.number_of_days - a.leaves_taken"/>
+                                    </td>
+                                </tr>
+                            </t>
+                        </t>
+
+                        <t t-if="not allocations">
+                            <tr>
+                                <td colspan="4">No leave balance found</td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+            </div>
+
+        </t>
+    </template>
+
 </odoo>

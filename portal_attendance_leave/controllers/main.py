@@ -285,3 +285,22 @@ class PortalAttendanceLeaves(http.Controller):
 
         return request.redirect('/my/timeoff?comp_off_success=1')
 
+    @http.route(['/my/leave-balance'], type='http', auth='user', website=True)
+    def portal_leave_balance_page(self, **kw):
+
+        employee = request.env['hr.employee'].sudo().search(
+            [('user_id', '=', request.uid)], limit=1)
+
+        allocations = request.env['hr.leave.allocation'].sudo().search([
+            ('employee_id', '=', employee.id),
+            ('state', '=', 'validate')
+        ])
+
+        return request.render(
+            'portal_attendance_leave.leave_balance_page_template',
+            {
+                'allocations': allocations,
+                'user': employee,
+            }
+        )
+
