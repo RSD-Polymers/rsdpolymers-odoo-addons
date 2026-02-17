@@ -21,6 +21,54 @@ class HrLeaves(models.Model):
         store=False
     )
 
+    od_worked_on = fields.Date(
+        string="OD Worked On",
+        help="Actual date when employee worked for OD"
+    )
+
+    has_valid_od = fields.Boolean(
+        compute="_compute_has_valid_od",
+        store=False
+    )
+
+    def _compute_has_valid_od(self):
+        for rec in self:
+            if rec.employee_id and rec.od_worked_on:
+                rec.has_valid_od = rec._has_od_for_date(
+                    rec.employee_id.id,
+                    rec.od_worked_on
+                )
+            else:
+                rec.has_valid_od = False
+
+    def _is_weekly_off_or_holiday(self, employee, date):
+        """Return True if date is weekly off or public holiday"""
+        calendar = employee.resource_calendar_id
+        if not calendar:
+            return False
+
+        # weekly off check
+        weekday = str(date.weekday())
+        working_day = self.env['resource.calendar.attendance'].search([
+            ('calendar_id', '=', calendar.id),
+            ('dayofweek', '=', weekday)
+        ], limit=1)
+
+        is_weekly_off = not bool(working_day)
+
+        # public holiday check
+        holiday = self.env['resource.calendar.leaves'].search([
+            ('calendar_id', '=', calendar.id),
+            ('resource_id', '=', False),  # ← important
+            ('time_type', '=', 'leave'),  # ← public holiday only
+            ('date_from', '<=', datetime.combine(date, datetime.max.time())),
+            ('date_to', '>=', datetime.combine(date, datetime.min.time()))
+        ], limit=1)
+
+        is_public_holiday = bool(holiday)
+
+        return is_weekly_off or is_public_holiday
+
     @api.depends("holiday_status_id")
     def _compute_is_concession_leave(self):
         for rec in self:
@@ -225,41 +273,86 @@ class HrLeaves(models.Model):
             ('request_date_to', '>=', date),
         ]))
 
-    @api.onchange('request_date_from', 'employee_id')
-    def _onchange_filter_comp_od(self):
-        if not self.employee_id or not self.request_date_from:
-            return
-
-        has_od = self._has_od_for_date(self.employee_id.id, self.request_date_from)
-
-        if has_od:
-            domain = []
-        else:
-            domain = [('is_comp_off_od', '=', False)]
-
-        return {
-            'domain': {
-                'holiday_status_id': domain
-            }
-        }
-
     def _check_date(self):
         if self.env.context.get("skip_od_overlap"):
             return super()._check_date()
 
         for leave in self:
-            if leave.holiday_status_id.is_od_comp_off:
+            if leave.holiday_status_id.is_od_comp_off and leave.od_worked_on:
+
                 has_od = self.env["hr.leave"].search_count([
                     ("employee_id", "=", leave.employee_id.id),
                     ("state", "=", "validate"),
                     ("holiday_status_id.is_out_duty", "=", True),
-                    ("request_date_from", "<=", leave.request_date_from),
-                    ("request_date_to", ">=", leave.request_date_from),
+                    ("request_date_from", "<=", leave.od_worked_on),
+                    ("request_date_to", ">=", leave.od_worked_on),
                 ]) > 0
 
                 if has_od:
-                    # allow overlap with OD
                     return
 
         return super()._check_date()
+
+    @api.constrains('holiday_status_id', 'od_worked_on')
+    def _check_od_worked_required(self):
+        for leave in self:
+            if leave.holiday_status_id.is_od_comp_off and not leave.od_worked_on:
+                raise ValidationError("Please select 'OD Worked On' date.")
+
+    @api.constrains('employee_id', 'od_worked_on', 'holiday_status_id')
+    def _check_duplicate_comp_off(self):
+        for leave in self:
+            if leave.holiday_status_id.is_od_comp_off and leave.od_worked_on:
+                existing = self.search([
+                    ('employee_id', '=', leave.employee_id.id),
+                    ('holiday_status_id.is_od_comp_off', '=', True),
+                    ('od_worked_on', '=', leave.od_worked_on),
+                    ('state', 'in', ['confirm', 'validate1', 'validate']),
+                    ('id', '!=', leave.id)
+                ])
+                if existing:
+                    raise ValidationError(
+                        f"Comp Off already used for OD date {leave.od_worked_on}"
+                    )
+
+    @api.onchange('od_worked_on')
+    def _onchange_od_refresh_type(self):
+        if self.holiday_status_id and self.holiday_status_id.is_od_comp_off:
+            if not self._has_od_for_date(self.employee_id.id, self.od_worked_on):
+                self.holiday_status_id = False
+
+    @api.constrains('holiday_status_id', 'od_worked_on', 'employee_id')
+    def _check_od_comp_off_valid_day(self):
+        for leave in self:
+            if not leave.holiday_status_id.is_od_comp_off:
+                continue
+
+            if not leave.od_worked_on:
+                continue
+
+            # must have approved OD
+            has_od = leave._has_od_for_date(
+                leave.employee_id.id,
+                leave.od_worked_on
+            )
+            if not has_od:
+                raise ValidationError(
+                    _("No approved OD found on %s") % leave.od_worked_on
+                )
+
+            # 🔴 KEY RULE
+            allowed = leave._is_weekly_off_or_holiday(
+                leave.employee_id,
+                leave.od_worked_on
+            )
+
+            if not allowed:
+                raise ValidationError(
+                    _(
+                        "Comp Off cannot be taken for OD worked on a normal working day.\n"
+                        "Date %s is a working day."
+                    ) % leave.od_worked_on
+                )
+
+
 

@@ -15,10 +15,17 @@
             <xpath expr="//field[@name='holiday_status_id']" position="attributes">
                 <attribute name="context">
                     {
+                    'default_employee_id': employee_id,
                     'employee_id': employee_id,
-                    'request_date_from': request_date_from
+                    'od_worked_on': od_worked_on
                     }
                 </attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='request_date_from']" position="before">
+                <field name="od_worked_on"
+                       invisible="not holiday_status_id.is_od_comp_off"
+                       readonly="state in ['cancel','refuse','validate','validate1']"/>
             </xpath>
 
         </field>

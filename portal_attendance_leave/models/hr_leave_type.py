@@ -12,38 +12,43 @@ class HrLeaveType(models.Model):
     # CORE FILTER
     # -----------------------------
     def _apply_od_filter(self, args):
-        # prevent recursion
         if self.env.context.get('skip_od_filter'):
             return args
 
         ctx = self.env.context
-
         employee_id = ctx.get('default_employee_id') or ctx.get('employee_id')
-        request_date = ctx.get('default_request_date_from') or ctx.get('request_date_from')
+        od_date = ctx.get('od_worked_on')
 
-        if not employee_id or not request_date:
+        # allow current selected type to be readable
+        active_id = ctx.get('active_id')
+        current_type_id = ctx.get('default_holiday_status_id')
+
+        # If no OD date → hide comp off EXCEPT current record
+        if not employee_id or not od_date:
+            if current_type_id:
+                args = expression.AND([
+                    args,
+                    ['|',
+                     ('id', '=', current_type_id),
+                     ('is_od_comp_off', '=', False)
+                     ]
+                ])
+            else:
+                args = expression.AND([args, [('is_od_comp_off', '=', False)]])
             return args
 
-        # 👇 IMPORTANT: skip filter in this search
         has_od = self.env['hr.leave'].with_context(skip_od_filter=True).sudo().search_count([
             ('employee_id', '=', employee_id),
             ('state', '=', 'validate'),
             ('holiday_status_id.is_out_duty', '=', True),
-            ('request_date_from', '<=', request_date),
-            ('request_date_to', '>=', request_date),
+            ('request_date_from', '<=', od_date),
+            ('request_date_to', '>=', od_date),
         ]) > 0
 
         if not has_od:
             args = expression.AND([args, [('is_od_comp_off', '=', False)]])
 
         return args
-
-    # dropdown + search more
-    @api.model
-    def _search(self, args, offset=0, limit=None, order=None):
-        args = list(args or [])
-        args = self._apply_od_filter(args)
-        return super()._search(args, offset=offset, limit=limit, order=order)
 
     @api.model
     def name_search(self, name='', args=None, operator='ilike', limit=100):

@@ -265,12 +265,16 @@ class PortalAttendanceLeaves(http.Controller):
         worked_date_dt = datetime.strptime(worked_date, "%Y-%m-%d").date()
 
         try:
-            # 🔥 SAME VALIDATION METHOD
-            request.env['hr.leave'].sudo()._validate_comp_off_day(
-                employee,
-                worked_date_dt,
-                leave_type
-            )
+            leave = request.env['hr.leave'].sudo().new({
+                'employee_id': employee.id,
+                'holiday_status_id': leave_type.id,
+                'od_worked_on': worked_date_dt,
+                'request_date_from': worked_date_dt,
+                'request_date_to': worked_date_dt,
+            })
+
+            leave._check_od_comp_off_valid_day()
+
         except ValidationError as e:
             return request.redirect('/my/timeoff?error=%s' % quote(str(e)))
 
