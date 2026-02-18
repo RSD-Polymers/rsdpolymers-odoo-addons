@@ -21,6 +21,8 @@
         ('move_type','=','out_invoice'),
         ('invoice_origin','ilike', o.origin)
             ], limit=1)"/>
+        <t t-set="currency"
+           t-value="(invoice and invoice.currency_id) or o.company_id.currency_id"/>
         <!-- Partners -->
         <t t-set="shipping_partner" t-value="o.partner_id"/>
         <t t-set="billing_partner"
@@ -258,94 +260,126 @@
                     <t t-set="sl" t-value="1"/>
                     <t t-set="total" t-value="0"/>
 
-                    <!-- ALL INVOICE LINES -->
-                    <t t-foreach="invoice.invoice_line_ids" t-as="line">
+                    <!-- ALL SALE ORDER LINES -->
+                    <t t-if="so">
+                        <t t-foreach="so.order_line" t-as="line">
 
-                        <!-- PRODUCT -->
-                        <t t-if="line.product_id.type != 'service'">
+                            <t t-if="not line.display_type and line.product_id.type != 'service'">
+
+                                <tr>
+                                    <td style="border-right:1px solid black; padding:5px;">
+                                        <t t-esc="sl"/>
+                                    </td>
+
+                                    <!-- DESCRIPTION -->
+                                    <td style="border-right:1px solid black; padding:5px; vertical-align:top;">
+
+                                        <!-- split SO description -->
+                                        <t t-set="desc_lines" t-value="line.name.split('\n')"/>
+
+                                        <!-- FIRST LINE = PRODUCT -->
+                                        <b t-esc="desc_lines[0]"/>
+
+                                        <!-- OTHER LINES (Batch / Packing) -->
+                                        <t t-foreach="desc_lines[1:]" t-as="d">
+                                            <div style="margin-left:10px;">
+                                                <t t-esc="d"/>
+                                            </div>
+                                        </t>
+
+                                    </td><!-- HSN -->
+                                    <td style="border-right:1px solid black; padding:5px;">
+                                        <t t-esc="line.product_id.l10n_in_hsn_code or ''"/>
+                                    </td>
+
+                                    <!-- QTY from delivery -->
+                                    <td style="border-right:1px solid black; padding:5px; text-align:right;">
+
+                                        <t t-set="moves"
+                                           t-value="o.move_ids_without_package.filtered(lambda m: m.sale_line_id.id == line.id)"/>
+
+                                        <t t-set="qty"
+                                           t-value="
+                                                   sum(moves.mapped('move_line_ids.qty_done'))
+                                                   if sum(moves.mapped('move_line_ids.qty_done')) > 0
+                                                   else sum(moves.mapped('quantity'))
+                                               "/>
+
+                                        <t t-esc="qty"/>
+                                        <t t-esc="line.product_uom.name"/>
+                                    </td>
+
+                                    <!-- RATE -->
+                                    <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                                        <t t-esc="line.price_unit"/>
+                                    </td>
+
+                                    <!-- UOM -->
+                                    <td style="border-right:1px solid black; padding:5px;">
+                                        <t t-esc="line.product_uom.name"/>
+                                    </td>
+
+                                    <!-- AMOUNT -->
+                                    <td style="text-align:right; padding:5px;">
+                                        <t t-set="line_amt" t-value="qty * line.price_unit"/>
+                                        <t t-esc="line_amt"/>
+                                    </td>
+                                </tr>
+
+                                <t t-set="total" t-value="total + (qty * line.price_unit)"/>
+                                <t t-set="sl" t-value="sl + 1"/>
+
+                            </t>
+                        </t>
+                    </t>
+
+                    <!-- SERVICE LINES FROM SO -->
+                    <t t-if="so">
+                        <t t-foreach="so.order_line.filtered(lambda l: l.product_id.type=='service')" t-as="sline">
                             <tr>
+                                <td style="border-right:1px solid black;"></td>
                                 <td style="border-right:1px solid black; padding:5px;">
-                                    <t t-esc="sl"/>
+                                    <i t-esc="sline.name"/>
                                 </td>
-
-                                <td style="border-right:1px solid black; padding:5px;">
-                                    <b t-esc="line.name"/>
-                                </td>
-
-                                <td style="border-right:1px solid black; padding:5px;">
-                                    <t t-esc="line.product_id.l10n_in_hsn_code or ''"/>
-                                </td>
-
-                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
-                                    <t t-esc="line.quantity"/>
-                                    <t t-esc="line.product_uom_id.name"/>
-                                </td>
-
-                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
-                                    <t t-esc="line.price_unit"/>
-                                </td>
-
-                                <td style="border-right:1px solid black; padding:5px;">
-                                    <t t-esc="line.product_uom_id.name"/>
-                                </td>
-
+                                <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
                                 <td style="text-align:right; padding:5px;">
-                                    <t t-esc="line.price_subtotal"/>
+                                    <t t-esc="sline.price_subtotal"/>
                                 </td>
                             </tr>
 
-                            <t t-set="total" t-value="total + line.price_subtotal"/>
-                            <t t-set="sl" t-value="sl + 1"/>
+                            <t t-set="total" t-value="total + sline.price_subtotal"/>
                         </t>
-
-                        <!-- TRANSPORT / SERVICE -->
-                        <t t-if="line.product_id.type == 'service'">
-                            <tr>
-                                <td style="border-right:1px solid black;"></td>
-
-                                <td style="border-right:1px solid black; padding:5px;">
-                                    <i t-esc="line.account_id.name"/>
-                                </td>
-
-                                <td style="border-right:1px solid black;"></td>
-                                <td style="border-right:1px solid black;"></td>
-                                <td style="border-right:1px solid black;"></td>
-                                <td style="border-right:1px solid black;"></td>
-
-                                <td style="text-align:right; padding:5px;">
-                                    <t t-esc="line.price_subtotal"/>
-                                </td>
-                            </tr>
-
-                            <t t-set="total" t-value="total + line.price_subtotal"/>
-                        </t>
-
                     </t>
 
                     <!-- TAX FROM JOURNAL ITEMS -->
-                    <t t-foreach="invoice.line_ids.filtered(lambda l: l.tax_line_id)" t-as="taxline">
-                        <tr>
-                            <td style="border-right:1px solid black;"></td>
+                    <t t-if="invoice">
+                        <t t-foreach="invoice.line_ids.filtered(lambda l: l.tax_line_id)" t-as="taxline">
+                            <tr>
+                                <td style="border-right:1px solid black;"></td>
 
-                            <td style="border-right:1px solid black; padding:5px 8px;">
-                                <t t-esc="taxline.account_id.name"/>
-                            </td>
+                                <td style="border-right:1px solid black; padding:5px 8px;">
+                                    <t t-esc="taxline.account_id.name"/>
+                                </td>
 
-                            <td style="border-right:1px solid black;"></td>
-                            <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
 
-                            <td style="border-right:1px solid black; text-align:right; padding:5px 8px 5px 5px;">
-                                <t t-esc="taxline.tax_line_id.amount"/>%
-                            </td>
+                                <td style="border-right:1px solid black; text-align:right; padding:5px 8px 5px 5px;">
+                                    <t t-esc="taxline.tax_line_id.amount"/>%
+                                </td>
 
-                            <td style="border-right:1px solid black;"></td>
+                                <td style="border-right:1px solid black;"></td>
 
-                            <td style="text-align:right; padding:5px;">
-                                <t t-esc="taxline.credit"/>
-                            </td>
-                        </tr>
+                                <td style="text-align:right; padding:5px;">
+                                    <t t-esc="taxline.credit"/>
+                                </td>
+                            </tr>
 
-                        <t t-set="total" t-value="total + taxline.credit"/>
+                            <t t-set="total" t-value="total + taxline.credit"/>
+                        </t>
                     </t>
 
                     <!-- TOTAL -->
@@ -388,7 +422,7 @@
                                 <div style="clear:both; font-size:12px; margin-top:2px;">
                                     <strong>Indian Rupees</strong>
                                     <strong>
-                                        <t t-esc="invoice.currency_id.amount_to_text(total)"/>
+                                        <t t-esc="currency.amount_to_text(total)"/>
                                     </strong>
                                     <strong>Only</strong>
                                 </div>
@@ -489,65 +523,65 @@
                             <td colspan="5" style="border-top:1px solid black; padding:6px 8px;">
                                 Tax Amount (in words) :
                                 <strong>Indian Rupees
-                                    <t t-esc="invoice.currency_id.amount_to_text(invoice.amount_tax)"/>
+                                    <t t-if="invoice and invoice.currency_id">
+                                        <t t-esc="invoice.currency_id.amount_to_text(invoice.amount_tax)"/>
+                                    </t>
                                     Only
                                 </strong>
-                            </td>
-                        </tr>
-
-                        <!-- COMPANY + SIGNATURE -->
-                        <tr>
-                            <td colspan="3" style="border-right:1px solid black; padding:8px; vertical-align:top;">
-                                <div>
-                                    Company’s VAT TIN :
-                                    <b>
-                                        <t t-esc="o.company_id.vat"/>
-                                    </b>
-                                </div>
-
-                                <div>
-                                    Company’s CST No. :
-                                    <b>
-                                        <t t-esc="o.company_id.company_registry"/>
-                                    </b>
-                                </div>
-
-                                <div>
-                                    Company’s PAN :
-                                    <b>
-                                        <t t-esc="o.company_id.partner_id.l10n_in_pan"/>
-                                    </b>
-                                </div>
-
-                                <div style="margin-top:12px;">
-                                    Recd. in Good Condition
-                                </div>
-                            </td>
-
-                            <td colspan="2" style="padding:8px; text-align:right; vertical-align:top;">
-                                <div style="font-weight:bold;">
-                                    for
-                                    <t t-esc="o.company_id.name"/>
-                                </div>
-
-                                <div style="height:60px;"></div>
-
-                                <div>
-                                    Authorised Signatory
-                                </div>
-                            </td>
-                        </tr>
-
-                        <!-- FOOT NOTE -->
-                        <tr>
-                            <td colspan="5" style="text-align:center; padding:6px;">
-                                This is a Computer Generated Document
                             </td>
                         </tr>
 
                     </table>
 
                 </t>
+                <table style="width:100%; border:1px solid black; border-collapse:collapse;">
+                    <tr>
+                        <td style="width:60%; border-right:1px solid black; padding:8px; vertical-align:top;">
+                            <div>
+                                Company’s GST No. :
+                                <b>
+                                    <t t-esc="o.company_id.vat"/>
+                                </b>
+                            </div>
+
+                            <div>
+                                Company’s MSME No. :
+                                <b>
+                                    <t t-esc="o.company_id.company_registry"/>
+                                </b>
+                            </div>
+
+                            <div>
+                                Company’s PAN :
+                                <b>
+                                    <t t-esc="o.company_id.partner_id.l10n_in_pan"/>
+                                </b>
+                            </div>
+
+                            <div style="margin-top:12px;">
+                                Recd. in Good Condition
+                            </div>
+                        </td>
+
+                        <td style="width:40%; padding:8px; text-align:right; vertical-align:top;">
+                            <div style="font-weight:bold;">
+                                for
+                                <t t-esc="o.company_id.name"/>
+                            </div>
+
+                            <div style="height:70px;"></div>
+
+                            <div>Authorised Signatory</div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td colspan="2" style="text-align:center; padding:6px;">
+                            This is a Computer Generated Document
+                        </td>
+                    </tr>
+                </table>
+
             </div>
         </t>
     </template>
