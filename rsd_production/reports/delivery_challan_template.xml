@@ -254,7 +254,7 @@
                         <th style="width:12%; border-right:1px solid black; padding:5px;">Quantity</th>
                         <th style="width:10%; border-right:1px solid black; padding:5px;">Rate</th>
                         <th style="width:8%; border-right:1px solid black; padding:5px;">UOM</th>
-                        <th style="width:18%; padding:5px;">Amount</th>
+                        <th style="width:18%; border-left:1px solid black; padding:5px;">Amount</th>
                     </tr>
 
                     <t t-set="sl" t-value="1"/>
@@ -315,7 +315,7 @@
                                     </td>
 
                                     <!-- UOM -->
-                                    <td style="border-right:1px solid black; padding:5px;">
+                                    <td style="border-right:1px solid black; padding:5px; text-align:right;">
                                         <t t-esc="line.product_uom.name"/>
                                     </td>
 
@@ -354,32 +354,57 @@
                         </t>
                     </t>
 
-                    <!-- TAX FROM JOURNAL ITEMS -->
-                    <t t-if="invoice">
-                        <t t-foreach="invoice.line_ids.filtered(lambda l: l.tax_line_id)" t-as="taxline">
-                            <tr>
-                                <td style="border-right:1px solid black;"></td>
+                    <!-- TAX FROM SALE ORDER -->
+                    <t t-if="so">
+                        <t t-set="tax_total" t-value="0"/>
 
-                                <td style="border-right:1px solid black; padding:5px 8px;">
-                                    <t t-esc="taxline.account_id.name"/>
-                                </td>
+                        <t t-foreach="so.order_line.filtered(lambda l: not l.display_type and l.product_id.type!='service')"
+                           t-as="l">
 
-                                <td style="border-right:1px solid black;"></td>
-                                <td style="border-right:1px solid black;"></td>
+                            <!-- calculate tax -->
+                            <t t-set="line_tax" t-value="0"/>
+                            <t t-foreach="l.tax_id" t-as="tx">
+                                <t t-set="line_tax" t-value="line_tax + (l.price_subtotal * tx.amount / 100)"/>
+                            </t>
 
-                                <td style="border-right:1px solid black; text-align:right; padding:5px 8px 5px 5px;">
-                                    <t t-esc="taxline.tax_line_id.amount"/>%
-                                </td>
+                            <!-- TAX ROW -->
+                            <t t-if="line_tax">
+                                <tr>
+                                    <!-- Sl column -->
+                                    <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
 
-                                <td style="border-right:1px solid black;"></td>
+                                    <!-- Description -->
+                                    <td style="border-right:1px solid black; border-bottom:1px solid black; padding:5px 8px;">
+                                        <t t-esc="', '.join(l.tax_id.mapped('name'))"/>
+                                    </td>
 
-                                <td style="text-align:right; padding:5px;">
-                                    <t t-esc="taxline.credit"/>
-                                </td>
-                            </tr>
+                                    <!-- HSN -->
+                                    <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
 
-                            <t t-set="total" t-value="total + taxline.credit"/>
+                                    <!-- Qty -->
+                                    <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
+
+                                    <!-- Rate % -->
+                                    <td style="border-right:1px solid black; border-bottom:1px solid black; text-align:right; padding:5px;">
+                                        <t t-esc="l.tax_id[0].amount if l.tax_id else 0"/>%
+                                    </td>
+
+                                    <!-- UOM -->
+                                    <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
+
+                                    <!-- Amount -->
+                                    <td style="border-bottom:1px solid black; text-align:right; padding:5px;">
+                                        <t t-esc="line_tax"/>
+                                    </td>
+                                </tr>
+                            </t>
+
+                            <t t-set="tax_total" t-value="tax_total + line_tax"/>
+
                         </t>
+
+                        <!-- add tax to grand total -->
+                        <t t-set="total" t-value="total + tax_total"/>
                     </t>
 
                     <!-- TOTAL -->
@@ -432,105 +457,116 @@
                     </table>
                 </div>
 
-                <!-- ================= HSN SUMMARY ================= -->
-                <t t-if="invoice">
+                <!-- ================= HSN SUMMARY FROM SO ================= -->
+                <t t-if="so">
 
-                    <!-- build list -->
-                    <t t-set="hsn_lines" t-value="[]"/>
+                    <t t-set="hsn_map" t-value="{}"/>
 
-                    <!-- loop invoice lines -->
-                    <t t-foreach="invoice.invoice_line_ids" t-as="l">
+                    <!-- loop all lines -->
+                    <t t-foreach="so.order_line.filtered(lambda l: not l.display_type)" t-as="l">
 
                         <t t-set="hsn" t-value="l.product_id.l10n_in_hsn_code or '000000'"/>
                         <t t-set="taxable" t-value="l.price_subtotal"/>
 
-                        <!-- tax total -->
+                        <!-- tax calc -->
                         <t t-set="tax_amt" t-value="0"/>
-                        <t t-foreach="l.tax_ids" t-as="t">
-                            <t t-set="tax_amt" t-value="tax_amt + (taxable * t.amount / 100)"/>
+                        <t t-foreach="l.tax_id" t-as="tx">
+                            <t t-set="tax_amt" t-value="tax_amt + (taxable * tx.amount / 100)"/>
                         </t>
 
-                        <!-- push row -->
-                        <t t-set="hsn_lines"
-                           t-value="hsn_lines + [{
-                           'hsn': hsn,
-                           'taxable': taxable,
-                           'tax': tax_amt,
-                           'rate': (l.tax_ids and l.tax_ids[0].amount) or 0
-                       }]"/>
+                        <!-- existing row? -->
+                        <t t-if="hsn in hsn_map">
+                            <t t-set="old" t-value="hsn_map[hsn]"/>
+                            <t t-set="hsn_map"
+                               t-value="dict(hsn_map, **{
+                   hsn: {
+                       'taxable': old['taxable'] + taxable,
+                       'tax': old['tax'] + tax_amt,
+                       'rate': old['rate']
+                   }
+               })"/>
+                        </t>
+
+                        <!-- new row -->
+                        <t t-if="hsn not in hsn_map">
+                            <t t-set="hsn_map"
+                               t-value="dict(hsn_map, **{
+                   hsn: {
+                       'taxable': taxable,
+                       'tax': tax_amt,
+                       'rate': (l.tax_id and l.tax_id[0].amount) or 0
+                   }
+               })"/>
+                        </t>
 
                     </t>
 
                     <!-- table -->
                     <table style="width:100%; border:1px solid black; border-collapse:collapse;">
-
                         <tr style="background:#f0f0f0;">
-                            <th style="border-right:1px solid black; padding:5px;">HSN/SAC</th>
-                            <th style="border-right:1px solid black; padding:5px;">Taxable Value</th>
-                            <th style="border-right:1px solid black; padding:5px;">Rate</th>
-                            <th style="border-right:1px solid black; padding:5px;">Tax Amount</th>
-                            <th style="padding:5px;">Total Tax</th>
+                            <th style="padding:6px;">HSN/SAC</th>
+                            <th style="padding:6px; text-align:right;">Taxable Value</th>
+                            <th style="padding:6px; text-align:right;">Rate</th>
+                            <th style="padding:6px; text-align:right;">Tax Amount</th>
+                            <th style="padding:6px; text-align:right;">Total Tax</th>
                         </tr>
 
                         <t t-set="tot_taxable" t-value="0"/>
                         <t t-set="tot_tax" t-value="0"/>
 
-                        <t t-foreach="hsn_lines" t-as="r">
+                        <t t-foreach="hsn_map.items()" t-as="row">
                             <tr>
-                                <td style="border-right:1px solid black; padding:5px;">
-                                    <t t-esc="r['hsn']"/>
+                                <td style="padding:6px;">
+                                    <t t-esc="row[0]"/>
                                 </td>
 
-                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
-                                    <t t-esc="r['taxable']"/>
+                                <td style="padding:6px; text-align:right;">
+                                    <t t-esc="row[1]['taxable']"/>
                                 </td>
 
-                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
-                                    <t t-esc="r['rate']"/>%
+                                <td style="padding:6px; text-align:right;">
+                                    <t t-esc="row[1]['rate']"/>%
                                 </td>
 
-                                <td style="border-right:1px solid black; padding:5px; text-align:right;">
-                                    <t t-esc="r['tax']"/>
+                                <td style="padding:6px; text-align:right;">
+                                    <t t-esc="row[1]['tax']"/>
                                 </td>
 
-                                <td style="padding:5px; text-align:right;">
-                                    <t t-esc="r['tax']"/>
+                                <td style="padding:6px; text-align:right;">
+                                    <t t-esc="row[1]['tax']"/>
                                 </td>
                             </tr>
 
-                            <t t-set="tot_taxable" t-value="tot_taxable + r['taxable']"/>
-                            <t t-set="tot_tax" t-value="tot_tax + r['tax']"/>
-
+                            <t t-set="tot_taxable" t-value="tot_taxable + row[1]['taxable']"/>
+                            <t t-set="tot_tax" t-value="tot_tax + row[1]['tax']"/>
                         </t>
 
                         <!-- TOTAL -->
                         <tr style="font-weight:bold; border-top:1px solid black;">
-                            <td style="border-right:1px solid black; padding:5px;">Total</td>
-                            <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                            <td style="text-align:right; padding:6px;">Total</td>
+                            <td style="padding:6px; text-align:right;">
                                 <t t-esc="tot_taxable"/>
                             </td>
-                            <td style="border-right:1px solid black;"></td>
-                            <td style="border-right:1px solid black; padding:5px; text-align:right;">
+                            <td></td>
+                            <td style="padding:6px; text-align:right;">
                                 <t t-esc="tot_tax"/>
                             </td>
-                            <td style="text-align:right; padding:5px;">
+                            <td style="padding:6px; text-align:right;">
                                 <t t-esc="tot_tax"/>
                             </td>
                         </tr>
 
-                        <!-- TAX AMOUNT WORDS -->
+                        <!-- TAX WORDS -->
                         <tr>
-                            <td colspan="5" style="border-top:1px solid black; padding:6px 8px;">
-                                Tax Amount (in words) :
-                                <strong>Indian Rupees
-                                    <t t-if="invoice and invoice.currency_id">
-                                        <t t-esc="invoice.currency_id.amount_to_text(invoice.amount_tax)"/>
-                                    </t>
+                            <td colspan="5" style="padding:6px;">
+                                Tax Amount (in words):
+                                <strong>
+                                    Indian Rupees
+                                    <t t-esc="currency.amount_to_text(tot_tax)"/>
                                     Only
                                 </strong>
                             </td>
                         </tr>
-
                     </table>
 
                 </t>
