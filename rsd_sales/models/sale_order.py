@@ -351,10 +351,8 @@ class SaleOrder(models.Model):
     def _prepare_invoice(self):
         vals = super()._prepare_invoice()
 
-        # --- Delivery Order (Picking) ---
-        picking = self.picking_ids.filtered(
-            lambda p: p.state == 'done'
-        )[:1]
+        # --- Delivery Order ---
+        picking = self.picking_ids.filtered(lambda p: p.state == 'done')[:1]
 
         if picking:
             vals.update({
@@ -364,8 +362,8 @@ class SaleOrder(models.Model):
 
         # --- From Sales Order ---
         vals.update({
-            'ref': self.client_order_ref,
-            'dispatch_through': self.dispatch_through,
+            'ref': self.client_order_ref or self.name or '',
+            'dispatch_through': self.dispatch_through or '',
         })
 
         return vals
