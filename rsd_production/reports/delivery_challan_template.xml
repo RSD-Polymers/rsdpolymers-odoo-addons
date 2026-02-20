@@ -583,7 +583,7 @@
                             <div>
                                 Company’s MSME No. :
                                 <b>
-                                    <t t-esc="o.company_id.company_registry"/>
+                                    <t t-esc="o.company_id.msme_no"/>
                                 </b>
                             </div>
 
