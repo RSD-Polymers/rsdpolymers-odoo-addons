@@ -39,20 +39,75 @@
         <field name="name">sale.order.form.inherit</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">9999</field>
         <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <div class="alert alert-success mb-1" role="alert" invisible="not is_fully_in_stock">
+                    <strong>All products are currently in stock!</strong>
+                    You can proceed to complete the Sales Order.
+                </div>
+
+                <div class="alert alert-danger mb-1" role="alert" invisible="not has_stock_shortage">
+                    <strong>Stock Shortage Warning:</strong>
+                    Insufficient Packed FG stock for one or more products on this order.
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='l10n_in_gst_treatment']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_invoice_id']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_shipping_id']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='sale_order_template_id']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='validity_date']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='date_order']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='payment_term_id']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
+            <xpath expr="//field[@name='sale_order_option_ids']" position="attributes">
+                <attribute name="readonly">approval_state not in ('not_sent', 'rejected')</attribute>
+            </xpath>
             <xpath expr="//field[@name='state']" position="attributes">
                 <attribute name="statusbar_visible">draft,awaiting_readiness,trial,sent,sale</attribute>
             </xpath>
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="approval_state"
+                       widget="statusbar"
+                       statusbar_visible="not_sent,waiting,approved,rejected"/>
+            </xpath>
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="approval_manager_id"
+                       readonly="approval_state != 'not_sent'"/>
+            </xpath>
             <xpath expr="//field[@name='payment_term_id']" position="after">
                 <field name="is_rd_user" invisible="1"/>
-                <field name="mat_ready_date" readonly="not is_production_manager or state in ['sale', 'done']"/>
+                <field name="mat_ready_date"
+                       readonly="not is_production_manager or state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"
+                       invisible="mrp_order_count == 0"/>
                 <field name="production_request_type"
-                       readonly="is_rd_user == True or state in ['sale', 'done']"/>
+                       readonly="is_rd_user == True or state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"/>
+                <field name="dispatch_date"
+                       readonly="state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"/>
                 <field name="is_production_user_by_dept" invisible="1"/>
             </xpath>
             <xpath expr="//field[@name='sale_order_template_id']" position="after">
-                <field name="dispatch_date" readonly="state in ['sale', 'done']"/>
-                <field name="dispatch_through" readonly="state in ['sale', 'done']"/>
+                <field name="dispatch_through"
+                       readonly="state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"/>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="after">
                 <field name="qty_available" readonly="1" string="Qty Available" title="Quantity Available"/>
@@ -124,44 +179,43 @@
                     is_production_user_by_dept or state == 'draft' or invoice_count >= 1
                 </attribute>
             </xpath>
-            <xpath expr="//button[@name='action_confirm']" position="attributes">
-                <attribute name="invisible">
-                    ['|', '|' ,
-                    ('is_production_user_by_dept', '=', True),
-                    ('state', 'not in', ['draft', 'sent']),
-                    ('all_in_stock', '=', False)
-                    ]
-                </attribute>
+            
+            <xpath expr="//button[@id='action_confirm']" position="attributes">
+                <attribute name="invisible">1</attribute>
             </xpath>
-            <!--            <xpath expr="//button[@id='create_invoice']" position="attributes">-->
-            <!--                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',-->
-            <!--                    False)]-->
-            <!--                </attribute>-->
-            <!--            </xpath>-->
-            <xpath expr="//button[@name='action_confirm']" position="after">
-                <button name="action_confirm_from_readiness"
-                        type="object"
-                        string="Confirm Order"
-                        invisible="state not in ('awaiting_readiness', 'trial')"
-                        class="oe_highlight"
-                />
+
+            <xpath expr="//button[@name='action_confirm' and not(@id='action_confirm')]" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- ADD YOUR CUSTOM BUTTONS IN HEADER -->
+            <xpath expr="//header" position="inside">
+
                 <field name="is_production_request_sent" invisible="1"/>
-                <!--                <button name="action_create_mrp_orders"-->
-                <!--                        type="object"-->
-                <!--                        string="Create MO"-->
-                <!--                        invisible="state != 'awaiting_readiness' or mrp_order_count != 0"-->
-                <!--                        class="oe_highlight"/>-->
+
                 <button name="%(action_sale_create_mo_wizard)d"
                         type="action"
                         string="Create MO"
                         class="oe_highlight"
                         invisible="state != 'awaiting_readiness' or mrp_order_count != 0"/>
-            </xpath>
 
-            <xpath expr="//button[@name='action_confirm_from_readiness']" position="attributes">
-                <attribute name="invisible">
-                    is_production_user_by_dept or state not in ('awaiting_readiness', 'trial')
-                </attribute>
+                <button name="action_send_for_approval"
+                        type="object"
+                        string="Send for Approval"
+                        class="btn-primary"
+                        invisible="approval_state not in ('not_sent', 'rejected') or state not in ('draft', 'sent', 'awaiting_readiness') or (state == 'awaiting_readiness' and mrp_order_count == 0)"/>
+
+                <button name="action_approve_order"
+                        type="object"
+                        string="Approve"
+                        class="oe_highlight"
+                        invisible="approval_state != 'waiting' or not is_sales_manager"/>
+
+                <button name="action_reject_order"
+                        type="object"
+                        string="Reject"
+                        invisible="approval_state != 'waiting' or not is_sales_manager"/>
+
             </xpath>
 
             <xpath expr="//button[@name='action_view_invoice']" position="after">
@@ -172,6 +226,18 @@
                         invisible="mrp_order_count == 0">
                     <field name="mrp_order_count" widget="statinfo" string="Manufacturing Order"/>
                 </button>
+            </xpath>
+
+            <xpath expr="//page[@name='other_information']" position="after">
+                <page string="Approval History" name="approval_history" invisible="is_production_user_by_dept">
+                    <group>
+                        <label for="rejection_remarks"/>
+                        <div style="max-height: 150px; overflow-y: auto; width: 100%; border: 1px solid #e0e0e0; padding: 5px; border-radius: 4px; background-color: #f9f9f9;">
+                            <field name="rejection_remarks" readonly="1"/>
+                        </div>
+                        <field name="approval_manager_id" readonly="1" options="{'no_open': True, 'no_create': True}"/>
+                    </group>
+                </page>
             </xpath>
         </field>
     </record>

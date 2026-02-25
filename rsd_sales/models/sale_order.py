@@ -90,6 +90,87 @@ class SaleOrder(models.Model):
     delivery_terms = fields.Text(string="Terms of Delivery")
     dispatch_through = fields.Char(string="Dispatched Through")
 
+    approval_state = fields.Selection([
+        ('not_sent', 'Not Sent'),
+        ('waiting', 'Waiting Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ], default='not_sent', tracking=True)
+
+    approval_manager_id = fields.Many2one(
+        'res.users',
+        string="Sales Manager",
+        tracking=True
+    )
+
+    is_sales_manager = fields.Boolean(
+        compute="_compute_is_sales_manager",
+        store=False
+    )
+
+    rejection_remarks = fields.Text(string="Rejection Remarks")
+
+    is_fully_in_stock = fields.Boolean(
+        string="Is Fully In Stock",
+        compute="_compute_stock_status"
+    )
+
+    has_stock_shortage = fields.Boolean(
+        string="Has Stock Shortage",
+        compute="_compute_stock_status"
+    )
+
+    @api.depends('order_line.product_uom_qty', 'order_line.product_id', 'state', 'approval_state')
+    def _compute_stock_status(self):
+        # Fetch the location once outside the loop to keep the system fast
+        packed_loc = self.env['stock.location'].search([
+            ('name', '=', 'Packed - FG')
+        ], limit=1)
+
+        for order in self:
+            if (order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial'] or
+                    not order.order_line or
+                    order.approval_state not in ['not_sent','rejected']):
+                order.is_fully_in_stock = False
+                order.has_stock_shortage = False
+                continue
+
+            all_in_stock = True
+            has_storable_lines = False
+
+            for line in order.order_line:
+                if not line.display_type and line.product_id.type == 'consu' and line.product_id.is_storable:
+                    has_storable_lines = True
+
+                    # Perform a real-time LIVE query on the database for this specific product
+                    if packed_loc:
+                        # _get_available_quantity calculates On Hand MINUS Reserved.
+                        # This prevents approving orders when the stock is already promised to someone else!
+                        live_qty = self.env['stock.quant']._get_available_quantity(
+                            line.product_id,
+                            packed_loc
+                        )
+                    else:
+                        live_qty = 0.0
+
+                    if live_qty < line.product_uom_qty:
+                        all_in_stock = False
+                        break  # Stop checking if we find even one shortage
+
+            # Set the fields based on what we found in the live database
+            if has_storable_lines:
+                order.is_fully_in_stock = all_in_stock
+                order.has_stock_shortage = not all_in_stock
+            else:
+                order.is_fully_in_stock = False
+                order.has_stock_shortage = False
+
+    def _compute_is_sales_manager(self):
+        for rec in self:
+            rec.is_sales_manager = self.env.user.has_group(
+                'sales_team.group_sale_manager'
+            )
+
     def _confirmation_error_message(self):
         """
         Extends the core method to allow confirmation from the 'awaiting_readiness' state.
@@ -221,6 +302,9 @@ class SaleOrder(models.Model):
         can also be confirmed.
         """
         for order in self:
+
+            if order.approval_state != 'approved':
+                raise UserError(_("Order must be approved first"))
             # Allow extra custom states
             if order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial']:
                 raise UserError(_("Some orders are not in a state requiring confirmation."))
@@ -367,3 +451,132 @@ class SaleOrder(models.Model):
         })
 
         return vals
+
+    def action_send_for_approval(self):
+        self.ensure_one()
+
+        if self.approval_state not in ['not_sent', 'rejected']:
+            raise UserError(_("Already sent for approval"))
+
+        if self.state in ('awaiting_readiness', 'trial'):
+
+            if not self.mat_ready_date:
+                raise UserError(_("Please set Material Readiness Date"))
+
+            mos = self.mrp_production_ids or self.env['mrp.production'].search([
+                ('origin', '=', self.name)
+            ])
+
+            for mo in mos:
+                if mo.state != 'done':
+                    raise UserError(_(
+                        "All Manufacturing Orders must be completed before sending for approval"
+                    ))
+
+        packed_loc = self.env['stock.location'].search([
+            ('name', '=', 'Packed - FG'),
+            ('company_id', '=', self.company_id.id)
+        ], limit=1)
+
+        if not packed_loc:
+            raise UserError(_("Configuration Error: Could not find the 'Packed - FG' stock location."))
+
+        for line in self.order_line:
+            if not line.display_type and line.product_id.type == 'consu' and line.product_id.is_storable:
+
+                # Live check directly against the stock tables
+                live_qty = self.env['stock.quant']._get_available_quantity(
+                    line.product_id,
+                    packed_loc
+                )
+
+                if live_qty < line.product_uom_qty:
+                    raise UserError(_(
+                        "Insufficient stock for product '%(product)s' in location '%(location)s'.\n"
+                        "Required: %(required)s\n"
+                        "Available Live Stock: %(available)s"
+                    ) % {
+                                        'product': line.product_id.display_name,
+                                        'location': packed_loc.display_name,
+                                        'required': line.product_uom_qty,
+                                        'available': live_qty
+                                    })
+
+        # Return the action to open the wizard
+        return {
+            'name': _('Select Sales Manager'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order.approval.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'active_id': self.id},
+        }
+
+    def action_approve_order(self):
+        self.ensure_one()
+
+        if not self.env.user.has_group('sales_team.group_sale_manager'):
+            raise UserError(_("Only a Sales Manager can approve this order."))
+
+        if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:
+            raise UserError(_(
+                "Access Denied: You are not the assigned Sales Manager for this order. "
+                "Only %s can approve it."
+            ) % self.approval_manager_id.name)
+
+        if self.approval_state != 'waiting':
+            raise UserError(_("Not waiting for approval"))
+
+        # mark approved
+        self.approval_state = 'approved'
+
+        # =========================
+        # READINESS VALIDATION
+        # =========================
+
+        if self.state in ('awaiting_readiness', 'trial'):
+
+            if not self.mat_ready_date:
+                raise UserError(_("Please set Material Readiness Date"))
+
+            mos = self.mrp_production_ids or self.env['mrp.production'].search([
+                ('origin', '=', self.name)
+            ])
+
+            for mo in mos:
+                if mo.state != 'done':
+                    raise UserError(_(
+                        "All Manufacturing Orders must be completed before approval"
+                    ))
+
+            # call readiness confirm
+            self.action_confirm_from_readiness()
+            return True
+
+        # =========================
+        # NORMAL CONFIRM FLOW
+        # =========================
+        self.action_confirm()
+
+        self.message_post(body=_("Order approved and confirmed"))
+
+    def action_reject_order(self):
+        self.ensure_one()
+        # Security check: ensure only managers can trigger the wizard
+        if not self.env.user.has_group('sales_team.group_sale_manager'):
+            raise UserError(_("Only a Sales Manager can reject this order."))
+
+        if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:
+            raise UserError(_(
+                "Access Denied: You are not the assigned Sales Manager for this order. "
+                "Only %s can reject it."
+            ) % self.approval_manager_id.name)
+
+        return {
+            'name': _('Reject Order - Provide Remark'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order.reject.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'active_id': self.id},
+        }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_approval_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.approval.wizard.form</field>
+        <field name="model">sale.order.approval.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Select Sales Manager">
+                <group>
+                    <field name="manager_id" options="{'no_create': True}" placeholder="Select a Manager..."/>
+                </group>
+                <footer>
+                    <button string="Confirm" name="action_confirm" type="object" class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

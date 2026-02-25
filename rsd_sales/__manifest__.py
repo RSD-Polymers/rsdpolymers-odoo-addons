@@ -21,6 +21,8 @@
         'views/product_views.xml',
         'views/account_move_inherit.xml',
         'views/product_category_views.xml',
+        'views/sale_approval_wizard_views.xml',
+        'views/sale_rejection_wizard_views.xml',
     ],
     'installable': True,
     'application': False,
