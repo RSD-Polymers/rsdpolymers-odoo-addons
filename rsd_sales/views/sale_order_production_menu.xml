@@ -1,11 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+
+        <!-- Restricted form view (no create/delete) -->
+        <record id="view_sale_order_form_pending_readiness" model="ir.ui.view">
+            <field name="name">sale.order.form.pending.readiness</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form"/>
+            <field name="priority">999</field>
+            <field name="arch" type="xml">
+                <xpath expr="//form" position="attributes">
+                    <attribute name="create">false</attribute>
+                    <attribute name="delete">false</attribute>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- Action -->
         <record id="action_awaiting_readiness_orders" model="ir.actions.act_window">
             <field name="name">Pending Requests</field>
             <field name="res_model">sale.order</field>
             <field name="view_mode">list,kanban,form</field>
             <field name="domain">[('state', '=', 'awaiting_readiness')]</field>
+
+            <!-- attach restricted form view -->
+            <field name="view_ids" eval="[(5,0,0),
+                (0,0,{'view_mode':'list','view_id':ref('sale.view_quotation_tree')}),
+                (0,0,{'view_mode':'kanban','view_id':ref('sale.view_sale_order_kanban')}),
+                (0,0,{'view_mode':'form','view_id':ref('view_sale_order_form_pending_readiness')})
+            ]"/>
+
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     No pending production requests found.
@@ -13,6 +37,7 @@
             </field>
         </record>
 
+        <!-- Menu -->
         <record id="menu_pending_production_requests" model="ir.ui.menu">
             <field name="name">Pending Request</field>
             <field name="action" ref="action_awaiting_readiness_orders"/>
@@ -20,5 +45,6 @@
             <field name="groups_id" eval="[(6, 0, [ref('mrp.group_mrp_user'), ref('mrp.group_mrp_manager')])]"/>
             <field name="sequence">0</field>
         </record>
+
     </data>
 </odoo>

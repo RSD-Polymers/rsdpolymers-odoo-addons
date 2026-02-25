@@ -76,16 +76,61 @@
             <xpath expr="//field[@name='partner_id']" position="attributes">
                 <attribute name="invisible">is_production_user_by_dept</attribute>
             </xpath>
+            <xpath expr="//field[@name='l10n_in_gst_treatment']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_invoice_id']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
             <xpath expr="//field[@name='pricelist_id']" position="attributes">
                 <attribute name="invisible">is_production_user_by_dept</attribute>
             </xpath>
+            <xpath expr="//field[@name='partner_shipping_id']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='payment_term_id']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='sale_order_template_id']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="attributes">
+                <attribute name="column_invisible">parent.is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='tax_id']" position="attributes">
+                <attribute name="column_invisible">parent.is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_subtotal']" position="attributes">
+                <attribute name="column_invisible">parent.is_production_user_by_dept</attribute>
+            </xpath>
+
+            <xpath expr="//page[@name='other_information']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//page[@name='customer_signature']" position="attributes">
                 <attribute name="invisible">is_production_user_by_dept</attribute>
             </xpath>
 
+            <xpath expr="//button[@name='action_preview_sale_order']" position="attributes">
+                <attribute name="invisible">is_production_user_by_dept</attribute>
+            </xpath>
+            <xpath expr="//button[@id='send_proforma_primary']" position="attributes">
+                <attribute name="invisible">
+                    is_production_user_by_dept or state != 'draft' or invoice_count >= 1
+                </attribute>
+            </xpath>
+            <xpath expr="//button[@id='send_proforma']" position="attributes">
+                <attribute name="invisible">
+                    is_production_user_by_dept or state == 'draft' or invoice_count >= 1
+                </attribute>
+            </xpath>
             <xpath expr="//button[@name='action_confirm']" position="attributes">
-                <attribute name="invisible">['|', ('state', 'not in', ['draft', 'sent']), ('all_in_stock', '=',
-                    False)]
+                <attribute name="invisible">
+                    ['|', '|' ,
+                    ('is_production_user_by_dept', '=', True),
+                    ('state', 'not in', ['draft', 'sent']),
+                    ('all_in_stock', '=', False)
+                    ]
                 </attribute>
             </xpath>
             <!--            <xpath expr="//button[@id='create_invoice']" position="attributes">-->
@@ -111,6 +156,12 @@
                         string="Create MO"
                         class="oe_highlight"
                         invisible="state != 'awaiting_readiness' or mrp_order_count != 0"/>
+            </xpath>
+
+            <xpath expr="//button[@name='action_confirm_from_readiness']" position="attributes">
+                <attribute name="invisible">
+                    is_production_user_by_dept or state not in ('awaiting_readiness', 'trial')
+                </attribute>
             </xpath>
 
             <xpath expr="//button[@name='action_view_invoice']" position="after">
