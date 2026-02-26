@@ -97,11 +97,12 @@
             <xpath expr="//field[@name='payment_term_id']" position="after">
                 <field name="is_rd_user" invisible="1"/>
                 <field name="mat_ready_date"
-                       readonly="not is_production_manager or state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"
-                       invisible="mrp_order_count == 0"/>
+                       readonly="state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"/>
                 <field name="production_request_type"
                        readonly="is_rd_user == True or state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"/>
                 <field name="dispatch_date"
+                       readonly="state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"/>
+                <field name="special_instructions"
                        readonly="state in ['sale', 'done'] or approval_state not in ('not_sent', 'rejected')"/>
                 <field name="is_production_user_by_dept" invisible="1"/>
             </xpath>
@@ -203,7 +204,7 @@
                         type="object"
                         string="Send for Approval"
                         class="btn-primary"
-                        invisible="approval_state not in ('not_sent', 'rejected') or state not in ('draft', 'sent', 'awaiting_readiness') or (state == 'awaiting_readiness' and mrp_order_count == 0)"/>
+                        invisible="is_production_user_by_dept or approval_state not in ('not_sent', 'rejected') or state not in ('draft', 'sent', 'awaiting_readiness') or (state == 'awaiting_readiness' and mrp_order_count == 0)"/>
 
                 <button name="action_approve_order"
                         type="object"

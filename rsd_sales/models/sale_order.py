@@ -120,6 +120,8 @@ class SaleOrder(models.Model):
         compute="_compute_stock_status"
     )
 
+    special_instructions = fields.Text(string="Special Instructions")
+
     @api.depends('order_line.product_uom_qty', 'order_line.product_id', 'state', 'approval_state')
     def _compute_stock_status(self):
         # Fetch the location once outside the loop to keep the system fast
