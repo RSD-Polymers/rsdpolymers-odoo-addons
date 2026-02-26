@@ -460,6 +460,9 @@ class SaleOrder(models.Model):
         if self.approval_state not in ['not_sent', 'rejected']:
             raise UserError(_("Already sent for approval"))
 
+        if not self.order_line:
+            raise UserError(_("You cannot send an empty order for approval. Please add at least one product line."))
+
         if self.state in ('awaiting_readiness', 'trial'):
 
             if not self.mat_ready_date:

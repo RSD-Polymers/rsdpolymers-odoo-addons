@@ -10,7 +10,9 @@ class SaleOrderApprovalWizard(models.TransientModel):
         'res.users',
         string="Sales Manager",
         required=True,
-        domain=lambda self: [('groups_id', 'in', self.env.ref('sales_team.group_sale_manager').id)]
+        domain=lambda self: [
+            ('groups_id', 'in', self.env.ref('__export__.res_groups_222_4190eb7c').id)
+        ]
     )
 
     def action_confirm(self):
