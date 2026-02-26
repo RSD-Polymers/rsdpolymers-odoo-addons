@@ -1,5 +1,6 @@
 <odoo>
-    <template id="website.template_header_default" inherit_id="website.layout" name="Template Header Default" active="True">
+    <template id="website.template_header_default" inherit_id="website.layout" name="Template Header Default"
+              active="True">
         <xpath expr="//header//nav" position="replace">
             <t t-call="website.navbar">
                 <t t-set="_navbar_classes" t-valuef="d-none d-lg-block shadow-sm"/>
@@ -17,12 +18,10 @@
                                 <t t-set="link_class" t-valuef="nav-link"/>
                             </t>
                         </t>
-                        <a href="/my/attendance" style="padding-top: 9px;">Attendance</a>
-                        <a href="/my/timeoff" style="padding-top: 9px; padding-left: 9px;">Leaves</a>
-                        <a href="/my/salary-slips" style="padding-top: 9px; padding-left: 9px;">Salary Slips</a>
                     </t>
                     <ul class="navbar-nav align-items-center gap-2 flex-shrink-0 justify-content-end ps-3">
-                        <t t-call="website.placeholder_header_search_box" t-nocache="The searchbox should not cache previous searches.">
+                        <t t-call="website.placeholder_header_search_box"
+                           t-nocache="The searchbox should not cache previous searches.">
                             <t t-set="_layout" t-valuef="modal"/>
                             <t t-set="_input_classes" t-valuef="border border-end-0 p-3"/>
                             <t t-set="_submit_classes" t-valuef="border border-start-0 px-4 bg-o-color-4"/>
@@ -35,7 +34,8 @@
                             <t t-set="_dropdown_menu_class" t-valuef="dropdown-menu-end"/>
                         </t>
                         <t t-call="portal.placeholder_user_sign_in">
-                            <t t-set="_link_class" t-value="_additional_btn_color or 'o_nav_link_btn nav-link border px-3'"/>
+                            <t t-set="_link_class"
+                               t-value="_additional_btn_color or 'o_nav_link_btn nav-link border px-3'"/>
                         </t>
                         <t t-call="portal.user_dropdown">
                             <t t-set="_user_name" t-value="True"/>

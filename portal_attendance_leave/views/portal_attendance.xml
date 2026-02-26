@@ -924,40 +924,40 @@
     <!-- ====================================================== -->
     <!--        HEADER DROPDOWN → LEAVES (ALL PAGES)            -->
     <!-- ====================================================== -->
-    <template id="portal_header_leaves_dropdown" inherit_id="website.layout">
+<!--    <template id="portal_header_leaves_dropdown" inherit_id="website.layout">-->
 
-        <!-- replace the existing "Leaves" menu link -->
-        <xpath expr="//a[@href='/my/timeoff']" position="replace">
+<!--        &lt;!&ndash; replace the existing "Leaves" menu link &ndash;&gt;-->
+<!--        <xpath expr="//a[@href='/my/timeoff']" position="replace">-->
 
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
-                    Leaves
-                </a>
+<!--            <li class="nav-item dropdown">-->
+<!--                <a class="nav-link dropdown-toggle"-->
+<!--                   href="#"-->
+<!--                   role="button"-->
+<!--                   data-bs-toggle="dropdown"-->
+<!--                   aria-expanded="false">-->
+<!--                    Leaves-->
+<!--                </a>-->
 
-                <ul class="dropdown-menu">
+<!--                <ul class="dropdown-menu">-->
 
-                    <li>
-                        <a class="dropdown-item" href="/my/timeoff">
-                            Apply Leave
-                        </a>
-                    </li>
+<!--                    <li>-->
+<!--                        <a class="dropdown-item" href="/my/timeoff">-->
+<!--                            Apply Leave-->
+<!--                        </a>-->
+<!--                    </li>-->
 
-                    <li>
-                        <a class="dropdown-item" href="/my/leave-balance">
-                            Leave Balance
-                        </a>
-                    </li>
+<!--                    <li>-->
+<!--                        <a class="dropdown-item" href="/my/leave-balance">-->
+<!--                            Leave Balance-->
+<!--                        </a>-->
+<!--                    </li>-->
 
-                </ul>
-            </li>
+<!--                </ul>-->
+<!--            </li>-->
 
-        </xpath>
+<!--        </xpath>-->
 
-    </template>
+<!--    </template>-->
 
     <!-- ============================================= -->
     <!--              LEAVE BALANCE PAGE               -->
