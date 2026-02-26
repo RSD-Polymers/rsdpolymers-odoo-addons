@@ -170,7 +170,7 @@ class SaleOrder(models.Model):
     def _compute_is_sales_manager(self):
         for rec in self:
             rec.is_sales_manager = self.env.user.has_group(
-                'sales_team.group_sale_manager'
+                '__export__.res_groups_222_4190eb7c'
             )
 
     def _confirmation_error_message(self):
@@ -520,7 +520,7 @@ class SaleOrder(models.Model):
     def action_approve_order(self):
         self.ensure_one()
 
-        if not self.env.user.has_group('sales_team.group_sale_manager'):
+        if not self.env.user.has_group('__export__.res_groups_222_4190eb7c'):
             raise UserError(_("Only a Sales Manager can approve this order."))
 
         if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:
@@ -568,7 +568,7 @@ class SaleOrder(models.Model):
     def action_reject_order(self):
         self.ensure_one()
         # Security check: ensure only managers can trigger the wizard
-        if not self.env.user.has_group('sales_team.group_sale_manager'):
+        if not self.env.user.has_group('__export__.res_groups_222_4190eb7c'):
             raise UserError(_("Only a Sales Manager can reject this order."))
 
         if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:
