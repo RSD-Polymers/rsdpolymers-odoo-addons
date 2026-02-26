@@ -89,8 +89,57 @@ class HrLeaveAllocation(models.Model):
                     % (employee.name, formatted_date)
                 )
 
-    @api.onchange('worked_date')
-    def _onchange_worked_date(self):
-        if self.worked_date:
-            self.date_from = self.worked_date
-            self.date_to = self.worked_date + timedelta(days=45)
+    def _set_validity_from_worked_date(self, vals):
+        """Set validity = worked_date + 45 days"""
+
+        leave_type = None
+
+        if vals.get('holiday_status_id'):
+            leave_type = self.env['hr.leave.type'].browse(vals['holiday_status_id'])
+
+        # -------------------------------------------------
+        # CASE 1: CREATE → self is empty → use vals only
+        # -------------------------------------------------
+        if not self:
+            lt = leave_type
+            worked_date = vals.get('worked_date')
+
+            if lt and lt.name in ['Comp Off', 'Comp Off (PAPL)'] and worked_date:
+                worked_date = fields.Date.to_date(worked_date)
+
+                vals['date_from'] = worked_date
+                vals['date_to'] = worked_date + timedelta(days=45)
+
+            return vals
+
+        # -------------------------------------------------
+        # CASE 2: WRITE → self has records
+        # -------------------------------------------------
+        for rec in self:
+            lt = leave_type or rec.holiday_status_id
+
+            if not lt:
+                continue
+
+            if lt.name not in ['Comp Off', 'Comp Off (PAPL)']:
+                continue
+
+            worked_date = vals.get('worked_date') or rec.worked_date
+            if not worked_date:
+                continue
+
+            worked_date = fields.Date.to_date(worked_date)
+
+            vals['date_from'] = worked_date
+            vals['date_to'] = worked_date + timedelta(days=45)
+
+        return vals
+
+    @api.model
+    def create(self, vals):
+        vals = self._set_validity_from_worked_date(vals)
+        return super().create(vals)
+
+    def write(self, vals):
+        vals = self._set_validity_from_worked_date(vals)
+        return super().write(vals)

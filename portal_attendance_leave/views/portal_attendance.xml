@@ -461,27 +461,25 @@
             <div class="leave-container">
                 <h2>My Leave Requests</h2>
                 <!-- ERROR ALERT -->
-                <t t-if="request.params.get('error')">
+                <t t-if="request.session.get('error')">
                     <div class="alert alert-danger text-center" style="position:relative;">
-                        <t t-esc="request.params.get('error')"/>
+                        <t t-esc="request.session.get('error')"/>
 
                         <span onclick="this.closest('.alert').remove();"
                               style="position:absolute; right:12px; top:6px; cursor:pointer; font-size:18px; font-weight:bold;">
                             ×
                         </span>
                     </div>
+
+                    <!-- Remove error after showing once -->
+                    <t t-set="dummy" t-value="request.session.pop('error')"/>
                 </t>
-
                 <!-- SUCCESS ALERT -->
-                <t t-if="request.params.get('comp_off_success')">
-                    <div id="portalAlert2" class="alert alert-success text-center" style="position:relative;">
-                        Comp Off request submitted for approval.
-
-                        <span onclick="this.closest('.alert').remove();"
-                              style="position:absolute; right:12px; top:6px; cursor:pointer; font-size:18px; font-weight:bold;">
-                            ×
-                        </span>
+                <t t-if="request.session.get('success')">
+                    <div class="alert alert-success text-center">
+                        <t t-esc="request.session.get('success')"/>
                     </div>
+                    <t t-set="dummy" t-value="request.session.pop('success')"/>
                 </t>
                 <!-- LEAVE SUCCESS ALERT -->
                 <t t-if="request.params.get('leave_success')">
@@ -924,40 +922,40 @@
     <!-- ====================================================== -->
     <!--        HEADER DROPDOWN → LEAVES (ALL PAGES)            -->
     <!-- ====================================================== -->
-<!--    <template id="portal_header_leaves_dropdown" inherit_id="website.layout">-->
+    <!--    <template id="portal_header_leaves_dropdown" inherit_id="website.layout">-->
 
-<!--        &lt;!&ndash; replace the existing "Leaves" menu link &ndash;&gt;-->
-<!--        <xpath expr="//a[@href='/my/timeoff']" position="replace">-->
+    <!--        &lt;!&ndash; replace the existing "Leaves" menu link &ndash;&gt;-->
+    <!--        <xpath expr="//a[@href='/my/timeoff']" position="replace">-->
 
-<!--            <li class="nav-item dropdown">-->
-<!--                <a class="nav-link dropdown-toggle"-->
-<!--                   href="#"-->
-<!--                   role="button"-->
-<!--                   data-bs-toggle="dropdown"-->
-<!--                   aria-expanded="false">-->
-<!--                    Leaves-->
-<!--                </a>-->
+    <!--            <li class="nav-item dropdown">-->
+    <!--                <a class="nav-link dropdown-toggle"-->
+    <!--                   href="#"-->
+    <!--                   role="button"-->
+    <!--                   data-bs-toggle="dropdown"-->
+    <!--                   aria-expanded="false">-->
+    <!--                    Leaves-->
+    <!--                </a>-->
 
-<!--                <ul class="dropdown-menu">-->
+    <!--                <ul class="dropdown-menu">-->
 
-<!--                    <li>-->
-<!--                        <a class="dropdown-item" href="/my/timeoff">-->
-<!--                            Apply Leave-->
-<!--                        </a>-->
-<!--                    </li>-->
+    <!--                    <li>-->
+    <!--                        <a class="dropdown-item" href="/my/timeoff">-->
+    <!--                            Apply Leave-->
+    <!--                        </a>-->
+    <!--                    </li>-->
 
-<!--                    <li>-->
-<!--                        <a class="dropdown-item" href="/my/leave-balance">-->
-<!--                            Leave Balance-->
-<!--                        </a>-->
-<!--                    </li>-->
+    <!--                    <li>-->
+    <!--                        <a class="dropdown-item" href="/my/leave-balance">-->
+    <!--                            Leave Balance-->
+    <!--                        </a>-->
+    <!--                    </li>-->
 
-<!--                </ul>-->
-<!--            </li>-->
+    <!--                </ul>-->
+    <!--            </li>-->
 
-<!--        </xpath>-->
+    <!--        </xpath>-->
 
-<!--    </template>-->
+    <!--    </template>-->
 
     <!-- ============================================= -->
     <!--              LEAVE BALANCE PAGE               -->
@@ -1011,13 +1009,16 @@
                                         <t t-esc="b['type']"/>
                                     </td>
                                     <td>
-                                        <t t-esc="b['allocated']"/> <t t-esc="b['unit']"/>
+                                        <t t-esc="b['allocated']"/>
+                                        <t t-esc="b['unit']"/>
                                     </td>
                                     <td>
-                                        <t t-esc="b['used']"/> <t t-esc="b['unit']"/>
+                                        <t t-esc="b['used']"/>
+                                        <t t-esc="b['unit']"/>
                                     </td>
                                     <td>
-                                        <t t-esc="b['remaining']"/> <t t-esc="b['unit']"/>
+                                        <t t-esc="b['remaining']"/>
+                                        <t t-esc="b['unit']"/>
                                     </td>
                                 </tr>
                             </t>

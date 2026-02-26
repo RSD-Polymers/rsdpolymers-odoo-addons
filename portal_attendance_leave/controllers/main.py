@@ -250,7 +250,9 @@ class PortalAttendanceLeaves(http.Controller):
     @http.route('/my/comp-off/apply', type='http', auth='user', website=True, methods=['POST'])
     def portal_comp_off_apply(self, **post):
 
-        employee = request.env['hr.employee'].sudo().search([('user_id', '=', request.uid)], limit=1)
+        employee = request.env['hr.employee'].sudo().search(
+            [('user_id', '=', request.uid)], limit=1)
+
         if not employee:
             return request.redirect('/my')
 
@@ -261,33 +263,56 @@ class PortalAttendanceLeaves(http.Controller):
 
         leave_type = request.env['hr.leave.type'].sudo().browse(leave_type_id)
 
-        from datetime import datetime
         worked_date_dt = datetime.strptime(worked_date, "%Y-%m-%d").date()
 
         try:
-            leave = request.env['hr.leave'].sudo().new({
-                'employee_id': employee.id,
-                'holiday_status_id': leave_type.id,
-                'od_worked_on': worked_date_dt,
-                'request_date_from': worked_date_dt,
-                'request_date_to': worked_date_dt,
-            })
 
-            leave._check_od_comp_off_valid_day()
+            # --------------------------------------------------
+            # CASE 1 → Comp Off (OD Based)
+            # --------------------------------------------------
+            if leave_type.is_od_comp_off:
+
+                leave = request.env['hr.leave'].sudo().new({
+                    'employee_id': employee.id,
+                    'holiday_status_id': leave_type.id,
+                    'od_worked_on': worked_date_dt,
+                    'request_date_from': worked_date_dt,
+                    'request_date_to': worked_date_dt,
+                })
+
+                leave._check_od_comp_off_valid_day()
+
+            # --------------------------------------------------
+            # CASE 2 → Normal Comp Off (Weekly Off / Holiday)
+            # --------------------------------------------------
+            else:
+                leave = request.env['hr.leave'].sudo().new({})
+
+                leave._validate_comp_off_day(
+                    employee,
+                    worked_date_dt,
+                    leave_type
+                )
+
 
         except ValidationError as e:
-            return request.redirect('/my/timeoff?error=%s' % quote(str(e)))
+            request.session['error'] = str(e)
+            return request.redirect('/my/timeoff')
 
-        # create allocation request
+        # --------------------------------------------------
+        # CREATE ALLOCATION IF VALID
+        # --------------------------------------------------
         request.env['hr.leave.allocation'].sudo().create({
             'employee_id': employee.id,
             'holiday_status_id': leave_type_id,
             'number_of_days': days,
             'name': reason or f"Comp Off for {worked_date}",
-            'state': 'confirm'
+            'state': 'confirm',
+            'worked_date': worked_date_dt.strftime('%Y-%m-%d'),
         })
 
-        return request.redirect('/my/timeoff?comp_off_success=1')
+        request.session['success'] = "Comp Off request submitted for approval."
+        return request.redirect('/my/timeoff')
 
     @http.route(['/my/leave-balance'], type='http', auth='user', website=True)
     def portal_leave_balance(self, **kw):
