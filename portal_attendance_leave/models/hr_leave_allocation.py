@@ -130,10 +130,11 @@ class HrLeaveAllocation(models.Model):
 
         return vals
 
-    @api.model
-    def create(self, vals):
-        vals = self._set_validity_from_worked_date(vals)
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            vals.update(self._set_validity_from_worked_date(vals))
+        return super().create(vals_list)
 
     def write(self, vals):
         vals = self._set_validity_from_worked_date(vals)
