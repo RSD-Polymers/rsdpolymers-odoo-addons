@@ -9,12 +9,7 @@ class HrLeaveAllocation(models.Model):
     # 1. Helper field to use in XML "invisible" conditions
     holiday_status_id_name = fields.Char(related='holiday_status_id.name', string='Time Off Type Name')
 
-    # 2. Your custom field
     worked_date = fields.Date(string='Date Worked', help="The holiday/weekend date worked.")
-
-    from odoo import api, _
-    from odoo.exceptions import ValidationError
-    from datetime import timedelta, datetime
 
     @api.constrains('worked_date', 'holiday_status_id', 'employee_id')
     def _check_attendance_for_comp_off(self):
