@@ -23,6 +23,8 @@
         'views/product_category_views.xml',
         'views/sale_approval_wizard_views.xml',
         'views/sale_rejection_wizard_views.xml',
+        'views/sale_checker_wizard.xml',
+        'views/sale_checker_reject_wizard_view.xml',
     ],
     'installable': True,
     'application': False,

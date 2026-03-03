@@ -24,7 +24,7 @@ class SaleOrderApprovalWizard(models.TransientModel):
 
             # Update the order and advance the approval state
             order.approval_manager_id = self.manager_id.id
-            order.approval_state = 'waiting'
+            order.approval_state = 'send_for_approval'
 
             # Log the action in the chatter
             order.message_post(

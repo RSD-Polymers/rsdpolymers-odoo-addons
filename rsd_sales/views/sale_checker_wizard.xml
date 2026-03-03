@@ -1,0 +1,30 @@
+<odoo>
+
+    <record id="view_sale_checker_wizard_form" model="ir.ui.view">
+        <field name="name">sale.order.checker.wizard.form</field>
+        <field name="model">sale.order.checker.wizard</field>
+        <field name="arch" type="xml">
+
+            <form string="Select BDO Checker">
+
+                <group>
+                    <field name="checker_id"/>
+                </group>
+
+                <footer>
+                    <button name="action_confirm_checker"
+                            type="object"
+                            string="Confirm"
+                            class="btn-primary"/>
+
+                    <button string="Cancel"
+                            special="cancel"
+                            class="btn-secondary"/>
+                </footer>
+
+            </form>
+
+        </field>
+    </record>
+
+</odoo>

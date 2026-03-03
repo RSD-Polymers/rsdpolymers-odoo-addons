@@ -30,7 +30,7 @@ class SaleOrderRejectWizard(models.TransientModel):
         existing_remarks = order.rejection_remarks or ""
 
         order.write({
-            'approval_state': 'rejected',
+            'approval_state': 'checked',
             'rejection_remarks': new_remark + existing_remarks,
         })
 

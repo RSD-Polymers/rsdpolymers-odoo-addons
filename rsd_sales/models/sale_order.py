@@ -2,7 +2,7 @@ from email.policy import default
 
 from odoo import models, fields, _, api, exceptions
 from datetime import date
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -91,15 +91,22 @@ class SaleOrder(models.Model):
     dispatch_through = fields.Char(string="Dispatched Through")
 
     approval_state = fields.Selection([
-        ('not_sent', 'Not Sent'),
-        ('waiting', 'Waiting Approval'),
+        ('draft', 'Draft'),
+        ('send_for_checking', 'Send for Checking'),
+        ('checked', 'Checked'),
+        ('send_for_approval', 'Send for Approval'),
         ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
-    ], default='not_sent', tracking=True)
+    ], default='draft', tracking=True)
 
     approval_manager_id = fields.Many2one(
         'res.users',
         string="Sales Manager",
+        tracking=True
+    )
+
+    checker_id = fields.Many2one(
+        'res.users',
+        string="Sales Executive-BD (Checker)",
         tracking=True
     )
 
@@ -132,7 +139,7 @@ class SaleOrder(models.Model):
         for order in self:
             if (order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial'] or
                     not order.order_line or
-                    order.approval_state not in ['not_sent','rejected']):
+                    order.approval_state not in ['draft', 'send_for_checking', 'checked']):
                 order.is_fully_in_stock = False
                 order.has_stock_shortage = False
                 continue
@@ -229,11 +236,32 @@ class SaleOrder(models.Model):
         for record in self:
             record.is_production_manager = self.env.user.has_group('mrp.group_mrp_manager')
 
-    @api.constrains('mat_ready_date')
-    def _check_mat_ready_date_is_future(self):
+    @api.constrains('mat_ready_date', 'dispatch_date', 'commitment_date')
+    def _check_date_validations(self):
         for record in self:
-            if record.mat_ready_date and record.mat_ready_date < date.today():
-                raise exceptions.ValidationError(_("The Material Readiness Date must be a future date."))
+
+            # 1️⃣ Material Readiness must be future
+            if record.mat_ready_date:
+                if record.mat_ready_date <= date.today():
+                    raise ValidationError(
+                        _("Material Readiness Date must be a future date.")
+                    )
+
+            # 2️⃣ Dispatch Date > Material Readiness Date
+            if record.mat_ready_date and record.dispatch_date:
+                if record.dispatch_date <= record.mat_ready_date:
+                    raise ValidationError(
+                        _("Scheduled Dispatch Date must be after the Material Readiness Date.")
+                    )
+
+            # 3️⃣ Delivery Date > Dispatch Date
+            if record.dispatch_date and record.commitment_date:
+                delivery_date = record.commitment_date.date()
+
+                if delivery_date <= record.dispatch_date:
+                    raise ValidationError(
+                        _("Delivery Date must be after the Scheduled Dispatch Date.")
+                    )
 
     def _compute_mrp_order_count(self):
         """
@@ -255,46 +283,26 @@ class SaleOrder(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """
-        Overrides create to set the state and create MOs based on the request type,
-        regardless of stock for trial.
-        """
+
         _logger.info("SALES ORDER: CREATE method called.")
         orders = super(SaleOrder, self).create(vals_list)
-        for order in orders:
-            # Recompute the field to ensure we have the latest value
-            order._compute_all_in_stock()
 
-            # The logic for 'scale_up' is now merged with 'trial'
+        for order in orders:
+
             if order.production_request_type == 'trial':
-                _logger.info("SALES ORDER: Trial order %s created. Setting state and creating MO.", order.name)
+                _logger.info(
+                    "SALES ORDER: Trial order %s created. Setting state and creating MO.",
+                    order.name
+                )
                 order.write({'state': 'trial'})
                 order.action_create_mrp_orders()
-            elif not order.all_in_stock:
-                _logger.warning(
-                    "SALES ORDER: Order %s created with out-of-stock items. Setting state to 'awaiting_readiness'.",
-                    order.name)
-                order.write({'state': 'awaiting_readiness'})
+
         return orders
 
     def write(self, values):
-        """
-        Overrides the standard write method to manage the sales order state
-        based on stock availability.
-        """
+
         _logger.info("SALES ORDER: WRITE method called.")
         res = super(SaleOrder, self).write(values)
-
-        for order in self:
-            # If the order is a trial, we don't change its state here based on stock
-            if order.production_request_type != 'trial':
-                if not order.all_in_stock and order.state in ['draft', 'sent']:
-                    _logger.warning("SALES ORDER: Order %s has out-of-stock items. Changing state from '%s' to 'awaiting_readiness'.", order.name, order.state)
-                    order.state = 'awaiting_readiness'
-                elif order.all_in_stock and order.state == 'awaiting_readiness':
-                    # If all items are now in stock, revert the state to 'draft'
-                    _logger.info("SALES ORDER: All items for order %s are now in stock. Changing state from '%s' to 'draft'.", order.name, order.state)
-                    order.state = 'draft'
 
         return res
 
@@ -303,22 +311,27 @@ class SaleOrder(models.Model):
         Override to extend core validation so our custom states
         can also be confirmed.
         """
-        for order in self:
 
+        for order in self:
             if order.approval_state != 'approved':
                 raise UserError(_("Order must be approved first"))
-            # Allow extra custom states
+
             if order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial']:
                 raise UserError(_("Some orders are not in a state requiring confirmation."))
 
-            if order.production_request_type == 'trial':
-                # Trial request → only MO, no DO/invoice
-                _logger.info("SALES ORDER: Trial request detected. Skipping DO/Invoice creation.")
-                order.message_post(body=_("This is a trial request. No Delivery Order or Invoice will be created."))
-                continue
+        trial_orders = self.filtered(lambda o: o.production_request_type == 'trial')
+        normal_orders = self - trial_orders
 
-            # For all other cases → continue with standard confirm logic
-            super(SaleOrder, order).action_confirm()
+        # Handle trial orders separately
+        for order in trial_orders:
+            _logger.info("SALES ORDER: Trial request detected. Skipping DO/Invoice creation.")
+            order.message_post(
+                body=_("This is a trial request. No Delivery Order or Invoice will be created.")
+            )
+
+        # Confirm normal orders using standard Odoo flow
+        if normal_orders:
+            super(SaleOrder, normal_orders).action_confirm()
 
         return True
 
@@ -457,8 +470,8 @@ class SaleOrder(models.Model):
     def action_send_for_approval(self):
         self.ensure_one()
 
-        if self.approval_state not in ['not_sent', 'rejected']:
-            raise UserError(_("Already sent for approval"))
+        if self.approval_state != 'checked':
+            raise UserError(_("Order must be checked before sending for approval"))
 
         if not self.order_line:
             raise UserError(_("You cannot send an empty order for approval. Please add at least one product line."))
@@ -521,55 +534,48 @@ class SaleOrder(models.Model):
         self.ensure_one()
 
         if not self.env.user.has_group('__export__.res_groups_222_4190eb7c'):
-            raise UserError(_("Only a Sales Manager can approve this order."))
+            raise UserError(_("Only the assigned Sales Manager can approve this order."))
 
         if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:
             raise UserError(_(
-                "Access Denied: You are not the assigned Sales Manager for this order. "
-                "Only %s can approve it."
+                "Access Denied: Only %s can approve this order."
             ) % self.approval_manager_id.name)
 
-        if self.approval_state != 'waiting':
+        if self.approval_state != 'send_for_approval':
             raise UserError(_("Not waiting for approval"))
 
-        # mark approved
+        # Mark approved
         self.approval_state = 'approved'
 
-        # =========================
-        # READINESS VALIDATION
-        # =========================
+        # ===============================
+        # STOCK CHECK
+        # ===============================
 
-        if self.state in ('awaiting_readiness', 'trial'):
+        if self.has_stock_shortage:
+            # Products not available
+            self.state = 'awaiting_readiness'
 
-            if not self.mat_ready_date:
-                raise UserError(_("Please set Material Readiness Date"))
+            self.message_post(body=_(
+                "Order approved but waiting for material readiness because stock is not available."
+            ))
 
-            mos = self.mrp_production_ids or self.env['mrp.production'].search([
-                ('origin', '=', self.name)
-            ])
-
-            for mo in mos:
-                if mo.state != 'done':
-                    raise UserError(_(
-                        "All Manufacturing Orders must be completed before approval"
-                    ))
-
-            # call readiness confirm
-            self.action_confirm_from_readiness()
             return True
 
-        # =========================
-        # NORMAL CONFIRM FLOW
-        # =========================
+        # ===============================
+        # STOCK AVAILABLE → CONFIRM
+        # ===============================
+
         self.action_confirm()
 
-        self.message_post(body=_("Order approved and confirmed"))
+        self.message_post(body=_("Order approved and confirmed automatically."))
+
+        return True
 
     def action_reject_order(self):
         self.ensure_one()
         # Security check: ensure only managers can trigger the wizard
         if not self.env.user.has_group('__export__.res_groups_222_4190eb7c'):
-            raise UserError(_("Only a Sales Manager can reject this order."))
+            raise UserError(_("Only the assigned Sales Manager can reject this order."))
 
         if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:
             raise UserError(_(
@@ -581,6 +587,54 @@ class SaleOrder(models.Model):
             'name': _('Reject Order - Provide Remark'),
             'type': 'ir.actions.act_window',
             'res_model': 'sale.order.reject.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'active_id': self.id},
+        }
+
+    def action_send_for_checking(self):
+
+        self.ensure_one()
+
+        if self.approval_state != 'draft':
+            raise UserError(_("Order already sent for checking"))
+
+        if not self.order_line:
+            raise UserError(_("You cannot send an empty order for checking."))
+
+        return {
+            'name': _('Select BDO Checker'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order.checker.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'active_id': self.id},
+        }
+
+    def action_checker_checked(self):
+        self.ensure_one()
+
+        if self.env.user != self.checker_id:
+            raise UserError(_("Only the assigned Sales Executive can mark this order as Checked."))
+
+        if self.approval_state != 'send_for_checking':
+            raise UserError(_("Order is not waiting for checking"))
+
+        self.approval_state = 'checked'
+
+    def action_checker_reject(self):
+        self.ensure_one()
+
+        if self.approval_state != 'send_for_checking':
+            raise UserError(_("Order is not waiting for checking"))
+
+        if self.env.user != self.checker_id:
+            raise UserError(_("Only the assigned Sales Executive can reject this order."))
+
+        return {
+            'name': _('Reject Order'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order.checker.reject.wizard',
             'view_mode': 'form',
             'target': 'new',
             'context': {'active_id': self.id},
