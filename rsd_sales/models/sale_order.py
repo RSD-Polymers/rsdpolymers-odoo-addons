@@ -138,8 +138,7 @@ class SaleOrder(models.Model):
 
         for order in self:
             if (order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial'] or
-                    not order.order_line or
-                    order.approval_state not in ['draft', 'send_for_checking', 'checked']):
+                    not order.order_line):
                 order.is_fully_in_stock = False
                 order.has_stock_shortage = False
                 continue
@@ -476,50 +475,6 @@ class SaleOrder(models.Model):
         if not self.order_line:
             raise UserError(_("You cannot send an empty order for approval. Please add at least one product line."))
 
-        if self.state in ('awaiting_readiness', 'trial'):
-
-            if not self.mat_ready_date:
-                raise UserError(_("Please set Material Readiness Date"))
-
-            mos = self.mrp_production_ids or self.env['mrp.production'].search([
-                ('origin', '=', self.name)
-            ])
-
-            for mo in mos:
-                if mo.state != 'done':
-                    raise UserError(_(
-                        "All Manufacturing Orders must be completed before sending for approval"
-                    ))
-
-        packed_loc = self.env['stock.location'].search([
-            ('name', '=', 'Packed - FG'),
-            ('company_id', '=', self.company_id.id)
-        ], limit=1)
-
-        if not packed_loc:
-            raise UserError(_("Configuration Error: Could not find the 'Packed - FG' stock location."))
-
-        for line in self.order_line:
-            if not line.display_type and line.product_id.type == 'consu' and line.product_id.is_storable:
-
-                # Live check directly against the stock tables
-                live_qty = self.env['stock.quant']._get_available_quantity(
-                    line.product_id,
-                    packed_loc
-                )
-
-                if live_qty < line.product_uom_qty:
-                    raise UserError(_(
-                        "Insufficient stock for product '%(product)s' in location '%(location)s'.\n"
-                        "Required: %(required)s\n"
-                        "Available Live Stock: %(available)s"
-                    ) % {
-                                        'product': line.product_id.display_name,
-                                        'location': packed_loc.display_name,
-                                        'required': line.product_uom_qty,
-                                        'available': live_qty
-                                    })
-
         # Return the action to open the wizard
         return {
             'name': _('Select Sales Manager'),
@@ -547,12 +502,37 @@ class SaleOrder(models.Model):
         # Mark approved
         self.approval_state = 'approved'
 
-        # ===============================
-        # STOCK CHECK
-        # ===============================
+        # -------------------------------------------------
+        # LIVE STOCK CHECK
+        # -------------------------------------------------
 
-        if self.has_stock_shortage:
-            # Products not available
+        packed_loc = self.env['stock.location'].search([
+            ('name', '=', 'Packed - FG'),
+            ('company_id', '=', self.company_id.id)
+        ], limit=1)
+
+        if not packed_loc:
+            raise UserError(_("Configuration Error: Could not find 'Packed - FG' location."))
+
+        has_shortage = False
+
+        for line in self.order_line:
+            if not line.display_type and line.product_id.type == 'consu':
+
+                live_qty = self.env['stock.quant']._get_available_quantity(
+                    line.product_id,
+                    packed_loc
+                )
+
+                if live_qty < line.product_uom_qty:
+                    has_shortage = True
+                    break
+
+        # -------------------------------------------------
+        # DECISION BASED ON STOCK
+        # -------------------------------------------------
+
+        if has_shortage:
             self.state = 'awaiting_readiness'
 
             self.message_post(body=_(
@@ -561,10 +541,7 @@ class SaleOrder(models.Model):
 
             return True
 
-        # ===============================
-        # STOCK AVAILABLE → CONFIRM
-        # ===============================
-
+        # Stock available → confirm order
         self.action_confirm()
 
         self.message_post(body=_("Order approved and confirmed automatically."))
