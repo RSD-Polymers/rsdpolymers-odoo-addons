@@ -9,7 +9,7 @@
         """,
     'author': 'RSD Polymer',
     'website': 'https://www.rsdpolymers.com/',
-    'depends': ['base', 'sale', 'sale_management', 'mrp', 'product', 'web', 'account', 'l10n_in_edi'],
+    'depends': ['base', 'sale', 'sale_management', 'mrp', 'product', 'web', 'account', 'l10n_in_edi', 'sign'],
     'data': [
         'security/ir.model.access.csv',
         'views/create_mo_wizard_action.xml',
@@ -26,6 +26,11 @@
         'views/sale_checker_wizard.xml',
         'views/sale_checker_reject_wizard_view.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'rsd_sales/static/src/js/sign_menu_custom.js',
+        ],
+    },
     'installable': True,
     'application': False,
     'license': 'LGPL-3',

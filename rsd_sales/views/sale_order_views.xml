@@ -1,11 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
+    <record id="sale_order_tree_pending_requests" model="ir.ui.view">
+        <field name="name">sale.order.tree.pending.requests</field>
+        <field name="model">sale.order</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="date_order"/>
+                <field name="user_id"/>
+                <field name="mat_ready_date"/>
+                <field name="production_request_type"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
     <record id="action_awaiting_readiness_orders" model="ir.actions.act_window">
         <field name="name">Pending Requests</field>
         <field name="res_model">sale.order</field>
-        <field name="view_mode">list,kanban,form</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="sale_order_tree_pending_requests"/>
         <field name="domain">[('state', '=', 'awaiting_readiness')]</field>
+        <field name="context">{'create': False}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No pending production requests found.
@@ -57,7 +74,7 @@
                      invisible="approval_state == 'approved'">
 
                     <span>
-                        <strong>Current Approval Stage:</strong>
+                        <strong>Current Approval State:</strong>
                     </span>
 
                     <field name="approval_state"
@@ -212,6 +229,7 @@
                         type="action"
                         string="Create MO"
                         class="oe_highlight"
+                        groups="mrp.group_mrp_user,mrp.group_mrp_manager"
                         invisible="state != 'awaiting_readiness' or approval_state != 'approved' or mrp_order_count != 0"/>
 
                 <button name="action_send_for_checking"
@@ -252,6 +270,7 @@
                         type="object"
                         string="Confirm Order"
                         class="btn-primary"
+                        groups="__export__.res_groups_222_4190eb7c"
                         invisible="state != 'awaiting_readiness' or approval_state != 'approved' or mrp_order_count == 0"/>
 
             </xpath>
