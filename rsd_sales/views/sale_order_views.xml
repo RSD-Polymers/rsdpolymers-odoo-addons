@@ -59,19 +59,19 @@
         <field name="priority">9999</field>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
-                <div class="alert alert-success mb-1" role="alert" invisible="not is_fully_in_stock">
+                <div class="alert alert-success mb-1" role="alert" invisible="not is_fully_in_stock or is_production_user_by_dept">
                     <strong>All products are currently in stock!</strong>
                     You can proceed to complete the Sales Order.
                 </div>
 
-                <div class="alert alert-danger mb-1" role="alert" invisible="not has_stock_shortage">
+                <div class="alert alert-danger mb-1" role="alert" invisible="not has_stock_shortage or is_production_user_by_dept">
                     <strong>Stock Shortage Warning:</strong>
                     Insufficient Packed FG stock for one or more products on this order.
                 </div>
 
                 <div class="alert alert-info d-flex align-items-center justify-content-between"
                      role="status"
-                     invisible="approval_state == 'approved'">
+                     invisible="approval_state == 'approved' or is_production_user_by_dept">
 
                     <span>
                         <strong>Current Approval State:</strong>
