@@ -59,12 +59,14 @@
         <field name="priority">9999</field>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
-                <div class="alert alert-success mb-1" role="alert" invisible="not is_fully_in_stock or is_production_user_by_dept">
+                <div class="alert alert-success mb-1" role="alert"
+                     invisible="not is_fully_in_stock or is_production_user_by_dept">
                     <strong>All products are currently in stock!</strong>
                     You can proceed to complete the Sales Order.
                 </div>
 
-                <div class="alert alert-danger mb-1" role="alert" invisible="not has_stock_shortage or is_production_user_by_dept">
+                <div class="alert alert-danger mb-1" role="alert"
+                     invisible="not has_stock_shortage or is_production_user_by_dept">
                     <strong>Stock Shortage Warning:</strong>
                     Insufficient Packed FG stock for one or more products on this order.
                 </div>
@@ -82,6 +84,9 @@
                            statusbar_visible="draft,send_for_checking,checked,send_for_approval"
                            class="ms-3"/>
                 </div>
+            </xpath>
+            <xpath expr="//label[@for='commitment_date']" position="attributes">
+                <attribute name="string">Expected Date of Receipt</attribute>
             </xpath>
             <xpath expr="//button[@id='create_invoice_percentage']" position="attributes">
                 <attribute name="invisible">1</attribute>
