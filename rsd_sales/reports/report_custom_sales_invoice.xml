@@ -375,6 +375,18 @@
                                     </td>
                                     <td class="align-top" style="border-right: 1px solid black; padding: 5px;">
                                         <span t-field="line.name"/>
+
+                                        <t t-if="line.sale_line_ids">
+                                            <t t-set="lots"
+                                               t-value="line.sale_line_ids.mapped('lot_ids').mapped('name')"/>
+                                            <t t-if="lots">
+                                                <br/>
+                                                <span style="font-size:12px;">
+                                                    Lots:
+                                                    <span t-esc="', '.join(lots)"/>
+                                                </span>
+                                            </t>
+                                        </t>
                                         <!-- **ADJUSTMENT: Ensure Packaging is visible when product exists** -->
                                         <t t-if="line.product_id and line.product_id.packaging_ids">
                                             <div style="margin-top: 2px;">

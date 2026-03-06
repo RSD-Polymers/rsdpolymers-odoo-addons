@@ -272,6 +272,14 @@
                                     </td>
                                     <td style="border-right:1px solid black; padding: 5px;">
                                         <span t-field="line.name"/>
+
+                                        <t t-if="line.lot_ids">
+                                            <br/>
+                                            Lot:
+                                            <t t-foreach="line.lot_ids" t-as="lot" t-separator=", ">
+                                                <span t-esc="lot.name"/>
+                                            </t>
+                                        </t>
                                         <t t-if="line.product_packaging_id">
                                             <br/>Packing details:
                                             <span t-field="line.product_packaging_id"/>

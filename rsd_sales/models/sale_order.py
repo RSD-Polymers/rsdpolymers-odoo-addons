@@ -318,6 +318,12 @@ class SaleOrder(models.Model):
             if order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial']:
                 raise UserError(_("Some orders are not in a state requiring confirmation."))
 
+            for line in order.order_line:
+                if not line.display_type and line.product_id and not line.lot_id:
+                    raise UserError(_(
+                        "Please select Batch No. for product '%s' before confirming the order."
+                    ) % line.product_id.display_name)
+
         trial_orders = self.filtered(lambda o: o.production_request_type == 'trial')
         normal_orders = self - trial_orders
 
@@ -421,7 +427,6 @@ class SaleOrder(models.Model):
         self.action_confirm()
 
         self.state = 'sale'
-        self.invoice_status = 'invoiced'
         self.message_post(body=_("Order confirmed by manager after readiness check."))
 
         return True

@@ -88,6 +88,9 @@
             <xpath expr="//label[@for='commitment_date']" position="attributes">
                 <attribute name="string">Expected Date of Receipt</attribute>
             </xpath>
+            <xpath expr="//button[@id='create_invoice']" position="attributes">
+                <attribute name="groups">account.group_account_user,account.group_account_manager,base.group_system</attribute>
+            </xpath>
             <xpath expr="//button[@id='create_invoice_percentage']" position="attributes">
                 <attribute name="invisible">1</attribute>
             </xpath>
@@ -127,8 +130,23 @@
             <xpath expr="//field[@name='payment_term_id']" position="attributes">
                 <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
             </xpath>
-            <xpath expr="//field[@name='order_line']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="attributes">
+                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_packaging_qty']" position="attributes">
+                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_packaging_id']" position="attributes">
+                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="attributes">
+                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='tax_id']" position="attributes">
+                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_subtotal']" position="attributes">
+                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
             </xpath>
             <xpath expr="//field[@name='sale_order_option_ids']" position="attributes">
                 <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
@@ -167,6 +185,15 @@
                    position="attributes">
                 <attribute name="string">Packaging Qty</attribute>
                 <attribute name="style">min-width:140px;</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="before">
+                <field name="lot_ids"
+                       widget="many2many_tags"
+                       options="{'no_create': True}"
+                       domain="[('product_id','=',product_id)]"
+                       width="200"
+                       readonly="parent.state in ('sale','done','cancel')"/>
             </xpath>
 
             <!-- Hide all customer and pricing details from the production users and managers. -->

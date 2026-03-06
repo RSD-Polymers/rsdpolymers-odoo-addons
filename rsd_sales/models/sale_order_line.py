@@ -41,6 +41,15 @@ class SaleOrderLine(models.Model):
         store=False,
     )
 
+    lot_ids = fields.Many2many(
+        'stock.lot',
+        'sale_line_lot_rel',
+        'sale_line_id',
+        'lot_id',
+        string="Batch No. (Lots)",
+        domain="[('product_id','=',product_id)]"
+    )
+
     @api.depends('product_id')
     def _compute_qty_available(self):
         """
@@ -151,3 +160,24 @@ class SaleOrderLine(models.Model):
                           )
 
                 raise ValidationError(message)
+
+    @api.depends('state', 'order_id.approval_state')
+    def _compute_product_uom_readonly(self):
+        for line in self:
+            # original Odoo rule
+            readonly = line.ids and line.state in ['sale', 'cancel']
+
+            # add your approval workflow rule
+            if line.order_id.approval_state != 'draft':
+                readonly = True
+
+            line.product_uom_readonly = readonly
+
+    @api.depends('product_id', 'state', 'qty_invoiced', 'qty_delivered', 'order_id.approval_state')
+    def _compute_product_updatable(self):
+        super()._compute_product_updatable()
+
+        for line in self:
+            # If order is not in draft approval state → product should not be editable
+            if line.order_id.approval_state != 'draft':
+                line.product_updatable = False

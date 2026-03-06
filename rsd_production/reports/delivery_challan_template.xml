@@ -274,20 +274,32 @@
                                     <!-- DESCRIPTION -->
                                     <td style="border-right:1px solid black; padding:5px; vertical-align:top;">
 
-                                        <!-- split SO description -->
-                                        <t t-set="desc_lines" t-value="line.name.split('\n')"/>
+                                        <b t-esc="line.product_id.display_name"/>
 
-                                        <!-- FIRST LINE = PRODUCT -->
-                                        <b t-esc="desc_lines[0]"/>
+                                        <!-- LOTS FROM DELIVERY -->
+                                        <t t-set="moves"
+                                           t-value="o.move_ids_without_package.filtered(lambda m: m.sale_line_id.id == line.id)"/>
 
-                                        <!-- OTHER LINES (Batch / Packing) -->
-                                        <t t-foreach="desc_lines[1:]" t-as="d">
-                                            <div style="margin-left:10px;">
-                                                <t t-esc="d"/>
+                                        <t t-set="lots"
+                                           t-value="moves.mapped('move_line_ids').mapped('lot_id')"/>
+
+                                        <t t-if="lots">
+                                            <div style="margin-top:3px;">
+                                                <b>Batch :</b>
+                                                <span t-esc="', '.join(lots.mapped('name'))"/>
                                             </div>
                                         </t>
 
-                                    </td><!-- HSN -->
+                                        <!-- PACKAGING -->
+                                        <t t-if="line.product_packaging_id">
+                                            <div>
+                                                Packing :
+                                                <span t-field="line.product_packaging_id"/>
+                                            </div>
+                                        </t>
+
+                                    </td>
+                                    <!-- HSN -->
                                     <td style="border-right:1px solid black; padding:5px;">
                                         <t t-esc="line.product_id.l10n_in_hsn_code or ''"/>
                                     </td>
