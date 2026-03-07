@@ -319,7 +319,7 @@ class SaleOrder(models.Model):
                 raise UserError(_("Some orders are not in a state requiring confirmation."))
 
             for line in order.order_line:
-                if not line.display_type and line.product_id and not line.lot_id:
+                if not line.display_type and line.product_id and not line.lot_ids:
                     raise UserError(_(
                         "Please select Batch No. for product '%s' before confirming the order."
                     ) % line.product_id.display_name)

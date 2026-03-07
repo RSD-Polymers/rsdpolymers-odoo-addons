@@ -25,6 +25,7 @@
         'views/sale_rejection_wizard_views.xml',
         'views/sale_checker_wizard.xml',
         'views/sale_checker_reject_wizard_view.xml',
+        'views/stock_report_sales.xml',
     ],
     'assets': {
         'web.assets_backend': [

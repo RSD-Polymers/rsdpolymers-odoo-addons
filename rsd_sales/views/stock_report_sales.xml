@@ -1,0 +1,35 @@
+<odoo>
+
+    <!-- Sales restricted stock report action -->
+    <record id="action_product_stock_view_sales" model="ir.actions.act_window">
+        <field name="name">Stock</field>
+        <field name="res_model">product.product</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="stock.product_product_stock_tree"/>
+        <field name="search_view_id" ref="stock.product_search_form_view_stock_report"/>
+
+        <field name="domain">
+            [('is_storable','=',True), ('categ_id.name','ilike','Finished Goods')]
+        </field>
+
+        <field name="context">{'default_is_storable': True}</field>
+
+        <field name="groups_id" eval="[
+            (4, ref('sales_team.group_sale_manager')),
+            (4, ref('sales_team.group_sale_salesman_all_leads')),
+            (4, ref('sales_team.group_sale_salesman')),
+            (4, ref('__export__.res_groups_222_4190eb7c'))
+        ]"/>
+    </record>
+
+
+    <!-- Menu visible only to sales groups -->
+    <menuitem
+        id="menu_product_stock_sales"
+        name="Stock (FG)"
+        parent="stock.menu_warehouse_report"
+        action="action_product_stock_view_sales"
+        groups="sales_team.group_sale_manager,sales_team.group_sale_salesman_all_leads,sales_team.group_sale_salesman,__export__.res_groups_222_4190eb7c"
+        sequence="5"/>
+
+</odoo>
