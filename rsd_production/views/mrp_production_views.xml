@@ -1,0 +1,41 @@
+<odoo>
+
+    <record id="view_mrp_production_form_label_fields" model="ir.ui.view">
+        <field name="name">mrp.production.form.packing.label.fields</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="rsd_sales.mrp_production_form_view_inherit_rsd_sales"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//header" position="inside">
+
+                <button name="%(rsd_production.action_mo_finished_label)d"
+                        type="action"
+                        string="Print FG Packed Label"
+                        class="oe_highlight"
+                        invisible="not is_packing_order"/>
+
+            </xpath>
+
+            <xpath expr="//field[@name='user_id']" position="attributes">
+                <attribute name="string">Checked By</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='production_request_type']" position="after">
+                <field name="tare_weight"
+                       invisible="not is_packing_order"/>
+            </xpath>
+
+            <xpath expr="//page[@name='miscellaneous']//field[@name='log_note']" position="after">
+                <field name="packed_by"
+                       options="{'no_create': True}"
+                       invisible="not is_packing_order"/>
+
+                <field name="prepared_by"
+                       readonly="1"
+                       invisible="not is_packing_order"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
