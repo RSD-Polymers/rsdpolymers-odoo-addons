@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="rsd_production.mo_thermal_pagination_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="mo">
+
+                <t t-set="total_kg" t-value="mo.product_qty"/>
+                <t t-set="drum_weight" t-value="mo.product_id.weight if mo.product_id.weight > 0 else 1.0"/>
+                <t t-set="labels_to_print" t-value="int(total_kg / drum_weight)"/>
+
+                <t t-set="labels_to_print" t-value="labels_to_print if labels_to_print &lt; 500 else 500"/>
+                <t t-set="labels_to_print" t-value="labels_to_print if labels_to_print > 0 else 1"/>
+
+                <t t-set="pack_inst" t-value="mo.name"/>
+                <t t-set="lot_no" t-value="mo.lot_producing_id.name if mo.lot_producing_id else ''"/>
+
+                <t t-foreach="range(labels_to_print)" t-as="i">
+
+                    <t t-call="web.basic_layout">
+
+                        <div class="page" style="text-align: center; width: 100%;">
+
+                            <div style="font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; margin-bottom: 1.5mm; line-height: 1.15; color: #000000;">
+                                <t t-esc="pack_inst"/>
+                                <br/>
+                                <t t-esc="lot_no"/>
+                                [<t t-esc="i + 1"/>/<t t-esc="labels_to_print"/>]
+                            </div>
+
+                            <img t-if="lot_no"
+                                 t-att-src="'/report/barcode/?barcode_type=Code128&amp;value=%s&amp;width=250&amp;height=50&amp;humanreadable=0' % lot_no"
+                                 style="width: 95%; max-height: 13mm; margin: 0 auto; display: block;"
+                                 alt="Barcode"/>
+
+                        </div>
+
+                    </t>
+
+                </t>
+
+            </t>
+        </t>
+    </template>
+</odoo>

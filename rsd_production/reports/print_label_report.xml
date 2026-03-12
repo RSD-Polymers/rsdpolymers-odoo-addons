@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="paperformat_thermal_2_5_x_1_5" model="report.paperformat">
+        <field name="name">Thermal Roll 2.5 x 1.5</field>
+        <field name="default" eval="True"/>
+        <field name="format">custom</field>
+        <field name="page_width">55</field>
+        <field name="page_height">30</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">7</field>
+        <field name="margin_bottom">1</field>
+        <field name="margin_left">1</field>
+        <field name="margin_right">1</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">96</field>
+    </record>
+
+    <record id="action_report_mo_thermal_pagination" model="ir.actions.report">
+        <field name="name">Print Grid Labels</field>
+        <field name="model">mrp.production</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">rsd_production.mo_thermal_pagination_template</field>
+        <field name="report_file">rsd_production.mo_thermal_pagination_template</field>
+        <field name="print_report_name">'Lot-Serial - %s' % (object.lot_producing_id.name if object.lot_producing_id
+            else object.name)
+        </field>
+
+        <field name="paperformat_id" ref="rsd_production.paperformat_thermal_2_5_x_1_5"/>
+    </record>
+
+</odoo>

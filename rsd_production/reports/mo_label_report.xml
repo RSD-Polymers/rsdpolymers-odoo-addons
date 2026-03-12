@@ -1,4 +1,21 @@
 <odoo>
+
+    <record id="paperformat_4x6_landscape_label" model="report.paperformat">
+        <field name="name">4x6 Landscape Label</field>
+        <field name="default" eval="True"/>
+        <field name="format">custom</field>
+        <field name="page_height">101</field>
+        <field name="page_width">152</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">2</field>
+        <field name="margin_bottom">2</field>
+        <field name="margin_left">2</field>
+        <field name="margin_right">2</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">96</field>
+    </record>
+
     <record id="action_mo_finished_label" model="ir.actions.report">
         <field name="name">Finished Product Label</field>
         <field name="model">mrp.production</field>
@@ -6,6 +23,7 @@
         <field name="report_name">rsd_production.mo_finished_label_template</field>
         <field name="report_file">rsd_production.mo_finished_label_template</field>
         <field name="print_report_name">'MO Label - %s' % object.name</field>
+        <field name="paperformat_id" ref="rsd_production.paperformat_4x6_landscape_label"/>
         <field name="binding_model_id" eval="False"/>
         <field name="binding_type">report</field>
     </record>
