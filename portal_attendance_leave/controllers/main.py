@@ -211,9 +211,7 @@ class PortalAttendanceLeaves(http.Controller):
 
     @http.route(['/my/salary-slips/pdf/<int:payslip_id>'], type='http', auth='user', website=True)
     def portal_salary_slip_pdf(self, payslip_id, **kw):
-        """
-        Generate and return the PDF for a specific salary slip by directly calling the report engine.
-        """
+
         employee = self._get_employee()
         if not employee:
             return request.redirect('/my')
@@ -223,29 +221,25 @@ class PortalAttendanceLeaves(http.Controller):
         if not payslip or payslip.employee_id.id != employee.id or payslip.state not in ['done', 'paid']:
             return request.redirect('/my/salary-slips')
 
-        # 1. Get the Report Action Record using the XML ID and Sudo
-        # The XML ID for the payslip report action is typically 'hr_payroll.action_report_payslip'
-        report_action = request.env.ref('hr_payroll.action_report_payslip').sudo()
+        # CALL YOUR CUSTOM REPORT
+        report_action = request.env.ref('portal_attendance_leave.action_custom_payslip_report').sudo()
 
-        # 2. RENDER THE PDF CONTENT using the standard report generation engine
-        # This calls the low-level method that returns the PDF data.
-        # We explicitly pass the report type and model to avoid internal lookups passing lists.
         pdf_content, content_type = request.env['ir.actions.report'].sudo()._render_qweb_pdf(
             report_action,
             payslip.ids,
             data={}
         )
 
-        # 3. Return the HTTP Response
-        payslip_name = payslip.name.replace('/', '_')  # Sanitize name for file
-        http_headers = [
-            ('Content-Type', 'application/pdf'),
-            ('Content-Length', len(pdf_content)),
-            # Force download with a clean filename
-            ('Content-Disposition', content_disposition(f"{payslip_name}.pdf")),
-        ]
+        payslip_name = payslip.name.replace('/', '_')
 
-        return request.make_response(pdf_content, headers=http_headers)
+        return request.make_response(
+            pdf_content,
+            headers=[
+                ('Content-Type', 'application/pdf'),
+                ('Content-Length', len(pdf_content)),
+                ('Content-Disposition', content_disposition(f"{payslip_name}.pdf")),
+            ]
+        )
 
     @http.route('/my/comp-off/apply', type='http', auth='user', website=True, methods=['POST'])
     def portal_comp_off_apply(self, **post):
