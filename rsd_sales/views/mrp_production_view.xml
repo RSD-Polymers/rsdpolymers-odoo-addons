@@ -29,7 +29,12 @@
             <field name="res_model">mrp.production</field>
             <field name="view_mode">list,form</field>
             <field name="domain">[('is_packing_order', '=', True)]</field>
-            <field name="context">{'default_is_packing_order': True}</field>
+            <field name="context">
+                {
+                'default_is_packing_order': True,
+                'hide_rm_issue_status': True
+                }
+            </field>
         </record>
 
         <menuitem

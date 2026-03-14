@@ -6,6 +6,35 @@
         <field name="inherit_id" ref="rsd_sales.mrp_production_form_view_inherit_rsd_sales"/>
         <field name="arch" type="xml">
 
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="rm_issue_status"
+                       widget="statusbar"
+                       statusbar_visible="not_requested,requested,issued"
+                       invisible="is_packing_order"/>
+            </xpath>
+            <xpath expr="//button[@name='check_quality']" position="attributes">
+                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+            </xpath>
+            <xpath expr="//button[@name='button_quality_alert']" position="attributes">
+                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+            </xpath>
+            <xpath expr="//button[@name='button_maintenance_req']" position="attributes">
+                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_cancel']" position="attributes">
+                <attribute name="invisible">state in ('done','cancel')</attribute>
+            </xpath>
+            <xpath expr="//button[@name='button_mark_done']" position="attributes">
+                <attribute name="invisible">
+                    rm_issue_status != 'issued' or not move_raw_ids or (not show_produce and not show_produce_all)
+                </attribute>
+            </xpath>
+            <xpath expr="//button[@name='action_start']" position="attributes">
+                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+            </xpath>
+            <xpath expr="//button[@name='do_unreserve']" position="attributes">
+                <attribute name="invisible">state not in ('draft','confirmed')</attribute>
+            </xpath>
             <xpath expr="//header" position="inside">
 
                 <button name="%(rsd_production.action_mo_finished_label)d"
@@ -13,6 +42,20 @@
                         string="Print FG Packed Label"
                         class="oe_highlight"
                         invisible="not is_packing_order"/>
+
+                <!-- RM Issue Request (Production) -->
+                <button name="action_request_rm_issue"
+                        string="RM Issue Request"
+                        type="object"
+                        class="btn-primary"
+                        invisible="is_packing_order or rm_issue_status != 'not_requested' or state not in ('confirmed','progress') or not show_request_rm_button"/>
+
+                <!-- RM Issue (Store Dept) -->
+                <button name="action_rm_issue"
+                        string="Issue RM"
+                        type="object"
+                        class="btn-success"
+                        invisible="is_packing_order or rm_issue_status != 'requested' or not show_issue_rm_button"/>
 
             </xpath>
 
@@ -37,5 +80,27 @@
 
         </field>
     </record>
+
+    <record id="view_mrp_production_tree_rm_status" model="ir.ui.view">
+        <field name="name">mrp.production.tree.rm.issue.status</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_tree_view"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='state']" position="after">
+                <field name="rm_issue_status"
+                       widget="badge"
+                       width="150"
+                       string="RM Issue Status"
+                       column_invisible="context.get('hide_rm_issue_status')"
+                       decoration-info="rm_issue_status == 'not_requested'"
+                       decoration-warning="rm_issue_status == 'requested'"
+                       decoration-success="rm_issue_status == 'issued'"/>
+            </xpath>
+
+        </field>
+    </record>
+
+
 
 </odoo>
