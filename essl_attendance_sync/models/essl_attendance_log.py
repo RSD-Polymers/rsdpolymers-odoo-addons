@@ -1,4 +1,9 @@
-from odoo import models, fields
+from odoo import models, fields, api
+from datetime import timedelta
+
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class EsslAttendanceLog(models.Model):
     _name = "essl.attendance.log"
@@ -27,3 +32,27 @@ class EsslAttendanceLog(models.Model):
             "This punch already exists for this device and time."
         )
     ]
+
+    @api.model
+    def cron_archive_old_logs(self):
+        """Archive logs older than 30 days (runs daily)"""
+
+        cutoff_date = fields.Datetime.now() - timedelta(days=30)
+
+        domain = [
+            ('punch_time', '<', cutoff_date),
+            ('active', '=', True)
+        ]
+
+        batch_size = 1000
+        total_archived = 0
+
+        while True:
+            logs = self.search(domain, limit=batch_size)
+            if not logs:
+                break
+
+            logs.write({'active': False})
+            total_archived += len(logs)
+
+        _logger.info("Archived %s eSSL attendance logs older than 30 days", total_archived)
