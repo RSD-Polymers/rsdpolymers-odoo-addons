@@ -1,0 +1,87 @@
+<odoo>
+
+    <record id="action_rm_issue" model="ir.actions.act_window">
+        <field name="name">RM Issue</field>
+        <field name="res_model">rm.issue</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_rm_issue_tree" model="ir.ui.view">
+        <field name="name">rm.issue.tree</field>
+        <field name="model">rm.issue</field>
+        <field name="arch" type="xml">
+            <list string="RM Issue">
+                <field name="name"/>
+                <field name="mo_id"/>
+                <field name="sale_id"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_rm_issue_form" model="ir.ui.view">
+        <field name="name">rm.issue.form</field>
+        <field name="model">rm.issue</field>
+        <field name="arch" type="xml">
+            <form string="RM Issue">
+
+                <!-- HEADER -->
+                <header>
+                    <button name="action_issue_material"
+                            string="Issue RM"
+                            type="object"
+                            class="btn-success"
+                            invisible="state != 'requested'"/>
+
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,requested,issued"/>
+                </header>
+
+                <sheet>
+
+                    <!-- TITLE -->
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="mo_id" readonly="1"/>
+                            <field name="sale_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="requested_by" readonly="1"/>
+                            <field name="issued_by" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <!-- LINES -->
+                    <notebook>
+                        <page string="Lines">
+
+                            <field name="line_ids" nolabel="1">
+                                <list editable="bottom">
+                                    <field name="product_id" required="1"/>
+                                    <field name="qty"/>
+                                    <field name="uom_id"/>
+                                </list>
+                            </field>
+
+                        </page>
+                    </notebook>
+
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <menuitem id="menu_rm_issue"
+              name="RM Issue"
+              parent="stock.menu_stock_transfers"
+              action="action_rm_issue"
+              sequence="50"/>
+</odoo>

@@ -35,6 +35,19 @@
             <xpath expr="//button[@name='do_unreserve']" position="attributes">
                 <attribute name="invisible">state not in ('draft','confirmed')</attribute>
             </xpath>
+            <xpath expr="//button[@name='action_open_shop_floor']" position="after">
+
+                <button name="action_view_rm_issue"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-file-text"
+                        invisible="rm_issue_count == 0 or not show_rm_issue_smart_button">
+
+                    <field name="rm_issue_count" widget="statinfo" string="RM Issue"/>
+
+                </button>
+
+            </xpath>
             <xpath expr="//header" position="inside">
 
                 <button name="%(rsd_production.action_mo_finished_label)d"
@@ -49,13 +62,6 @@
                         type="object"
                         class="btn-primary"
                         invisible="is_packing_order or rm_issue_status != 'not_requested' or state not in ('confirmed','progress') or not show_request_rm_button"/>
-
-                <!-- RM Issue (Store Dept) -->
-                <button name="action_rm_issue"
-                        string="Issue RM"
-                        type="object"
-                        class="btn-success"
-                        invisible="is_packing_order or rm_issue_status != 'requested' or not show_issue_rm_button"/>
 
             </xpath>
 
@@ -100,7 +106,6 @@
 
         </field>
     </record>
-
 
 
 </odoo>

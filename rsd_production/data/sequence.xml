@@ -1,0 +1,8 @@
+<odoo>
+    <record id="seq_rm_issue" model="ir.sequence">
+        <field name="name">RM Issue</field>
+        <field name="code">rm.issue</field>
+        <field name="prefix">RMI/%(year)s/</field>
+        <field name="padding">4</field>
+    </record>
+</odoo>
