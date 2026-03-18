@@ -28,11 +28,12 @@ class RmIssue(models.Model):
     requested_by = fields.Many2one('res.users')
     issued_by = fields.Many2one('res.users')
 
-    @api.model
-    def create(self, vals):
-        if vals.get('name', 'New') == 'New':
-            vals['name'] = self.env['ir.sequence'].next_by_code('rm.issue') or 'New'
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('name', 'New') == 'New':
+                vals['name'] = self.env['ir.sequence'].next_by_code('rm.issue') or 'New'
+        return super().create(vals_list)
 
     def action_mark_requested(self):
         self.state = 'requested'
