@@ -13,24 +13,56 @@
                        invisible="is_packing_order"/>
             </xpath>
             <xpath expr="//button[@name='check_quality']" position="attributes">
-                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
             </xpath>
+
             <xpath expr="//button[@name='button_quality_alert']" position="attributes">
-                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
             </xpath>
+
             <xpath expr="//button[@name='button_maintenance_req']" position="attributes">
-                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
             </xpath>
             <xpath expr="//button[@name='action_cancel']" position="attributes">
                 <attribute name="invisible">state in ('done','cancel')</attribute>
             </xpath>
-            <xpath expr="//button[@name='button_mark_done']" position="attributes">
+            <!--            <xpath expr="//button[@name='button_mark_done']" position="attributes">-->
+            <!--                <attribute name="invisible">-->
+            <!--                    rm_issue_status != 'issued'-->
+            <!--                    or not move_raw_ids-->
+            <!--                    or (not show_produce and not show_produce_all)-->
+            <!--                    or not is_packing_order-->
+            <!--                </attribute>-->
+            <!--            </xpath>-->
+            <!-- 1 -->
+            <xpath expr="(//button[@name='button_mark_done'])[1]" position="attributes">
                 <attribute name="invisible">
-                    rm_issue_status != 'issued' or not move_raw_ids or (not show_produce and not show_produce_all)
+                    (not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce
+                </attribute>
+            </xpath>
+
+            <!-- 2 -->
+            <xpath expr="(//button[@name='button_mark_done'])[2]" position="attributes">
+                <attribute name="invisible">
+                    (not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce_all
+                </attribute>
+            </xpath>
+
+            <!-- 3 -->
+            <xpath expr="(//button[@name='button_mark_done'])[3]" position="attributes">
+                <attribute name="invisible">
+                    (not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce
+                </attribute>
+            </xpath>
+
+            <!-- 4 -->
+            <xpath expr="(//button[@name='button_mark_done'])[4]" position="attributes">
+                <attribute name="invisible">
+                    (not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce_all
                 </attribute>
             </xpath>
             <xpath expr="//button[@name='action_start']" position="attributes">
-                <attribute name="invisible">rm_issue_status != 'issued'</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
             </xpath>
             <xpath expr="//button[@name='do_unreserve']" position="attributes">
                 <attribute name="invisible">state not in ('draft','confirmed')</attribute>
@@ -41,7 +73,7 @@
                         type="object"
                         class="oe_stat_button"
                         icon="fa-file-text"
-                        invisible="rm_issue_count == 0 or not show_rm_issue_smart_button">
+                        invisible="rm_issue_count == 0 or not show_rm_issue_smart_button or is_packing_order">
 
                     <field name="rm_issue_count" widget="statinfo" string="RM Issue"/>
 
@@ -55,14 +87,12 @@
                         string="Print FG Packed Label"
                         class="oe_highlight"
                         invisible="not is_packing_order"/>
-
                 <!-- RM Issue Request (Production) -->
                 <button name="action_request_rm_issue"
                         string="RM Issue Request"
                         type="object"
                         class="btn-primary"
                         invisible="is_packing_order or rm_issue_status != 'not_requested' or state not in ('confirmed','progress') or not show_request_rm_button"/>
-
             </xpath>
 
             <xpath expr="//field[@name='user_id']" position="attributes">
