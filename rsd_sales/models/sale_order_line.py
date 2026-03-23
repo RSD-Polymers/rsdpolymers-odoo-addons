@@ -1,4 +1,4 @@
-from odoo import models, fields, _, api
+from odoo import models, fields, _, api, Command
 import logging
 
 from odoo.exceptions import ValidationError
@@ -41,53 +41,65 @@ class SaleOrderLine(models.Model):
         store=False,
     )
 
-    available_lot_ids = fields.Many2many(
-        'stock.lot',
-        compute='_compute_available_lots'
-    )
-
     lot_ids = fields.Many2many(
         'stock.lot',
         'sale_line_lot_rel',
         'sale_line_id',
         'lot_id',
-        string="Batch No. (Lots)",
-        domain="[('id', 'in', available_lot_ids)]"
+        string="Batch No. (Lots)"
+    )
+
+    available_lot_ids = fields.Many2many(
+        'stock.lot',
+        compute='_compute_available_lots'
     )
 
     @api.depends('product_id', 'order_id.warehouse_id')
     def _compute_available_lots(self):
+        _logger.info("=== STARTING LOT COMPUTATION ===")
+
         for line in self:
-            if not line.product_id:
-                line.available_lot_ids = [(5, 0, 0)]  # Clear the field safely
+            if not line.product_id or not line.order_id.warehouse_id:
+                line.available_lot_ids = [Command.clear()]
                 continue
 
-            # Identify the stock location for the current Sales Order's warehouse
-            location = line.order_id.warehouse_id.lot_stock_id
+            # ✅ Dynamically search for the 'Packed - FG' location inside the current warehouse
+            fg_location = self.env['stock.location'].search([
+                ('name', '=', 'Packed - FG'),
+                ('id', 'child_of', line.order_id.warehouse_id.view_location_id.id)
+            ], limit=1)
 
-            # Use read_group to get the SUM of quantities grouped by lot_id
-            # This perfectly handles the positive/negative quant issue in your database
-            quant_groups = self.env['stock.quant'].read_group(
+            # Safety check just in case the location doesn't exist or was renamed
+            if not fg_location:
+                _logger.warning(
+                    f"Could not find 'Packed - FG' location for warehouse {line.order_id.warehouse_id.name}")
+                line.available_lot_ids = [Command.clear()]
+                continue
+
+            _logger.info(
+                f"Checking stock for Product: {line.product_id.display_name} in Location: {fg_location.complete_name}")
+
+            # Now we use fg_location instead of the default warehouse location
+            quant_groups = self.env['stock.quant']._read_group(
                 domain=[
                     ('product_id', '=', line.product_id.id),
-                    ('location_id', 'child_of', location.id if location else False),
-                    ('lot_id', '!=', False)  # Ensure we only look at tracked lots
+                    ('location_id', 'child_of', fg_location.id),
+                    ('lot_id', '!=', False)
                 ],
-                fields=['lot_id', 'quantity', 'reserved_quantity'],
-                groupby=['lot_id']
+                groupby=['lot_id'],
+                aggregates=['quantity:sum']
             )
 
             valid_lot_ids = []
-            for group in quant_groups:
-                # Calculate Net Quantity: Total Qty - Reserved Qty
-                net_qty = group.get('quantity', 0.0) - group.get('reserved_quantity', 0.0)
+            for lot, qty_sum in quant_groups:
+                if qty_sum > 0:
+                    valid_lot_ids.append(lot.id)
+                    _logger.info(f"    [ADDED] Lot {lot.name} is valid with Qty: {qty_sum}")
 
-                if net_qty > 0:
-                    # group['lot_id'] is a tuple like (ID, 'Name')
-                    valid_lot_ids.append(group['lot_id'][0])
+            line.available_lot_ids = [Command.set(valid_lot_ids)]
+            _logger.info(f"Final valid lot IDs for line {line.id}: {valid_lot_ids}")
 
-            # Assign the valid lot IDs back to the computed field
-            line.available_lot_ids = [(6, 0, valid_lot_ids)]
+        _logger.info("=== FINISHED LOT COMPUTATION ===")
 
     @api.depends('product_id')
     def _compute_qty_available(self):
