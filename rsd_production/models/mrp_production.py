@@ -56,7 +56,7 @@ class MrpProduction(models.Model):
         for production in self:
 
             # Block production until RM is issued
-            if production.rm_issue_status != 'issued':
+            if not production.is_packing_order and production.rm_issue_status != 'issued':
                 production.show_produce = False
                 production.show_produce_all = False
 

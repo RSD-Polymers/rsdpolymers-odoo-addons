@@ -13,11 +13,11 @@
                        invisible="is_packing_order"/>
             </xpath>
             <xpath expr="//button[@name='check_quality']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
 
             <xpath expr="//button[@name='button_quality_alert']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
 
             <xpath expr="//button[@name='button_maintenance_req']" position="attributes">
@@ -26,40 +26,21 @@
             <xpath expr="//button[@name='action_cancel']" position="attributes">
                 <attribute name="invisible">state in ('done','cancel')</attribute>
             </xpath>
-            <!--            <xpath expr="//button[@name='button_mark_done']" position="attributes">-->
-            <!--                <attribute name="invisible">-->
-            <!--                    rm_issue_status != 'issued'-->
-            <!--                    or not move_raw_ids-->
-            <!--                    or (not show_produce and not show_produce_all)-->
-            <!--                    or not is_packing_order-->
-            <!--                </attribute>-->
-            <!--            </xpath>-->
-            <!-- 1 -->
-            <xpath expr="(//button[@name='button_mark_done'])[1]" position="attributes">
-                <attribute name="invisible">
-                    (not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce
-                </attribute>
+
+            <xpath expr="//button[@name='button_mark_done'][@invisible='not move_raw_ids or not show_produce']" position="attributes">
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce</attribute>
             </xpath>
 
-            <!-- 2 -->
-            <xpath expr="(//button[@name='button_mark_done'])[2]" position="attributes">
-                <attribute name="invisible">
-                    (not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce_all
-                </attribute>
+            <xpath expr="//button[@name='button_mark_done'][@invisible='not move_raw_ids or not show_produce_all']" position="attributes">
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce_all</attribute>
             </xpath>
 
-            <!-- 3 -->
-            <xpath expr="(//button[@name='button_mark_done'])[3]" position="attributes">
-                <attribute name="invisible">
-                    (not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce
-                </attribute>
+            <xpath expr="//button[@name='button_mark_done'][@invisible='move_raw_ids or not show_produce']" position="attributes">
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce</attribute>
             </xpath>
 
-            <!-- 4 -->
-            <xpath expr="(//button[@name='button_mark_done'])[4]" position="attributes">
-                <attribute name="invisible">
-                    (not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce_all
-                </attribute>
+            <xpath expr="//button[@name='button_mark_done'][@invisible='move_raw_ids or not show_produce_all']" position="attributes">
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce_all</attribute>
             </xpath>
             <xpath expr="//button[@name='action_start']" position="attributes">
                 <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
