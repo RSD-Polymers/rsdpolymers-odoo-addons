@@ -41,14 +41,53 @@ class SaleOrderLine(models.Model):
         store=False,
     )
 
+    available_lot_ids = fields.Many2many(
+        'stock.lot',
+        compute='_compute_available_lots'
+    )
+
     lot_ids = fields.Many2many(
         'stock.lot',
         'sale_line_lot_rel',
         'sale_line_id',
         'lot_id',
         string="Batch No. (Lots)",
-        domain="[('product_id','=',product_id)]"
+        domain="[('id', 'in', available_lot_ids)]"
     )
+
+    @api.depends('product_id', 'order_id.warehouse_id')
+    def _compute_available_lots(self):
+        for line in self:
+            if not line.product_id:
+                line.available_lot_ids = [(5, 0, 0)]  # Clear the field safely
+                continue
+
+            # Identify the stock location for the current Sales Order's warehouse
+            location = line.order_id.warehouse_id.lot_stock_id
+
+            # Use read_group to get the SUM of quantities grouped by lot_id
+            # This perfectly handles the positive/negative quant issue in your database
+            quant_groups = self.env['stock.quant'].read_group(
+                domain=[
+                    ('product_id', '=', line.product_id.id),
+                    ('location_id', 'child_of', location.id if location else False),
+                    ('lot_id', '!=', False)  # Ensure we only look at tracked lots
+                ],
+                fields=['lot_id', 'quantity', 'reserved_quantity'],
+                groupby=['lot_id']
+            )
+
+            valid_lot_ids = []
+            for group in quant_groups:
+                # Calculate Net Quantity: Total Qty - Reserved Qty
+                net_qty = group.get('quantity', 0.0) - group.get('reserved_quantity', 0.0)
+
+                if net_qty > 0:
+                    # group['lot_id'] is a tuple like (ID, 'Name')
+                    valid_lot_ids.append(group['lot_id'][0])
+
+            # Assign the valid lot IDs back to the computed field
+            line.available_lot_ids = [(6, 0, valid_lot_ids)]
 
     @api.depends('product_id')
     def _compute_qty_available(self):
