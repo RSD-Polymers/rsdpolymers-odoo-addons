@@ -50,28 +50,28 @@ class RmIssue(models.Model):
             self.issued_by = self.env.user
             self.mo_id.rm_issue_status = 'issued'
 
-            # body = f"""
-            #     <p>Hello Production Team,</p>
-            #
-            #     <p>Raw materials have been issued for the following Manufacturing Order:</p>
-            #
-            #     <p>
-            #         <b>MO:</b> {mo.name}<br/>
-            #         <b>Product:</b> {mo.product_id.display_name}<br/>
-            #         <b>Quantity:</b> {mo.product_qty}
-            #     </p>
-            #
-            #     <p>You may now start production.</p>
-            # """
-            #
-            # mail_values = {
-            #     'subject': f'Raw Material Issued for {mo.name}',
-            #     'body_html': body,
-            #     'email_to': 'production@rsdpolymers.com',
-            #     'email_from': 'store@rsdpolymers.com',
-            # }
-            #
-            # self.env['mail.mail'].sudo().create(mail_values).send()
+            body = f"""
+                <p>Hello Production Team,</p>
+
+                <p>Raw materials have been issued for the following Manufacturing Order:</p>
+
+                <p>
+                    <b>MO:</b> {self.mo_id.name}<br/>
+                    <b>Product:</b> {self.mo_id.product_id.display_name}<br/>
+                    <b>Quantity:</b> {self.mo_id.product_qty}
+                </p>
+
+                <p>You may now start production.</p>
+            """
+
+            mail_values = {
+                'subject': f'Raw Material Issued for {self.mo_id.name}',
+                'body_html': body,
+                'email_to': 'production@rsdpolymers.com',
+                'email_from': 'store@rsdpolymers.com',
+            }
+
+            self.env['mail.mail'].sudo().create(mail_values).send()
 
         return {
             'type': 'ir.actions.client',

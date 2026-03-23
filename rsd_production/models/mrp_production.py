@@ -119,28 +119,28 @@ class MrpProduction(models.Model):
             mo.rm_issue_id = rm_issue.id
             mo.rm_issue_status = 'requested'
 
-            # body = f"""
-            #     <p>Hello Store Team,</p>
-            #
-            #     <p>Raw material issue has been requested for the following Manufacturing Order:</p>
-            #
-            #     <p>
-            #         <b>MO:</b> {mo.name}<br/>
-            #         <b>Product:</b> {mo.product_id.display_name}<br/>
-            #         <b>Quantity:</b> {mo.product_qty}
-            #     </p>
-            #
-            #     <p>Please issue the required raw materials.</p>
-            # """
-            #
-            # mail_values = {
-            #     'subject': f'RM Issue Request for {mo.name}',
-            #     'body_html': body,
-            #     'email_to': 'store@rsdpolymers.com',
-            #     'email_from': 'production@rsdpolymers.com',
-            # }
-            #
-            # self.env['mail.mail'].sudo().create(mail_values).send()
+            body = f"""
+                <p>Hello Store Team,</p>
+
+                <p>Raw material issue has been requested for the following Manufacturing Order:</p>
+
+                <p>
+                    <b>MO:</b> {mo.name}<br/>
+                    <b>Product:</b> {mo.product_id.display_name}<br/>
+                    <b>Quantity:</b> {mo.product_qty}
+                </p>
+
+                <p>Please issue the required raw materials.</p>
+            """
+
+            mail_values = {
+                'subject': f'RM Issue Request for {mo.name}',
+                'body_html': body,
+                'email_to': 'store@rsdpolymers.com',
+                'email_from': 'production@rsdpolymers.com',
+            }
+
+            self.env['mail.mail'].sudo().create(mail_values).send()
 
         return {
             'type': 'ir.actions.client',
