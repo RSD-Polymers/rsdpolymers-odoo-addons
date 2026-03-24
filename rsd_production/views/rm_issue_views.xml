@@ -33,6 +33,12 @@
                             class="btn-success"
                             invisible="state != 'requested'"/>
 
+                    <button name="action_print_rm_slip"
+                            string="RM Issue Slip"
+                            type="object"
+                            class="btn-secondary"
+                            icon="fa-print"/>
+
                     <field name="state"
                            widget="statusbar"
                            statusbar_visible="draft,requested,issued"/>

@@ -1,0 +1,119 @@
+<odoo>
+    <template id="rm_issue_template">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="o">
+
+                <div class="page">
+                    <h2 style="text-align:center;">RM ISSUE SLIP</h2>
+
+                    <br/>
+
+                    <table class="table table-bordered">
+                        <tr>
+                            <td>
+                                <strong>MO Number</strong>
+                            </td>
+                            <td>
+                                <t t-esc="o.name"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>Product</strong>
+                            </td>
+                            <td>
+                                <t t-esc="o.product_id.display_name"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>Scheduled Date</strong>
+                            </td>
+                            <td>
+                                <t t-esc="o.date_start"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>Batch Size</strong>
+                            </td>
+                            <td>
+                                <t t-esc="o.product_qty"/>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <br/>
+
+                    <h4>Raw Materials</h4>
+
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Sr No</th>
+                                <th>Material</th>
+                                <th>Quantity</th>
+                                <th>UoM</th>
+                                <th>Lot/Serial</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-set="i" t-value="1"/>
+                            <t t-foreach="o.move_raw_ids" t-as="line">
+                                <tr>
+                                    <td>
+                                        <t t-esc="i"/>
+                                    </td>
+                                    <td>
+                                        <t t-esc="line.product_id.display_name"/>
+                                    </td>
+                                    <td>
+                                        <t t-esc="line.product_uom_qty"/>
+                                    </td>
+                                    <td>
+                                        <t t-esc="line.product_uom.name"/>
+                                    </td>
+                                    <td>
+                                        <t t-foreach="line.move_line_ids" t-as="ml">
+                                            <t t-esc="ml.lot_id.name"/>
+                                            <br/>
+                                        </t>
+                                    </td>
+                                </tr>
+                                <t t-set="i" t-value="i+1"/>
+                            </t>
+                        </tbody>
+                    </table>
+
+                    <br/>
+                    <br/>
+
+                    <table style="width:100%; text-align: center; margin-top: 40px;">
+                        <tr>
+                            <td style="width: 33%;">
+                                <strong>Prepared By</strong>
+                                <br/>
+                                <br/>
+                                <t t-esc="o.rm_issue_id.create_uid.name"/>
+                            </td>
+                            <td style="width: 33%;">
+                                <strong>Checked By</strong>
+                                <br/>
+                                <br/>
+                                <t t-esc="o.rm_issue_id.requested_by.name"/>
+                            </td>
+                            <td style="width: 33%;">
+                                <strong>Approved By</strong>
+                                <br/>
+                                <br/>
+                                <t t-esc="o.rm_issue_id.issued_by.name"/>
+                            </td>
+                        </tr>
+                    </table>
+
+                </div>
+
+            </t>
+        </t>
+    </template>
+</odoo>

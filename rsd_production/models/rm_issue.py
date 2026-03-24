@@ -87,3 +87,15 @@ class RmIssue(models.Model):
                 },
             }
         }
+
+    def action_print_rm_slip(self):
+        self.ensure_one()
+
+        # Ensure there is an MO linked before trying to print
+        if not self.mo_id:
+            raise UserError("There is no Manufacturing Order linked to this RM Issue to print.")
+
+        # Call the existing report, passing the linked mo_id as the target record
+        # Note: Replace 'your_module_name' with the actual technical name of the
+        # module where the report XML is located (likely 'rm_issue_slip' based on your code).
+        return self.env.ref('rsd_production.action_rm_issue_slip').report_action(self.mo_id)

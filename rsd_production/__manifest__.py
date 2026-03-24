@@ -18,6 +18,8 @@
         "reports/mo_label_template.xml",
         "reports/print_label_report.xml",
         "reports/print_label_template.xml",
+        "reports/rm_issue_report.xml",
+        "reports/rm_issue_template.xml",
         "views/mrp_production_views.xml",
         "views/rm_issue_views.xml",
     ],

@@ -1,0 +1,12 @@
+<odoo>
+    <record id="action_rm_issue_slip" model="ir.actions.report">
+        <field name="name">RM Issue Slip</field>
+        <field name="model">mrp.production</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">rsd_production.rm_issue_template</field>
+        <field name="report_file">rsd_production.rm_issue_template</field>
+        <field name="print_report_name">'RM Issue Slip - %s' % (object.name)</field>
+        <field name="binding_model_id" ref="mrp.model_mrp_production"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo>
