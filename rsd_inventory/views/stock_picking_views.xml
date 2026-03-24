@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_picking_form_inherit_hide_purchase" model="ir.ui.view">
+        <field name="name">stock.picking.form.inherit.hide.purchase</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//sheet" position="before">
+                <field name="is_purchase_dept_user" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//header/button[@name='action_confirm']" position="attributes">
+                <attribute name="invisible">state != 'draft' or is_purchase_dept_user</attribute>
+            </xpath>
+
+            <xpath expr="//header/button[@name='button_validate'][hasclass('o_btn_validate')]" position="attributes">
+                <attribute name="invisible">state in ('draft', 'confirmed', 'waiting', 'done', 'cancel') or is_purchase_dept_user</attribute>
+            </xpath>
+            <xpath expr="//header/button[@name='button_validate'][not(hasclass('o_btn_validate'))]" position="attributes">
+                <attribute name="invisible">state in ('waiting', 'assigned', 'done', 'cancel') or is_purchase_dept_user</attribute>
+            </xpath>
+
+            <xpath expr="//header/button[@name='action_cancel']" position="attributes">
+                <attribute name="invisible">state in ('done', 'cancel') or is_purchase_dept_user</attribute>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

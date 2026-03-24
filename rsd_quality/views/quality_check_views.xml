@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="quality_check_view_form_inherit_rsd" model="ir.ui.view">
+        <field name="name">quality.check.view.form.inherit.rsd</field>
+        <field name="model">quality.check</field>
+        <field name="inherit_id" ref="quality_control.quality_check_view_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//sheet" position="before">
+                <field name="is_quality_dept_user" invisible="1"/>
+            </xpath>
+
+            <xpath expr="//header/button[@name='do_pass']" position="attributes">
+                <attribute name="invisible">quality_state != 'none' or not is_quality_dept_user</attribute>
+            </xpath>
+
+            <xpath expr="//header/button[@name='do_fail']" position="attributes">
+                <attribute name="invisible">quality_state != 'none' or not is_quality_dept_user</attribute>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
