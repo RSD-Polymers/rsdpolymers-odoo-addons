@@ -107,56 +107,56 @@
                 <attribute name="invisible">1</attribute>
             </xpath>
             <xpath expr="//field[@name='partner_id']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='l10n_in_gst_treatment']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='partner_invoice_id']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='partner_shipping_id']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='sale_order_template_id']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='validity_date']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='date_order']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='payment_term_id']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']" position="attributes">
-                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+                <attribute name="readonly">parent.approval_state == 'approved'</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='product_packaging_qty']" position="attributes">
-                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+                <attribute name="readonly">parent.approval_state == 'approved'</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='product_packaging_id']" position="attributes">
-                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+                <attribute name="readonly">parent.approval_state == 'approved'</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="attributes">
-                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+                <attribute name="readonly">parent.approval_state == 'approved'</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='tax_id']" position="attributes">
-                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+                <attribute name="readonly">parent.approval_state == 'approved'</attribute>
             </xpath>
             <xpath expr="//field[@name='order_line']/list/field[@name='price_subtotal']" position="attributes">
-                <attribute name="readonly">parent.approval_state != 'draft'</attribute>
+                <attribute name="readonly">parent.approval_state == 'approved'</attribute>
             </xpath>
             <xpath expr="//field[@name='sale_order_option_ids']" position="attributes">
-                <attribute name="readonly">approval_state != 'draft' or state not in ('draft','sent')</attribute>
+                <attribute name="readonly">approval_state == 'approved' or state not in ('draft','sent')</attribute>
             </xpath>
             <xpath expr="//field[@name='state']" position="attributes">
                 <attribute name="statusbar_visible">draft,awaiting_readiness,trial,sent,sale</attribute>
             </xpath>
             <xpath expr="//field[@name='user_id']" position="after">
                 <field name="approval_manager_id"
-                       readonly="approval_state != 'draft'"/>
+                       readonly="approval_state == 'approved'"/>
             </xpath>
             <xpath expr="//field[@name='payment_term_id']" position="after">
                 <field name="is_rd_user" invisible="1"/>
