@@ -5,17 +5,24 @@
     <record id="crm_lead_view_form_inherit_product_metrics" model="ir.ui.view">
         <field name="name">crm.lead.form.inherit.product.metrics</field>
         <field name="model">crm.lead</field>
-        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="inherit_id" ref="crm.crm_lead_view_form" />
         <field name="arch" type="xml">
-        <!-- Hello Test -->
+            <!-- Hello Test -->
 
-            <xpath expr="//div[hasclass('o_row', 'o_row_readonly')]//field[@name='phone']/.." position="after">
-                <field name="product_id" widget="many2one_avatar_user" required="1"/>
-                <field name="product_qty"/>
+            <!-- TEST UI CHANGE START -->
+            <xpath expr="//sheet" position="inside">
+                <label string="TEST COMMIT SUCCESS - UI UPDATED" class="text-danger" />
+            </xpath>
+            <!-- TEST UI CHANGE END -->
+
+            <xpath expr="//div[hasclass('o_row', 'o_row_readonly')]//field[@name='phone']/.."
+                position="after">
+                <field name="product_id" widget="many2one_avatar_user" required="1" />
+                <field name="product_qty" />
             </xpath>
             <xpath expr="//field[@name='tag_ids']" position="after">
-                <field name="product_avg_price" class="oe_inline"/>
-                <field name="payment_term_id" class="oe_inline"/>
+                <field name="product_avg_price" class="oe_inline" />
+                <field name="payment_term_id" class="oe_inline" />
             </xpath>
 
         </field>
@@ -25,11 +32,11 @@
     <record id="crm_lead_tree_view_inherit_product_metrics" model="ir.ui.view">
         <field name="name">crm.lead.tree.inherit.product.metrics</field>
         <field name="model">crm.lead</field>
-        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor" />
         <field name="arch" type="xml">
             <xpath expr="//field[@name='probability']" position="after">
-                <field name="product_qty"/>
-                <field name="product_avg_price"/>
+                <field name="product_qty" />
+                <field name="product_avg_price" />
             </xpath>
         </field>
     </record>
@@ -57,20 +64,20 @@
                 This is the list view for Forecast.
             </p>
         </field>
-        <field name="search_view_id" ref="crm.crm_lead_view_search_forecast"/>
+        <field name="search_view_id" ref="crm.crm_lead_view_search_forecast" />
     </record>
 
     <!-- New Menu -->
     <menuitem
-            id="crm_menu_forecast_list"
-            name="Forecast"
-            parent="crm.crm_menu_report"
-            action="crm_lead_action_forecast_list"
-            sequence="0"/>
+        id="crm_menu_forecast_list"
+        name="Forecast"
+        parent="crm.crm_menu_report"
+        action="crm_lead_action_forecast_list"
+        sequence="0" />
 
     <!-- Hide Original Forecast Menu -->
     <record id="crm.crm_menu_forecast" model="ir.ui.menu">
-        <field name="active" eval="False"/>
+        <field name="active" eval="False" />
     </record>
 
 
