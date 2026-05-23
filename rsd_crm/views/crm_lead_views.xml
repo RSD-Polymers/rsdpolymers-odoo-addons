@@ -15,10 +15,9 @@
             </xpath>
             <!-- TEST UI CHANGE END -->
 
-            <xpath expr="//div[hasclass('o_row', 'o_row_readonly')]//field[@name='phone']/.."
-                position="after">
-                <field name="product_id" widget="many2one_avatar_user" required="1" />
-                <field name="product_qty" />
+            <xpath expr="(//div[hasclass('o_row', 'o_row_readonly')])[2]//field[@name='phone']/.." position="after">
+                <field name="product_id" widget="many2one_avatar_user" required="1"/>
+                <field name="product_qty"/>
             </xpath>
             <xpath expr="//field[@name='tag_ids']" position="after">
                 <field name="product_avg_price" class="oe_inline" />
