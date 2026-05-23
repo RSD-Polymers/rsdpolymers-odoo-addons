@@ -16,6 +16,7 @@
             <!-- TEST UI CHANGE END -->
 
             <xpath expr="(//div[hasclass('o_row', 'o_row_readonly')])[2]//field[@name='phone']/.." position="after">
+                <label for="product_id"/>
                 <field name="product_id" widget="many2one_avatar_user" required="1"/>
                 <field name="product_qty"/>
             </xpath>
