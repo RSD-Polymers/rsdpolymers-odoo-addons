@@ -282,13 +282,19 @@ class SaleOrder(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """
-        Create Sales Orders using the standard Odoo flow.
-        No Trial/MRP/Stock/Material Readiness logic is triggered.
-        """
-        _logger.info("SALES ORDER: CREATE method called.")
 
+        _logger.info("SALES ORDER: CREATE method called.")
         orders = super(SaleOrder, self).create(vals_list)
+
+        for order in orders:
+
+            if order.production_request_type == 'trial':
+                _logger.info(
+                    "SALES ORDER: Trial order %s created. Setting state and creating MO.",
+                    order.name
+                )
+                order.write({'state': 'trial'})
+                order.action_create_mrp_orders()
 
         return orders
 
@@ -301,15 +307,145 @@ class SaleOrder(models.Model):
 
     def action_confirm(self):
         """
-        Confirm the Sales Order only after approval.
-        Stock, Manufacturing, Trial and Material Readiness
-        do not affect confirmation.
+        Override to extend core validation so our custom states
+        can also be confirmed.
         """
+
         for order in self:
             if order.approval_state != 'approved':
                 raise UserError(_("Order must be approved first"))
 
-        return super(SaleOrder, self).action_confirm()
+            if order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial']:
+                raise UserError(_("Some orders are not in a state requiring confirmation."))
+
+            # Batch/Lot selection is intentionally NOT required during Sales Order confirmation.
+            # Batch/Lot will be selected during Delivery/Transfer.
+        trial_orders = self.filtered(lambda o: o.production_request_type == 'trial')
+        normal_orders = self - trial_orders
+
+        # Handle trial orders separately
+        for order in trial_orders:
+            _logger.info("SALES ORDER: Trial request detected. Skipping DO/Invoice creation.")
+            order.message_post(
+                body=_("This is a trial request. No Delivery Order or Invoice will be created.")
+            )
+
+        # Confirm normal orders using standard Odoo flow
+        if normal_orders:
+            super(SaleOrder, normal_orders).action_confirm()
+
+        return True
+
+    def _action_create_mrp_orders_from_wizard(self, is_packing_order=False):
+        return self.action_create_mrp_orders(is_packing_order=is_packing_order)
+
+    def action_create_mrp_orders(self, is_packing_order=False):
+        """
+        Creates Manufacturing Orders for products on the sales order.
+        For trials, it creates for all lines. For standard orders, it's for out-of-stock.
+        """
+        _logger.info("SALES ORDER: action_create_mrp_orders triggered.")
+        for order in self:
+            # Determine which lines to create MOs for
+            if order.production_request_type == 'trial':
+                # Filter for products that can be manufactured (product or consumable)
+                lines_to_process = order.order_line.filtered(lambda l: l.product_id.type in ('product', 'consu'))
+                _logger.info("SALES ORDER: lines_to_process for trial: %s", lines_to_process.mapped('product_id.name'))
+            else:
+                if not order.mat_ready_date:
+                    raise UserError(
+                        _("Please set the Material Readiness Date before creating a Manufacturing Order.")
+                    )
+                lines_to_process = order.order_line.filtered(lambda l: l.is_out_of_stock and l.product_id.type in ('product', 'consu'))
+                _logger.info("SALES ORDER: lines_to_process for min_inventory: %s", lines_to_process.mapped('product_id.name'))
+
+            if not lines_to_process:
+                _logger.warning("SALES ORDER: No manufacturable products found for order %s. Skipping MO creation.", order.name)
+                self.is_production_request_sent = True
+                continue  # Skip to the next order in the loop
+
+            for line in lines_to_process:
+                boms = self.env['mrp.bom']._bom_find(products=line.product_id, company_id=line.company_id.id)
+                bom = boms[line.product_id]
+                if not bom:
+                    raise UserError(_("No Bill of Materials found for product %s.") % line.product_id.name)
+
+                mo = self.env['mrp.production'].create({
+                    'product_id': line.product_id.id,
+                    'product_qty': line.product_uom_qty,
+                    'product_uom_id': line.product_uom.id,
+                    'bom_id': bom.id,
+                    'origin': order.name,
+                    'company_id': order.company_id.id,
+                    'origin_sale_id': order.id,
+                    'production_request_type': order.production_request_type,
+                    'is_packing_order': is_packing_order,
+                })
+                _logger.info("SALES ORDER: Created Manufacturing Order %s for product %s.", mo.name, line.product_id.name, is_packing_order)
+
+        # Add the chatter message
+        self.message_post(
+            body=_("Manufacturing Orders have been created."),
+            subtype_xmlid="mail.mt_note"
+        )
+
+        self.is_production_request_sent = True
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order',
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'current',
+        }
+
+    def action_confirm_from_readiness(self):
+        """
+        This button is for a manager to confirm the order after the MOs are complete.
+        """
+        _logger.info("SALES ORDER: action_confirm_from_readiness method called.")
+        self.ensure_one()
+        if not self.mat_ready_date:
+            raise UserError(_("Please set a Material Readiness Date before confirming."))
+        if self.state not in ('awaiting_readiness', 'trial'):
+            raise UserError(
+                _("The order state must be 'Awaiting Readiness' or 'Trial' to confirm from this action."))
+        # Check if all related manufacturing orders are completed.
+        for order in self:
+            # Use linked MOs OR fallback to origin-based search
+            mos = order.mrp_production_ids or self.env['mrp.production'].search([('origin', '=', order.name)])
+            for mo in mos:
+                if mo.state != 'done':
+                    raise UserError(_(
+                        "Please ensure all Manufacturing Orders linked to this Sales Order are completed & Products are available in Stock."
+                    ))
+
+        self.action_confirm()
+
+        self.state = 'sale'
+        self.message_post(body=_("Order confirmed by manager after readiness check."))
+
+        return True
+
+    def action_view_mrp_orders(self):
+        """
+        Returns a window action to display all linked Manufacturing Orders
+        by searching for MOs that have this sales order's name in their `origin` field.
+        """
+        _logger.info("SALES ORDER: action_view_mrp_orders method called.")
+        self.ensure_one()
+
+        # Find all MOs that have this SO's name as their origin
+        mrp_orders = self.env['mrp.production'].search([('origin', '=', self.name)])
+
+        return {
+            'name': _('Manufacturing Orders'),
+            'view_mode': 'list,form',
+            'res_model': 'mrp.production',
+            'type': 'ir.actions.act_window',
+            'domain': [('id', 'in', mrp_orders.ids)],
+            'context': {'create': False},
+        }
 
     def _prepare_invoice(self):
         vals = super()._prepare_invoice()
@@ -367,15 +503,49 @@ class SaleOrder(models.Model):
         # Mark approved
         self.approval_state = 'approved'
 
-        # Stock availability is intentionally NOT checked.
-        # Sales Manager can approve and confirm the order
-        # regardless of material availability.
+        # -------------------------------------------------
+        # LIVE STOCK CHECK
+        # -------------------------------------------------
 
+        packed_loc = self.env['stock.location'].search([
+            ('name', '=', 'Packed - FG'),
+            ('company_id', '=', self.company_id.id)
+        ], limit=1)
+
+        if not packed_loc:
+            raise UserError(_("Configuration Error: Could not find 'Packed - FG' location."))
+
+        has_shortage = False
+
+        for line in self.order_line:
+            if not line.display_type and line.product_id.type == 'consu':
+
+                live_qty = self.env['stock.quant']._get_available_quantity(
+                    line.product_id,
+                    packed_loc
+                )
+
+                if live_qty < line.product_uom_qty:
+                    has_shortage = True
+                    break
+
+        # -------------------------------------------------
+        # DECISION BASED ON STOCK
+        # -------------------------------------------------
+
+        if has_shortage:
+            self.state = 'awaiting_readiness'
+
+            self.message_post(body=_(
+                "Order approved but waiting for material readiness because stock is not available."
+            ))
+
+            return True
+
+        # Stock available → confirm order
         self.action_confirm()
 
-        self.message_post(
-            body=_("Order approved and confirmed automatically.")
-        )
+        self.message_post(body=_("Order approved and confirmed automatically."))
 
         return True
 

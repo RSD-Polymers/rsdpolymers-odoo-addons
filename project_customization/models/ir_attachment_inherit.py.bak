@@ -8,30 +8,37 @@ _logger = logging.getLogger(__name__)
 class IrAttachment(models.Model):
     _inherit = 'ir.attachment'
 
-    @api.model_create_multi
-    def create(self, vals_list):
+    def create(self, vals):
+        # _logger.info("Attachment create method called with vals: %s", vals)
 
-        if isinstance(vals_list, dict):
-            vals_list = [vals_list]
-
-        for vals in vals_list:
-
+        # Check if vals is a dictionary or a list of dictionaries
+        if isinstance(vals, dict):
+            # Handle a single dictionary
             if vals.get('res_model') == 'project.task' and vals.get('res_id'):
-
                 task = self.env['project.task'].browse(vals['res_id'])
-
-                allowed_states = [
-                    '01_in_progress',
-                    '05_send_for_checking',
-                ]
-
+                allowed_states = ['01_in_progress', '05_send_for_checking']
                 if task.state not in allowed_states:
-
                     raise AccessError(
                         _("You are not allowed to upload an attachment here.")
                     )
+        elif isinstance(vals, list):
+            # Handle a list of dictionaries (multiple attachments)
+            for single_vals in vals:
+                if single_vals.get('res_model') == 'project.task' and single_vals.get('res_id'):
+                    task = self.env['project.task'].browse(single_vals['res_id'])
+                    allowed_states = ['01_in_progress', '05_send_for_checking']
+                    if task.state not in allowed_states:
+                        raise AccessError(
+                            _("You are not allowed to upload an attachment here.")
+                        )
+        else:
+            # If vals is a string or another unsupported type, log a warning
+            _logger.warning("Unexpected data type in create method: %s", type(vals))
+            # Odoo's super() call might still handle it.
+            # We just need to make sure our code doesn't crash on it.
 
-        return super().create(vals_list)
+        return super(IrAttachment, self).create(vals)
+
     def write(self, vals):
         # self is a recordset, which can contain one or multiple records.
         # We should iterate over it to apply the logic to each record.
