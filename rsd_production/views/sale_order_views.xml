@@ -3,7 +3,7 @@
     <record id="view_sale_order_form_inherit_production_request" model="ir.ui.view">
         <field name="name">sale.order.form.inherit.production.request</field>
         <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="inherit_id" ref="rsd_sales.view_sale_order_form_inherit"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
                 <button name="action_create_production_requests"
