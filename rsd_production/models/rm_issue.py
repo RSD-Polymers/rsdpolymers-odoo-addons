@@ -37,7 +37,14 @@ class RmIssue(models.Model):
 
     availability_note = fields.Char(compute='_compute_availability_state', store=False)
 
-    @api.depends('line_ids.qty', 'line_ids.product_id', 'internal_transfer_ref.state', 'internal_transfer_ref.move_ids.reserved_availability')
+    @api.depends(
+        'line_ids.qty',
+        'line_ids.product_id',
+        'internal_transfer_ref.state',
+        'internal_transfer_ref.move_ids.state',
+        'internal_transfer_ref.move_ids.move_line_ids.quantity',
+        'internal_transfer_ref.move_ids.move_line_ids.product_uom_id',
+    )
     def _compute_availability_state(self):
         for rm in self:
             if not rm.line_ids:
@@ -51,7 +58,15 @@ class RmIssue(models.Model):
                     rm.availability_note = 'Internal transfer has no active moves.'
                     continue
                 total_required = sum(m.product_uom_qty for m in moves)
-                total_reserved = sum(m.reserved_availability for m in moves)
+                total_reserved = sum(
+                    ml.product_uom_id._compute_quantity(
+                        ml.quantity,
+                        ml.move_id.product_uom,
+                        round=False,
+                    )
+                    for m in moves
+                    for ml in m.move_line_ids
+                )
                 if total_reserved >= total_required:
                     rm.availability_state = 'available'
                     rm.availability_note = 'All requested raw materials are reserved.'
