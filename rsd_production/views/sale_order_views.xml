@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_form_inherit_production_request" model="ir.ui.view">
+        <field name="name">sale.order.form.inherit.production.request</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_create_production_requests"
+                        type="object"
+                        string="Create Production Request"
+                        class="oe_highlight"
+                        groups="stock.group_stock_user,mrp.group_mrp_user,mrp.group_mrp_manager"
+                        invisible="state != 'sale' or not has_stock_shortage"/>
+            </xpath>
+
+            <xpath expr="//button[@name='action_view_invoice']" position="after">
+                <button class="oe_stat_button"
+                        name="action_view_production_requests"
+                        type="object"
+                        icon="fa-cubes"
+                        invisible="production_request_count == 0">
+                    <field name="production_request_count" widget="statinfo" string="Production Requests"/>
+                </button>
+            </xpath>
+
+            <xpath expr="//page[@name='fg_fulfilment']" position="inside">
+                <group string="Production Requests">
+                    <field name="production_request_ids" nolabel="1">
+                        <list create="0" delete="0" edit="0">
+                            <field name="name"/>
+                            <field name="product_id"/>
+                            <field name="shortage_qty"/>
+                            <field name="material_ready_date"/>
+                            <field name="state"/>
+                            <field name="accepted_by"/>
+                            <field name="mo_id"/>
+                        </list>
+                    </field>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

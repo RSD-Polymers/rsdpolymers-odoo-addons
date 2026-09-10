@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_production_request_list_plan" model="ir.ui.view">
+        <field name="name">production.request.list.plan</field>
+        <field name="model">production.request</field>
+        <field name="inherit_id" ref="view_production_request_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <header>
+                    <button name="action_plan_selected" type="object" string="Plan Selected" class="oe_highlight"/>
+                </header>
+            </xpath>
+        </field>
+    </record>
+</odoo>

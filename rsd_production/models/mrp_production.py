@@ -38,6 +38,35 @@ class MrpProduction(models.Model):
     rm_issue_id = fields.Many2one('rm.issue', string="RM Issue")
     rm_issue_count = fields.Integer(compute="_compute_rm_issue_count")
 
+    production_request_ids = fields.One2many(
+        'production.request', 'mo_id', string="Production Requests",
+        help="Finished Goods production requests fulfilled by this Manufacturing Order.",
+    )
+    production_request_count = fields.Integer(compute="_compute_production_request_count")
+
+    def write(self, vals):
+        res = super().write(vals)
+        if 'state' in vals:
+            requests = self.mapped('production_request_ids')
+            if requests:
+                requests._sync_state_from_mo()
+        return res
+
+    def _compute_production_request_count(self):
+        for mo in self:
+            mo.production_request_count = len(mo.production_request_ids)
+
+    def action_view_production_requests(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Production Requests',
+            'res_model': 'production.request',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.production_request_ids.ids)],
+            'context': {'create': False},
+        }
+
     def _compute_rm_issue_count(self):
         for mo in self:
             mo.rm_issue_count = self.env['rm.issue'].search_count([

@@ -31,7 +31,7 @@ if (signRequestItem) {
         const isSaleManager = await user.hasGroup("sales_team.group_sale_manager");
         const isSaleLeads = await user.hasGroup("sales_team.group_sale_salesman_all_leads");
         const isSalesman = await user.hasGroup("sales_team.group_sale_salesman");
-        const isCustomExport = await user.hasGroup("__export__.res_groups_222_4190eb7c");
+        const isCustomExport = await user.hasGroup("rsd_sales.group_sale_approver");
 
         // 4. Return true if they have ANY of the above groups
         return isSystem || isSaleManager || isSaleLeads || isSalesman || isCustomExport;

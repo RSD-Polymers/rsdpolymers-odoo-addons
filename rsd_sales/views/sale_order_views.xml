@@ -267,14 +267,12 @@
 
                 <field name="is_production_request_sent" invisible="1"/>
 
-                <!--
                 <button name="%(action_sale_create_mo_wizard)d"
                         type="action"
                         string="Create MO"
                         class="oe_highlight"
                         groups="mrp.group_mrp_user,mrp.group_mrp_manager"
                         invisible="state != 'awaiting_readiness' or approval_state != 'approved' or mrp_order_count != 0"/>
-                -->
 
                 <button name="action_send_for_checking"
                         type="object"
@@ -310,14 +308,12 @@
                         string="Reject"
                         invisible="approval_state != 'send_for_approval'"/>
 
-                <!--
                 <button name="action_confirm_from_readiness"
                         type="object"
                         string="Confirm Order"
                         class="btn-primary"
-                        groups="__export__.res_groups_222_4190eb7c"
+                        groups="rsd_sales.group_sale_approver"
                         invisible="state != 'awaiting_readiness' or approval_state != 'approved' or mrp_order_count == 0"/>
-                -->
 
             </xpath>
 
@@ -355,6 +351,51 @@
                     </group>
                 </page>
             </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_reserve_fg"
+                        type="object"
+                        string="Reserve FG"
+                        class="btn-secondary"
+                        groups="stock.group_stock_user"
+                        invisible="state != 'sale' or not store_user"/>
+                <button name="action_unreserve_fg"
+                        type="object"
+                        string="Unreserve FG"
+                        class="btn-secondary"
+                        groups="stock.group_stock_user"
+                        invisible="state != 'sale' or not store_user"/>
+                <button name="action_deliver_available"
+                        type="object"
+                        string="Deliver Available"
+                        class="oe_highlight"
+                        groups="stock.group_stock_user"
+                        invisible="state != 'sale' or not store_user"/>
+                <button name="action_wait_for_complete"
+                        type="object"
+                        string="Wait for Complete"
+                        class="btn-secondary"
+                        groups="stock.group_stock_user"
+                        invisible="state != 'sale' or not store_user"/>
+            </xpath>
+            <xpath expr="//page[@name='other_information']" position="before">
+                <page string="FG Fulfilment" name="fg_fulfilment">
+                    <group>
+                        <group>
+                            <field name="fg_delivery_mode" readonly="state != 'sale'"/>
+                            <field name="has_stock_shortage" readonly="1"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+            <!--
+                NOTE: the "Create Production Request" button, the "Production Requests"
+                stat button, and the pending/total production request counters used to
+                live in this view. They have been moved to rsd_production's own
+                views/sale_order_views.xml, because they depend on the `production.request`
+                model which is defined in rsd_production, not here. Keeping them here
+                would force rsd_sales to depend on rsd_production, which already depends
+                on rsd_sales - a circular dependency Odoo cannot load.
+            -->
         </field>
     </record>
 

@@ -27,11 +27,17 @@
 
                 <!-- HEADER -->
                 <header>
+                    <button name="action_check_availability"
+                            string="Check RM Availability"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state != 'requested'"/>
+
                     <button name="action_issue_material"
                             string="Issue RM"
                             type="object"
                             class="btn-success"
-                            invisible="state != 'requested'"/>
+                            invisible="state != 'requested' or availability_state != 'available'"/>
 
                     <button name="action_print_rm_slip"
                             string="RM Issue Slip"
@@ -61,6 +67,9 @@
                         <group>
                             <field name="requested_by" readonly="1"/>
                             <field name="issued_by" readonly="1"/>
+                            <field name="internal_transfer_ref" readonly="1"/>
+                            <field name="availability_state" readonly="1"/>
+                            <field name="availability_note" readonly="1"/>
                         </group>
                     </group>
 

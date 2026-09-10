@@ -12,12 +12,12 @@ class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
     def _get_default_production_request_type(self):
-        """
+        """\
         Dynamically sets the default production request type based on the user's group.
         It defaults to 'trial' for R&D users and 'min_inventory' for others.
         """
         # Check if the current user belongs to the 'R&D' user group.
-        if self.env.user.has_group('base.group_research_and_development'):
+        if self.env.user.has_group('rsd_sales.group_rd_user'):
             return 'trial'  # Changed from 'scale_up' to 'trial'
         else:
             return 'min_inventory'
@@ -129,6 +129,85 @@ class SaleOrder(models.Model):
 
     special_instructions = fields.Text(string="Special Instructions")
 
+    fg_delivery_mode = fields.Selection([
+        ('wait_full', 'Deliver Only When Fully Available'),
+        ('partial', 'Deliver Available Quantity Now'),
+    ], string="FG Delivery Mode", default='wait_full', tracking=True,
+        help="Controls how the Store team handles delivery of this order's Packed FG stock:\n"
+             "- Deliver Only When Fully Available: wait until all lines can be fully reserved.\n"
+             "- Deliver Available Quantity Now: ship whatever is available and backorder the rest.")
+
+    store_user = fields.Boolean(
+        string="Is Store User",
+        compute='_compute_store_user',
+        store=False,
+        help="Indicates if the current user belongs to the Store department, and can therefore "
+             "reserve/deliver Packed FG stock against this order.",
+    )
+
+    @api.depends_context('uid')
+    def _compute_store_user(self):
+        user = self.env.user
+        is_privileged = user.has_group('base.group_system') or user.has_group('stock.group_stock_manager')
+        employee = self.env['hr.employee'].sudo().search([('user_id', '=', user.id)], limit=1)
+        is_store = bool(employee and employee.department_id and employee.department_id.name.strip().lower() == 'store')
+        for order in self:
+            order.store_user = is_privileged or is_store
+
+    def _get_fg_pickings(self):
+        """Outgoing (customer) pickings linked to this order that are not yet done/cancelled."""
+        self.ensure_one()
+        return self.picking_ids.filtered(
+            lambda p: p.picking_type_id.code == 'outgoing' and p.state not in ('done', 'cancel')
+        )
+
+    def action_reserve_fg(self):
+        """Reserve available Packed FG stock against this order's outgoing delivery(ies)."""
+        for order in self:
+            pickings = order._get_fg_pickings()
+            if not pickings:
+                raise UserError(_("There is no outgoing delivery to reserve stock against for %s.") % order.name)
+            pickings.action_assign()
+            order.message_post(body=_("Packed FG stock reservation attempted for the delivery order(s)."))
+        return True
+
+    def action_unreserve_fg(self):
+        """Release any stock currently reserved against this order's outgoing delivery(ies)."""
+        for order in self:
+            pickings = order._get_fg_pickings()
+            if not pickings:
+                raise UserError(_("There is no outgoing delivery to unreserve for %s.") % order.name)
+            pickings.do_unreserve()
+            order.message_post(body=_("Packed FG stock reservation was released for the delivery order(s)."))
+        return True
+
+    def action_deliver_available(self):
+        """
+        Validate the delivery for whatever quantity is currently reserved/available,
+        creating a backorder for anything short. Intended for use when
+        fg_delivery_mode = 'partial'.
+        """
+        for order in self:
+            pickings = order._get_fg_pickings()
+            if not pickings:
+                raise UserError(_("There is no outgoing delivery to process for %s.") % order.name)
+            pickings.action_assign()
+            # Allow a backorder to be created automatically for whatever isn't available yet.
+            res = pickings.with_context(skip_backorder=False).button_validate()
+            if isinstance(res, dict) and res.get('res_model') == 'stock.backorder.confirmation':
+                # Core wizard needs an explicit confirmation to create the backorder.
+                wizard = self.env[res['res_model']].with_context(res.get('context', {})).create({})
+                wizard.process()
+            order.message_post(body=_("Available Packed FG stock was delivered; remaining quantity backordered."))
+        return True
+
+    def action_wait_for_complete(self):
+        """Switch the order back to waiting for full FG availability before delivering."""
+        for order in self:
+            order.fg_delivery_mode = 'wait_full'
+            order.message_post(body=_("Delivery mode set back to 'Deliver Only When Fully Available'."))
+        return True
+
     @api.depends('order_line.product_uom_qty', 'order_line.product_id', 'state', 'approval_state')
     def _compute_stock_status(self):
         # Fetch the location once outside the loop to keep the system fast
@@ -137,7 +216,7 @@ class SaleOrder(models.Model):
         ], limit=1)
 
         for order in self:
-            if (order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial'] or
+            if (order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial', 'sale'] or
                     not order.order_line):
                 order.is_fully_in_stock = False
                 order.has_stock_shortage = False
@@ -176,7 +255,7 @@ class SaleOrder(models.Model):
     def _compute_is_sales_manager(self):
         for rec in self:
             rec.is_sales_manager = self.env.user.has_group(
-                '__export__.res_groups_222_4190eb7c'
+                'rsd_sales.group_sale_approver'
             )
 
     def _confirmation_error_message(self):
@@ -223,7 +302,7 @@ class SaleOrder(models.Model):
         """
         Computes whether the current user belongs to the R&D group.
         """
-        is_rd = self.env.user.has_group('base.group_research_and_development')
+        is_rd = self.env.user.has_group('rsd_sales.group_rd_user')
         for record in self:
             record.is_rd_user = is_rd
 
@@ -282,13 +361,19 @@ class SaleOrder(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """
-        Create Sales Orders using the standard Odoo flow.
-        No Trial/MRP/Stock/Material Readiness logic is triggered.
-        """
-        _logger.info("SALES ORDER: CREATE method called.")
 
+        _logger.info("SALES ORDER: CREATE method called.")
         orders = super(SaleOrder, self).create(vals_list)
+
+        for order in orders:
+
+            if order.production_request_type == 'trial':
+                _logger.info(
+                    "SALES ORDER: Trial order %s created. Setting state and creating MO.",
+                    order.name
+                )
+                order.write({'state': 'trial'})
+                order.action_create_mrp_orders()
 
         return orders
 
@@ -301,15 +386,150 @@ class SaleOrder(models.Model):
 
     def action_confirm(self):
         """
-        Confirm the Sales Order only after approval.
-        Stock, Manufacturing, Trial and Material Readiness
-        do not affect confirmation.
+        Override to extend core validation so our custom states
+        can also be confirmed.
         """
+
         for order in self:
+            # 1. Approval check
             if order.approval_state != 'approved':
                 raise UserError(_("Order must be approved first"))
+            # 2. State check
+            if order.state not in ['draft', 'sent', 'awaiting_readiness', 'trial']:
+                raise UserError(_("Some orders are not in a state requiring confirmation."))
+            # 3. Batch check
+            # for line in order.order_line:
+            #     if not line.display_type and line.product_id and line.product_id.type == 'consu' and not line.lot_ids:
+            #         raise UserError(_(
+            #             "Please select Batch No. for product '%s' before confirming the order."
+            #         ) % line.product_id.display_name)
 
-        return super(SaleOrder, self).action_confirm()
+        trial_orders = self.filtered(lambda o: o.production_request_type == 'trial')
+        normal_orders = self - trial_orders
+
+        # Handle trial orders separately
+        for order in trial_orders:
+            _logger.info("SALES ORDER: Trial request detected. Skipping DO/Invoice creation.")
+            order.message_post(
+                body=_("This is a trial request. No Delivery Order or Invoice will be created.")
+            )
+
+        # Confirm normal orders using standard Odoo flow
+        if normal_orders:
+            super(SaleOrder, normal_orders).action_confirm()
+
+        return True
+
+    def _action_create_mrp_orders_from_wizard(self, is_packing_order=False):
+        return self.action_create_mrp_orders(is_packing_order=is_packing_order)
+
+    def action_create_mrp_orders(self, is_packing_order=False):
+        """
+        Creates Manufacturing Orders for products on the sales order.
+        For trials, it creates for all lines. For standard orders, it's for out-of-stock.
+        """
+        _logger.info("SALES ORDER: action_create_mrp_orders triggered.")
+        for order in self:
+            # Determine which lines to create MOs for
+            if order.production_request_type == 'trial':
+                # Filter for products that can be manufactured (product or consumable)
+                lines_to_process = order.order_line.filtered(lambda l: l.product_id.type in ('product', 'consu'))
+                _logger.info("SALES ORDER: lines_to_process for trial: %s", lines_to_process.mapped('product_id.name'))
+            else:
+                if not order.mat_ready_date:
+                    raise UserError(
+                        _("Please set the Material Readiness Date before creating a Manufacturing Order.")
+                    )
+                lines_to_process = order.order_line.filtered(lambda l: l.is_out_of_stock and l.product_id.type in ('product', 'consu'))
+                _logger.info("SALES ORDER: lines_to_process for min_inventory: %s", lines_to_process.mapped('product_id.name'))
+
+            if not lines_to_process:
+                _logger.warning("SALES ORDER: No manufacturable products found for order %s. Skipping MO creation.", order.name)
+                self.is_production_request_sent = True
+                continue  # Skip to the next order in the loop
+
+            for line in lines_to_process:
+                boms = self.env['mrp.bom']._bom_find(products=line.product_id, company_id=line.company_id.id)
+                bom = boms[line.product_id]
+                if not bom:
+                    raise UserError(_("No Bill of Materials found for product %s.") % line.product_id.name)
+
+                mo = self.env['mrp.production'].create({
+                    'product_id': line.product_id.id,
+                    'product_qty': line.product_uom_qty,
+                    'product_uom_id': line.product_uom.id,
+                    'bom_id': bom.id,
+                    'origin': order.name,
+                    'company_id': order.company_id.id,
+                    'origin_sale_id': order.id,
+                    'production_request_type': order.production_request_type,
+                    'is_packing_order': is_packing_order,
+                })
+                _logger.info("SALES ORDER: Created Manufacturing Order %s for product %s.", mo.name, line.product_id.name, is_packing_order)
+
+        # Add the chatter message
+        self.message_post(
+            body=_("Manufacturing Orders have been created."),
+            subtype_xmlid="mail.mt_note"
+        )
+
+        self.is_production_request_sent = True
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'sale.order',
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'current',
+        }
+
+    def action_confirm_from_readiness(self):
+        """
+        This button is for a manager to confirm the order after the MOs are complete.
+        """
+        _logger.info("SALES ORDER: action_confirm_from_readiness method called.")
+        self.ensure_one()
+        if not self.mat_ready_date:
+            raise UserError(_("Please set a Material Readiness Date before confirming."))
+        if self.state not in ('awaiting_readiness', 'trial'):
+            raise UserError(
+                _("The order state must be 'Awaiting Readiness' or 'Trial' to confirm from this action."))
+        # Check if all related manufacturing orders are completed.
+        for order in self:
+            # Use linked MOs OR fallback to origin-based search
+            mos = order.mrp_production_ids or self.env['mrp.production'].search([('origin', '=', order.name)])
+            for mo in mos:
+                if mo.state != 'done':
+                    raise UserError(_(
+                        "Please ensure all Manufacturing Orders linked to this Sales Order are completed & Products are available in Stock."
+                    ))
+
+        self.action_confirm()
+
+        self.state = 'sale'
+        self.message_post(body=_("Order confirmed by manager after readiness check."))
+
+        return True
+
+    def action_view_mrp_orders(self):
+        """
+        Returns a window action to display all linked Manufacturing Orders
+        by searching for MOs that have this sales order's name in their `origin` field.
+        """
+        _logger.info("SALES ORDER: action_view_mrp_orders method called.")
+        self.ensure_one()
+
+        # Find all MOs that have this SO's name as their origin
+        mrp_orders = self.env['mrp.production'].search([('origin', '=', self.name)])
+
+        return {
+            'name': _('Manufacturing Orders'),
+            'view_mode': 'list,form',
+            'res_model': 'mrp.production',
+            'type': 'ir.actions.act_window',
+            'domain': [('id', 'in', mrp_orders.ids)],
+            'context': {'create': False},
+        }
 
     def _prepare_invoice(self):
         vals = super()._prepare_invoice()
@@ -353,7 +573,7 @@ class SaleOrder(models.Model):
     def action_approve_order(self):
         self.ensure_one()
 
-        if not self.env.user.has_group('__export__.res_groups_222_4190eb7c'):
+        if not self.env.user.has_group('rsd_sales.group_sale_approver'):
             raise UserError(_("Only the assigned Sales Manager can approve this order."))
 
         if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:
@@ -364,25 +584,19 @@ class SaleOrder(models.Model):
         if self.approval_state != 'send_for_approval':
             raise UserError(_("Not waiting for approval"))
 
-        # Mark approved
+        # Approval is independent of FG availability.
+        # The Store/Production workflow starts after SO confirmation.
         self.approval_state = 'approved'
-
-        # Stock availability is intentionally NOT checked.
-        # Sales Manager can approve and confirm the order
-        # regardless of material availability.
-
         self.action_confirm()
-
-        self.message_post(
-            body=_("Order approved and confirmed automatically.")
-        )
-
+        self.message_post(body=_(
+            "Order approved and confirmed. Packed FG availability will be handled by Store after confirmation."
+        ))
         return True
 
     def action_reject_order(self):
         self.ensure_one()
         # Security check: ensure only managers can trigger the wizard
-        if not self.env.user.has_group('__export__.res_groups_222_4190eb7c'):
+        if not self.env.user.has_group('rsd_sales.group_sale_approver'):
             raise UserError(_("Only the assigned Sales Manager can reject this order."))
 
         if self.approval_manager_id and self.env.user.id != self.approval_manager_id.id:

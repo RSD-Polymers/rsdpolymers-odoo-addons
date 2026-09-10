@@ -18,12 +18,22 @@
                 <field name="dispatch_doc_no" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
                 <field name="dispatch_through" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
                 <field name="bill_of_lading" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
-            </xpath>
-
-            <xpath expr="//field[@name='tally_guid']" position="after">
                 <field name="delivery_note" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
                 <field name="motor_vehicle_no" readonly="state in ['posted']" invisible="move_type != 'out_invoice'"/>
             </xpath>
+
+            <!--
+                NOTE: the original view anchored delivery_note/motor_vehicle_no after a
+                field named "tally_guid", which comes from a third-party Tally
+                integration app that is not declared as a dependency anywhere in this
+                module. That app may not be installed on this server, which would have
+                caused this view to fail to load. Both fields have been moved into the
+                header_right_group xpath above instead, which only relies on core
+                account.move. If you DO have a Tally connector installed and want these
+                fields positioned next to its fields instead, add that app's technical
+                module name to this module's "depends" and restore a dedicated xpath
+                targeting its field.
+            -->
 
         </field>
     </record>

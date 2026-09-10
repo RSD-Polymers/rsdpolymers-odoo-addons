@@ -9,8 +9,9 @@
         """,
     'author': 'RSD Polymer',
     'website': 'https://www.rsdpolymers.com/',
-    'depends': ['base', 'sale', 'sale_management', 'mrp', 'product', 'web', 'account', 'l10n_in_edi', 'sign'],
+    'depends': ['base', 'sale', 'sale_management', 'mrp', 'product', 'web', 'account', 'l10n_in_edi', 'sign', 'hr', 'stock'],
     'data': [
+        'security/security.xml',
         'security/ir.model.access.csv',
         'views/create_mo_wizard_action.xml',
         'reports/sale_order_report.xml',

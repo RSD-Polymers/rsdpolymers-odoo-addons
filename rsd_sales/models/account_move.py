@@ -10,6 +10,11 @@ class AccountMove(models.Model):
     bill_of_lading = fields.Char(string="Bill of Lading/LR-RR No")
     motor_vehicle_no = fields.Char(string="Motor Vehicle No")
     delivery_note = fields.Char(string="Delivery Note")
+    tally_response = fields.Char(
+        string="Tally Sync Status",
+        readonly=True,
+        help="Populated by a Tally integration app if one is installed. Left blank otherwise.",
+    )
 
     def action_print_custom_invoice(self):
         """Return your custom invoice report."""

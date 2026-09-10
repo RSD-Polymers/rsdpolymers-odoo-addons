@@ -5,4 +5,13 @@
         <field name="prefix">RMI/%(year)s/</field>
         <field name="padding">4</field>
     </record>
+
+    <record id="seq_production_request" model="ir.sequence">
+        <field name="name">Production Request</field>
+        <field name="code">production.request</field>
+        <field name="prefix">PR/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
 </odoo>

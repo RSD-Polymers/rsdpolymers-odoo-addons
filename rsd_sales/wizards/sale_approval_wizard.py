@@ -11,7 +11,7 @@ class SaleOrderApprovalWizard(models.TransientModel):
         string="Sales Manager",
         required=True,
         domain=lambda self: [
-            ('groups_id', 'in', self.env.ref('__export__.res_groups_222_4190eb7c').id)
+            ('groups_id', 'in', self.env.ref('rsd_sales.group_sale_approver').id)
         ]
     )
 

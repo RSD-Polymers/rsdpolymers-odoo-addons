@@ -2,3 +2,7 @@ from . import mrp_production
 from . import lot_label_layout
 from . import rm_issue
 from . import rm_issue_line
+from . import sale_order
+from . import production_request
+from . import production_request_accept_wizard
+from . import production_request_plan_wizard
