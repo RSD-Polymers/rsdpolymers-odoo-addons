@@ -4,7 +4,7 @@
         <field name="name">production.request.list</field>
         <field name="model">production.request</field>
         <field name="arch" type="xml">
-            <list multi="1"
+            <list
                   decoration-warning="state == 'requested'"
                   decoration-info="state == 'accepted'"
                   decoration-success="state == 'done'">
