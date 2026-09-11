@@ -43,7 +43,7 @@
                             string="Issue RM"
                             type="object"
                             class="btn-success"
-                            invisible="state != 'requested' or availability_state != 'available'"/>
+                            invisible="state != 'requested' or not internal_transfer_ref or internal_transfer_ref.state != 'done'"/>
 
                     <button name="action_print_rm_slip"
                             string="RM Issue Slip"
