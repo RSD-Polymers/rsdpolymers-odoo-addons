@@ -20,6 +20,7 @@
     </record>
 
     <record id="view_rm_issue_form" model="ir.ui.view">
+        <field name="can_issue_material" invisible="1"/>
         <field name="name">rm.issue.form</field>
         <field name="model">rm.issue</field>
         <field name="arch" type="xml">
@@ -43,7 +44,7 @@
                             string="Issue RM"
                             type="object"
                             class="btn-success"
-                            invisible="state != 'requested' or not internal_transfer_ref or internal_transfer_ref.state != 'done'"/>
+                            invisible="not can_issue_material"/>
 
                     <button name="action_print_rm_slip"
                             string="RM Issue Slip"
