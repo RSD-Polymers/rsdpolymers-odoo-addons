@@ -7,7 +7,7 @@
         <field name="inherit_id" ref="product.product_category_form_view"/>
         <field name="arch" type="xml">
 
-            <!-- Place under LOGISTICS (clean & logical) -->
+            
             <xpath expr="//group[@name='logistics']" position="inside">
                 <field name="is_packaging_category"/>
             </xpath>

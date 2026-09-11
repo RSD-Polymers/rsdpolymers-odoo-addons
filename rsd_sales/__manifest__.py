@@ -13,10 +13,8 @@
     'data': [
         'security/security.xml',
         'security/ir.model.access.csv',
-        'views/create_mo_wizard_action.xml',
         'reports/sale_order_report.xml',
         'reports/report_custom_sales_invoice.xml',
-        'views/create_mo_wizard_view.xml',
         'views/sale_order_views.xml',
         'views/mrp_production_view.xml',
         'views/product_views.xml',

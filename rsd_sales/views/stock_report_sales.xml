@@ -1,6 +1,6 @@
 <odoo>
 
-    <!-- Sales restricted stock report action -->
+    
     <record id="action_product_stock_view_sales" model="ir.actions.act_window">
         <field name="name">Stock</field>
         <field name="res_model">product.product</field>
@@ -23,7 +23,7 @@
     </record>
 
 
-    <!-- Menu visible only to sales groups -->
+    
     <menuitem
         id="menu_product_stock_sales"
         name="Stock (FG)"

@@ -16,15 +16,6 @@ class MrpProduction(models.Model):
 
     # Add a Many2one field to link a Manufacturing Order back to its Sales Order
     origin_sale_id = fields.Many2one('sale.order', string='Sales Order', help='The sales order that originated this manufacturing order.')
-    production_request_type = fields.Selection(
-        selection=[
-            ('min_inventory', 'Minimum Inventory Level'),
-            ('trial', 'Trial for Process Development'),
-            ('order', 'Customer Order'),
-        ],
-        string="Type Of Production Request",
-        help="Type of production request from the sales department."
-    )
     is_packing_order = fields.Boolean(
         string="Is Packing Order",
         default=False,

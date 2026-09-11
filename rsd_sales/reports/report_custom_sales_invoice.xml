@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- New Report Action -->
+    
     <record id="action_custom_invoice_pdf" model="ir.actions.report">
         <field name="name">Custom Sales Invoice</field>
         <field name="model">account.move</field>
@@ -13,7 +13,7 @@
         <field name="print_report_name">'Invoice - %s' % (object.name)</field>
     </record>
 
-    <!-- Override normal invoice -->
+    
     <template id="report_custom_sales_invoice">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
@@ -25,17 +25,17 @@
     <template id="standard_sales_invoice_layout">
         <t t-set="o" t-value="o"/>
 
-        <!-- Define partner variables based on the invoice object (account.move) -->
+        
         <t t-set="shipping_partner" t-value="o.partner_shipping_id or o.partner_id"/>
         <t t-set="billing_partner" t-value="o.partner_id"/>
 
-        <!-- Attempt to find related SO for origin/ref fields, use invoice fields as fallback -->
+        
         <t t-set="so" t-value="o.invoice_line_ids.sale_line_ids.order_id or None"/>
         <t t-if="so and len(so) &gt; 1">
             <t t-set="so" t-value="so[0]"/>
         </t>
 
-        <!-- Use invoice lines that represent taxes (where tax_line_id is set) for accurate report totals -->
+        
         <t t-set="tax_lines" t-value="o.line_ids.filtered(lambda l: l.tax_line_id)"/>
 
         <t t-call="web.external_layout">
@@ -56,7 +56,7 @@
             <div class="page" style="font-size:12px; font-family: DejaVu Sans, sans-serif;">
                 <div class="oe_structure"/>
 
-                <!-- Tax Invoice Title and QR Code -->
+                
                 <div class="row">
                     <div class="col-8 text-center">
                         <h4 class="mb-0">Tax Invoice
@@ -72,7 +72,7 @@
                     </div>
                 </div>
 
-                <!-- IRN / Ack Details -->
+                
                 <div class="row mb-2" style="font-size: 14px;">
                     <div class="col-12 p-1 text-left">
                         <div>IRN:
@@ -92,7 +92,7 @@
                     </div>
                 </div>
 
-                <!-- NEW HEADER TABLE (Table 1) - STYLING FOR UNIFORM BORDERS -->
+                
                 <table style="width:100%; border-collapse:collapse; border:1px solid black; page-break-inside: avoid !important; font-size: 14px;">
                     <tbody>
 
@@ -339,9 +339,9 @@
                         </tr>
 
                     </tbody>
-                </table>                <!-- END NEW HEADER TABLE -->
+                </table>                
 
-                <!-- Line Item Table (Table 2) - BORDERS MAINTAINED -->
+                
                 <table class="w-100"
                        style="font-size: 14px; border-collapse: collapse; border-top: none; border-left: 1px solid black; border-right: 1px solid black; border-bottom: 1px solid black;">
                     <thead>
@@ -360,14 +360,14 @@
                         <t t-set="current_sl_no" t-value="1"/>
                         <t t-set="total_untaxed_amount" t-value="0.0"/>
 
-                        <!-- Filter to exclude tax lines (l.tax_line_id is True) from the main loop. -->
+                        
                         <t t-foreach="o.invoice_line_ids.filtered(lambda l: not l.tax_line_id)" t-as="line">
 
                             <t t-if="line.display_type == 'product' or not line.display_type">
 
                                 <t t-set="total_untaxed_amount" t-value="total_untaxed_amount + line.price_subtotal"/>
 
-                                <!-- PRODUCT LINE ROW - Only these lines get a Sl No. and increment the counter -->
+                                
                                 <tr>
                                     <td class="text-center align-top"
                                         style="border-right: 1px solid black; padding: 5px;">
@@ -387,7 +387,7 @@
                                                 </span>
                                             </t>
                                         </t>
-                                        <!-- **ADJUSTMENT: Ensure Packaging is visible when product exists** -->
+                                        
                                         <t t-if="line.product_id and line.product_id.packaging_ids">
                                             <div style="margin-top: 2px;">
                                                 <small>PACKING-
@@ -398,7 +398,7 @@
                                     </td>
                                     <td class="text-center align-top"
                                         style="border-right: 1px solid black; padding: 5px;">
-                                        <!-- Only display HSN if product_id exists -->
+                                        
                                         <t t-if="line.product_id">
                                             <span t-field="line.product_id.l10n_in_hsn_code"/>
                                         </t>
@@ -427,18 +427,18 @@
 
                             </t>
 
-                            <!--                            <t t-if="line.display_type == 'line_note'">-->
-                            <!--                                &lt;!&ndash; NOTE LINE ROW - No Sl No, no counter increment. Adds a top border for separation. &ndash;&gt;-->
-                            <!--                                <tr>-->
-                            <!--                                    <td colspan="7" class="text-left font-italic"-->
-                            <!--                                        style="padding: 5px; border-top: 1px solid black;">-->
-                            <!--                                        <span t-field="line.name"/>-->
-                            <!--                                    </td>-->
-                            <!--                                </tr>-->
-                            <!--                            </t>-->
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
 
                             <t t-if="line.display_type == 'line_section'">
-                                <!-- SECTION LINE ROW - No Sl No, no counter increment. Adds a top border for separation. -->
+                                
                                 <tr>
                                     <td colspan="7" class="text-center font-weight-bold"
                                         style="padding: 5px; border-top: 1px solid black;">
@@ -449,26 +449,26 @@
 
                         </t>
 
-                        <!-- TAX BREAKDOWN ROWS (AGGREGATED) - Rendered only if taxes exist -->
+                        
                         <t t-if="tax_lines">
-                            <!-- Use the actual tax lines from the invoice object for aggregated totals -->
+                            
                             <t t-foreach="tax_lines" t-as="tax_line">
                                 <tr>
-                                    <!-- Col 1: Sl No (Empty) -->
+                                    
                                     <td class="text-center align-middle"
                                         style="border-right: 1px solid black; padding: 5px;"></td>
-                                    <!-- Col 2: Description (Tax Name) -->
+                                    
                                     <td colspan="4" class="align-middle"
                                         style="border-right: 1px solid black; padding: 5px;">
                                         <span class="font-weight-bold" style="float: right;" t-field="tax_line.name"/>
                                     </td>
-                                    <!-- Col 6: per (Empty) -->
+                                    
                                     <td class="text-right align-middle"
                                         style="border-right: 1px solid black; padding: 5px;"></td>
-                                    <!-- Col 7: Amount (Tax Amount) -->
+                                    
                                     <td class="text-right align-middle"
                                         style="padding: 5px; text-align: right !important;">
-                                        <!-- Display the tax amount (amount_currency is often used for reports) -->
+                                        
                                         <span t-esc="o.currency_id.round(abs(tax_line.amount_currency))"
                                               t-options="{&quot;widget&quot;:&quot;monetary&quot;, &quot;display_currency&quot;: o.currency_id}"/>
                                     </td>
@@ -477,48 +477,47 @@
                         </t>
 
 
-                        <!-- ROUND OFF Row - Logic Adjusted for Odoo display -->
-                        <!-- Recalculate round off difference based on Odoo's final total minus subtotals and tax line amounts -->
+                        
+                        
                         <t t-set="total_subtotals_and_taxes"
                            t-value="sum(line.price_subtotal for line in o.invoice_line_ids.filtered(lambda l: not l.tax_line_id)) + sum(tax_line.amount_currency for tax_line in tax_lines)"/>
                         <t t-set="round_off_display" t-value="o.amount_total - total_subtotals_and_taxes"/>
 
-                        <!-- Use o.amount_total directly for the final amount, as it's the official total -->
+                        
                         <t t-set="amount_total_display" t-value="o.amount_total"/>
 
                         <t t-if="abs(round_off_display) &gt; 0.001">
                         </t>
 
-                        <!-- TOTAL Amount Row -->
+                        
                         <t t-set="total_qty"
                            t-value="sum(line.quantity for line in o.invoice_line_ids.filtered(lambda l: not l.display_type or l.display_type == 'product'))"/>
                         <tr class="font-weight-bold">
-                            <!-- Col 1: Sl No (Empty) -->
+                            
                             <td class="text-center"
                                 style="border-right: 1px solid black; padding: 5px; border-top: 1px solid black;"></td>
-                            <!-- Col 2: Description of Goods (Total Label) -->
+                            
                             <td class="text-right"
                                 style="border-right: 1px solid black; padding: 5px; border-top: 1px solid black;">
                                 <strong>Total</strong>
                             </td>
-                            <!-- Col 3: HSN (Empty) -->
+                            
                             <td class="text-right"
                                 style="border-right: 1px solid black; padding: 5px; border-top: 1px solid black;"></td>
-                            <!-- Col 4: Quantity (Total Quantity) -->
+                            
                             <td class="text-right"
                                 style="border-right: 1px solid black; padding: 5px; border-top: 1px solid black; text-align: right !important;">
-                                <!--   Removed as said by RSD
-                                <t t-if="total_qty">-->
-                                <!--<span t-esc="total_qty" t-options='{"widget": "float", "precision": 3}'/>-->
-                                <!--</t>-->
+                                
+                                
+                                
                             </td>
-                            <!-- Col 5: Rate (Empty) -->
+                            
                             <td class="text-right"
                                 style="border-right: 1px solid black; padding: 5px; border-top: 1px solid black;"></td>
-                            <!-- Col 6: per (Empty) -->
+                            
                             <td class="text-right"
                                 style="border-right: 1px solid black; padding: 5px; border-top: 1px solid black;"></td>
-                            <!-- Col 7: Amount (Total Amount) - Using amount_total_display (which is o.amount_total) -->
+                            
                             <td class="text-right"
                                 style="padding: 5px; border-top: 1px solid black; text-align: right !important;">
                                 <span t-esc="amount_total_display"
@@ -528,28 +527,26 @@
                     </tbody>
                 </table>
 
-                <!-- Footer Section: Amount in Words, Declaration, and Signatory (Using div for better positioning control) -->
+                
                 <t t-set="total_tax_amount" t-value="o.amount_tax"/>
 
-                <!-- Row 2: HSN Summary (Full Width) -->
-                <!-- HSN Summary and Footer Section -->
-                <!-- Applying robust layout using floats and explicit widths to fix potential layout issues in QWeb PDF rendering.
-                     Tax calculations are now done within QWeb using line.price_subtotal and line.tax_ids rates,
-                     as computed fields like tax_line_ids and price_tax are not available. -->
+                
+                
+                
 
-                <!-- Outer container for the entire footer structure (Amount in Words, HSN Summary, Declaration) -->
-                <!-- 1. Amount in Words & E.&O.E. Section (Top Border) -->
+                
+                
                 <div style="width: 100%; clear: both; padding: 0;">
                     <table class="table table-sm w-100"
                            style="table-layout: fixed; border-collapse: collapse; border: 1px solid black; margin-bottom: 0;">
                         <tr>
-                            <!-- Single TD spans the entire width to hold both sections and the border -->
+                            
                             <td class="p-2" style="width: 100%; vertical-align: top;">
 
-                                <!-- Left Side: Amount Chargeable in Words (50% width, floating left) -->
+                                
                                 <div style="width: 50%; float: left;">
                                     <div class="font-weight-bold">Amount Chargeable (in words)</div>
-                                    <!-- REDUCED FONT SIZE HERE TO COMPACT SPACE for long strings -->
+                                    
                                     <div style="font-size: 12px; font-weight: normal;">
                                         <strong>Indian Rupees</strong>
                                         <t t-if="o.currency_id">
@@ -566,19 +563,19 @@
                                     </div>
                                 </div>
 
-                                <!-- Right Side: E. & O.E. (50% width, floating right, content aligned right) -->
+                                
                                 <div style="width: 50%; float: right; text-align: right;">
                                     <div class="small font-weight-bold">E. &amp; O.E.</div>
                                 </div>
 
-                                <!-- Clear float to ensure the TD wraps around the floated divs -->
+                                
                                 <div style="clear: both;"/>
                             </td>
                         </tr>
                     </table>
                 </div>
 
-                <!-- ================= HSN SUMMARY + FOOTER (SINGLE BLOCK) ================= -->
+                
 
                 <t t-set="company_bank"
                    t-value="o.company_id.partner_id.bank_ids.filtered(
@@ -588,7 +585,7 @@
                 <table class="table table-sm w-100"
                        style="table-layout: fixed;border-collapse: collapse;border-left: 1px solid black;border-right: 1px solid black;border-bottom: 1px solid black;margin-top: 0;">
 
-                    <!-- ================== HSN HEADER ================== -->
+                    
                     <thead>
                         <tr style="background-color:#f0f0f0;">
                             <th class="p-1 text-center" style="width:10%; border-right:1px solid black;">HSN/SAC</th>
@@ -658,7 +655,7 @@
                             </tr>
                         </t>
 
-                        <!-- TOTAL -->
+                        
                         <tr class="font-weight-bold" style="border-top:1px solid black;">
                             <td class="text-center" style="border-right:1px solid black;">Total</td>
                             <td class="p-1" style="border-right:1px solid black; text-align:right !important;">
@@ -674,7 +671,7 @@
                             </td>
                         </tr>
 
-                        <!-- TAX IN WORDS -->
+                        
                         <tr>
                             <td colspan="9" style="border-top:1px solid black; padding:4px;">
                                 <b>Tax Amount (in words):</b>
@@ -684,7 +681,7 @@
                     </tbody>
                     <tbody style="page-break-inside: avoid; break-inside: avoid;">
 
-                        <!-- BANK + SIGN -->
+                        
                         <tr>
                             <td colspan="5" style="border-right:1px solid black; padding:4px;">
                                 <b>Company’s Bank Details</b>
@@ -715,7 +712,7 @@
                             </td>
                         </tr>
 
-                        <!-- DECLARATION -->
+                        
                         <tr>
                             <td colspan="9" style="border-top:1px solid black; padding:4px;">
                                 <b>Declaration:</b>
@@ -724,7 +721,7 @@
                             </td>
                         </tr>
 
-                        <!-- FOOT NOTE -->
+                        
                         <tr>
                             <td colspan="9" style="text-align:center; font-size:11px;">
                                 *This is a Computer Generated Invoice
@@ -733,9 +730,9 @@
 
                     </tbody>
                 </table>
-                <!-- ================================================================ -->
+                
                 <div class="oe_structure"/>
             </div>
-        </t> <!-- End of t t-call="web.external_layout" -->
-    </template> <!-- End of standard_sales_invoice_layout -->
-</odoo> <!-- End of XML document -->
+        </t> 
+    </template> 
+</odoo> 

@@ -25,13 +25,19 @@
         <field name="arch" type="xml">
             <form string="RM Issue">
 
-                <!-- HEADER -->
+                
                 <header>
                     <button name="action_check_availability"
                             string="Check RM Availability"
                             type="object"
                             class="btn-secondary"
                             invisible="state != 'requested'"/>
+
+                    <button name="action_cancel"
+                            string="Cancel"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="state in ('issued','cancelled')"/>
 
                     <button name="action_issue_material"
                             string="Issue RM"
@@ -47,12 +53,12 @@
 
                     <field name="state"
                            widget="statusbar"
-                           statusbar_visible="draft,requested,issued"/>
+                           statusbar_visible="draft,requested,issued,cancelled"/>
                 </header>
 
                 <sheet>
 
-                    <!-- TITLE -->
+                    
                     <div class="oe_title">
                         <h1>
                             <field name="name" readonly="1"/>
@@ -67,13 +73,19 @@
                         <group>
                             <field name="requested_by" readonly="1"/>
                             <field name="issued_by" readonly="1"/>
-                            <field name="internal_transfer_ref" readonly="1"/>
+                            <field name="internal_transfer_ref"
+                                   readonly="1"
+                                   groups="base.group_user,!stock.group_stock_manager,!base.group_system"/>
+                            <field name="internal_transfer_ref"
+                                   groups="stock.group_stock_manager,base.group_system"
+                                   readonly="state != 'requested'"
+                                   options="{'no_create': True}"/>
                             <field name="availability_state" readonly="1"/>
                             <field name="availability_note" readonly="1"/>
                         </group>
                     </group>
 
-                    <!-- LINES -->
+                    
                     <notebook>
                         <page string="Lines">
 

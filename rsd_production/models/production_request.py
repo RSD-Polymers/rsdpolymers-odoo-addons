@@ -13,6 +13,7 @@ class ProductionRequest(models.Model):
     name = fields.Char(string='Request No.', default='New', readonly=True, copy=False)
     sale_id = fields.Many2one('sale.order', string='Sales Order', required=True, readonly=True, index=True)
     sale_line_id = fields.Many2one('sale.order.line', string='Sales Order Line', required=True, readonly=True)
+    picking_id = fields.Many2one('stock.picking', string='Delivery Order', readonly=True, index=True)
     product_id = fields.Many2one('product.product', string='Finished Product', required=True, readonly=True)
     product_uom_id = fields.Many2one('uom.uom', string='Unit of Measure', required=True, readonly=True)
 
@@ -79,17 +80,6 @@ class ProductionRequest(models.Model):
             raise UserError(_('Only Production users can accept a Production Request.'))
         return True
 
-    def action_open_sale_order(self):
-        self.ensure_one()
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Sales Order'),
-            'res_model': 'sale.order',
-            'view_mode': 'form',
-            'res_id': self.sale_id.id,
-            'target': 'current',
-        }
-
     def action_open_mo(self):
         self.ensure_one()
         if not self.mo_id:
@@ -154,6 +144,7 @@ class ProductionRequest(models.Model):
         return True
 
     def action_plan_selected(self):
+        self._check_production_user()
         requests = self.filtered(lambda r: r.state == 'accepted' and not r.mo_id)
         if not requests:
             raise UserError(_('Select at least one Accepted Production Request without an MO.'))
@@ -165,6 +156,13 @@ class ProductionRequest(models.Model):
             'target': 'new',
             'context': {'default_request_ids': [Command.set(requests.ids)]},
         }
+
+    def unlink(self):
+        for request in self:
+            raise UserError(
+                _('Production Requests cannot be deleted. Use Cancel to close the request.')
+            )
+        return super().unlink()
 
     def action_cancel(self):
         for request in self:

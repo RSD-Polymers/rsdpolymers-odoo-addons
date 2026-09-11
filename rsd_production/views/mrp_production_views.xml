@@ -68,7 +68,7 @@
                         string="Print FG Packed Label"
                         class="oe_highlight"
                         invisible="not is_packing_order"/>
-                <!-- RM Issue Request (Production) -->
+                
                 <button name="action_request_rm_issue"
                         string="RM Issue Request"
                         type="object"
@@ -80,12 +80,10 @@
                 <attribute name="string">Checked By</attribute>
             </xpath>
 
-            <xpath expr="//field[@name='production_request_type']" position="after">
-                <field name="tare_weight"
-                       invisible="not is_packing_order"/>
-            </xpath>
 
             <xpath expr="//page[@name='miscellaneous']//field[@name='log_note']" position="after">
+                <field name="tare_weight"
+                       invisible="not is_packing_order"/>
                 <field name="packed_by"
                        options="{'no_create': True}"
                        invisible="not is_packing_order"/>

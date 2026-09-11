@@ -6,10 +6,9 @@
             <field name="model">mrp.production</field>
             <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
             <field name="arch" type="xml">
-                <!-- Add the origin_sale_id field to the form view -->
+                
                 <xpath expr="//field[@name='user_id']" position="after">
                     <field name="origin_sale_id" readonly="1"/>
-                    <field name="production_request_type"/>
                 </xpath>
                 <xpath expr="//div[@name='bom_div']" position="after">
                     <field name="is_packing_order"/>

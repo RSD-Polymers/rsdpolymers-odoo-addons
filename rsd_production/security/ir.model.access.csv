@@ -1,8 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_rm_issue,access_rm_issue,model_rm_issue,base.group_user,1,1,1,1
+access_rm_issue,access_rm_issue,model_rm_issue,base.group_user,1,1,1,0
 access_rm_issue_line,access_rm_issue_line,model_rm_issue_line,base.group_user,1,1,1,1
 access_production_request,access_production_request,model_production_request,mrp.group_mrp_user,1,1,1,1
-access_production_request_stock_user,access_production_request_stock_user,model_production_request,stock.group_stock_user,1,0,0,0
+access_production_request_stock_user,access_production_request_stock_user,model_production_request,stock.group_stock_user,1,0,1,0
 access_production_request_line,access_production_request_plan_wizard_line,model_production_request_plan_wizard_line,mrp.group_mrp_user,1,1,1,1
 access_production_request_wizard,access_production_request_plan_wizard,model_production_request_plan_wizard,mrp.group_mrp_user,1,1,1,1
 access_production_request_accept_wizard,access_production_request_accept_wizard,model_production_request_accept_wizard,mrp.group_mrp_user,1,1,1,1

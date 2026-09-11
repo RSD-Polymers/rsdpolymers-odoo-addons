@@ -13,9 +13,9 @@
 
         <t t-set="o" t-value="o"/>
 
-        <!-- get SO data -->
+        
         <t t-set="so" t-value="o.sale_id or env['sale.order'].search([('name','=',o.origin)], limit=1)"/>
-        <!-- get INVOICE data -->
+        
         <t t-set="invoice"
            t-value="env['account.move'].search([
         ('move_type','=','out_invoice'),
@@ -23,7 +23,7 @@
             ], limit=1)"/>
         <t t-set="currency"
            t-value="(invoice and invoice.currency_id) or o.company_id.currency_id"/>
-        <!-- Partners -->
+        
         <t t-set="shipping_partner" t-value="o.partner_id"/>
         <t t-set="billing_partner"
            t-value="so.partner_invoice_id if so and so.partner_invoice_id else o.partner_id"/>
@@ -31,7 +31,7 @@
         <t t-call="web.external_layout">
             <div class="page" style="font-size:12px; font-family: DejaVu Sans, sans-serif;">
 
-                <!-- TITLE -->
+                
                 <div style="text-align:center; font-size:16px; font-weight:bold; margin-bottom:6px;">
                     DELIVERY CHALLAN
                 </div>
@@ -40,13 +40,13 @@
                 <table style="width:100%; border:1px solid black; border-collapse:collapse;">
                     <tr>
 
-                        <!-- LEFT BLOCK -->
-                        <!-- LEFT BLOCK WITH INTERNAL LINES -->
+                        
+                        
                         <td style="width:55%; border-right:1px solid black; padding:0; vertical-align:top;">
 
                             <table style="width:100%; border-collapse:collapse;">
 
-                                <!-- COMPANY -->
+                                
                                 <tr>
                                     <td style="padding:8px; border-bottom:1px solid black;">
 
@@ -74,7 +74,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- CONSIGNEE -->
+                                
                                 <tr>
                                     <td style="padding:8px; border-bottom:1px solid black;">
 
@@ -101,7 +101,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- BUYER -->
+                                
                                 <tr>
                                     <td style="padding:8px;">
 
@@ -132,12 +132,12 @@
 
                         </td>
 
-                        <!-- RIGHT GRID -->
+                        
                         <td style="width:45%; padding:0; vertical-align:top;">
 
                             <table style="width:100%; border-collapse:collapse;">
 
-                                <!-- ROW 1 -->
+                                
                                 <tr>
                                     <td style="border-bottom:1px solid black; padding:6px;">
                                         Delivery Note No.
@@ -154,7 +154,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- ROW 2 (NEW eWAY ROW) -->
+                                
                                 <tr>
                                     <td style="border-bottom:1px solid black; padding:6px;">
                                         e-Way Bill No.
@@ -170,7 +170,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- ROW 3 -->
+                                
                                 <tr>
                                     <td style="border-bottom:1px solid black; padding:6px;">
                                         Buyer's Order No.
@@ -184,7 +184,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- ROW 4 -->
+                                
                                 <tr>
                                     <td style="padding:6px;">
                                         Reference No. &amp; Date
@@ -197,7 +197,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- ROW 5 -->
+                                
                                 <tr>
                                     <td style="padding:6px;">
                                         Dispatch Doc No.
@@ -210,7 +210,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- ROW 6 -->
+                                
                                 <tr>
                                     <td style="border-bottom:1px solid black; padding:6px;">
                                         Dispatched through
@@ -229,7 +229,7 @@
                                     </td>
                                 </tr>
 
-                                <!-- FINAL ROW -->
+                                
                                 <tr>
                                     <td colspan="2" style="padding:6px;">
                                         Terms of Delivery
@@ -243,10 +243,10 @@
                     </tr>
                 </table>
 
-                <!-- ================= ITEMS TABLE ================= -->
+                
                 <table style="width:100%; border-left:1px solid black; border-right:1px solid black; border-bottom:1px solid black; border-collapse:collapse; margin-top:0;">
 
-                    <!-- HEADER -->
+                    
                     <tr style="border-top:1px solid black;">
                         <th style="width:4%; border-right:1px solid black; padding:5px;">Sl</th>
                         <th style="width:36%; border-right:1px solid black; padding:5px;">Description of Goods</th>
@@ -260,7 +260,7 @@
                     <t t-set="sl" t-value="1"/>
                     <t t-set="total" t-value="0"/>
 
-                    <!-- ALL SALE ORDER LINES -->
+                    
                     <t t-if="so">
                         <t t-foreach="so.order_line" t-as="line">
 
@@ -271,12 +271,12 @@
                                         <t t-esc="sl"/>
                                     </td>
 
-                                    <!-- DESCRIPTION -->
+                                    
                                     <td style="border-right:1px solid black; padding:5px; vertical-align:top;">
 
                                         <b t-esc="line.product_id.display_name"/>
 
-                                        <!-- LOTS FROM DELIVERY -->
+                                        
                                         <t t-set="moves"
                                            t-value="o.move_ids_without_package.filtered(lambda m: m.sale_line_id.id == line.id)"/>
 
@@ -290,7 +290,7 @@
                                             </div>
                                         </t>
 
-                                        <!-- PACKAGING -->
+                                        
                                         <t t-if="line.product_packaging_id">
                                             <div>
                                                 Packing :
@@ -299,12 +299,12 @@
                                         </t>
 
                                     </td>
-                                    <!-- HSN -->
+                                    
                                     <td style="border-right:1px solid black; padding:5px;">
                                         <t t-esc="line.product_id.l10n_in_hsn_code or ''"/>
                                     </td>
 
-                                    <!-- QTY from delivery -->
+                                    
                                     <td style="border-right:1px solid black; padding:5px; text-align:right;">
 
                                         <t t-set="moves"
@@ -321,17 +321,17 @@
                                         <t t-esc="line.product_uom.name"/>
                                     </td>
 
-                                    <!-- RATE -->
+                                    
                                     <td style="border-right:1px solid black; padding:5px; text-align:right;">
                                         <t t-esc="line.price_unit"/>
                                     </td>
 
-                                    <!-- UOM -->
+                                    
                                     <td style="border-right:1px solid black; padding:5px; text-align:right;">
                                         <t t-esc="line.product_uom.name"/>
                                     </td>
 
-                                    <!-- AMOUNT -->
+                                    
                                     <td style="text-align:right; padding:5px;">
                                         <t t-set="line_amt" t-value="qty * line.price_unit"/>
                                         <t t-esc="line_amt"/>
@@ -345,7 +345,7 @@
                         </t>
                     </t>
 
-                    <!-- SERVICE LINES FROM SO -->
+                    
                     <t t-if="so">
                         <t t-foreach="so.order_line.filtered(lambda l: l.product_id.type=='service')" t-as="sline">
                             <tr>
@@ -366,45 +366,45 @@
                         </t>
                     </t>
 
-                    <!-- TAX FROM SALE ORDER -->
+                    
                     <t t-if="so">
                         <t t-set="tax_total" t-value="0"/>
 
                         <t t-foreach="so.order_line.filtered(lambda l: not l.display_type and l.product_id.type!='service')"
                            t-as="l">
 
-                            <!-- calculate tax -->
+                            
                             <t t-set="line_tax" t-value="0"/>
                             <t t-foreach="l.tax_id" t-as="tx">
                                 <t t-set="line_tax" t-value="line_tax + (l.price_subtotal * tx.amount / 100)"/>
                             </t>
 
-                            <!-- TAX ROW -->
+                            
                             <t t-if="line_tax">
                                 <tr>
-                                    <!-- Sl column -->
+                                    
                                     <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
 
-                                    <!-- Description -->
+                                    
                                     <td style="border-right:1px solid black; border-bottom:1px solid black; padding:5px 8px;">
                                         <t t-esc="', '.join(l.tax_id.mapped('name'))"/>
                                     </td>
 
-                                    <!-- HSN -->
+                                    
                                     <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
 
-                                    <!-- Qty -->
+                                    
                                     <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
 
-                                    <!-- Rate % -->
+                                    
                                     <td style="border-right:1px solid black; border-bottom:1px solid black; text-align:right; padding:5px;">
                                         <t t-esc="l.tax_id[0].amount if l.tax_id else 0"/>%
                                     </td>
 
-                                    <!-- UOM -->
+                                    
                                     <td style="border-right:1px solid black; border-bottom:1px solid black;"></td>
 
-                                    <!-- Amount -->
+                                    
                                     <td style="border-bottom:1px solid black; text-align:right; padding:5px;">
                                         <t t-esc="line_tax"/>
                                     </td>
@@ -415,11 +415,11 @@
 
                         </t>
 
-                        <!-- add tax to grand total -->
+                        
                         <t t-set="total" t-value="total + tax_total"/>
                     </t>
 
-                    <!-- TOTAL -->
+                    
                     <tr style="border-top:1px solid black; font-weight:bold;">
                         <td></td>
 
@@ -444,7 +444,7 @@
                         <tr>
                             <td class="p-2" style="width: 100%; vertical-align: top; padding:6px 8px;">
 
-                                <!-- TOP LINE -->
+                                
                                 <div style="width:100%; overflow:hidden;">
                                     <div style="float:left;">
                                         Amount Chargeable (in words)
@@ -455,7 +455,7 @@
                                     </div>
                                 </div>
 
-                                <!-- TEXT -->
+                                
                                 <div style="clear:both; font-size:12px; margin-top:2px;">
                                     <strong>Indian Rupees</strong>
                                     <strong>
@@ -469,24 +469,24 @@
                     </table>
                 </div>
 
-                <!-- ================= HSN SUMMARY FROM SO ================= -->
+                
                 <t t-if="so">
 
                     <t t-set="hsn_map" t-value="{}"/>
 
-                    <!-- loop all lines -->
+                    
                     <t t-foreach="so.order_line.filtered(lambda l: not l.display_type)" t-as="l">
 
                         <t t-set="hsn" t-value="l.product_id.l10n_in_hsn_code or '000000'"/>
                         <t t-set="taxable" t-value="l.price_subtotal"/>
 
-                        <!-- tax calc -->
+                        
                         <t t-set="tax_amt" t-value="0"/>
                         <t t-foreach="l.tax_id" t-as="tx">
                             <t t-set="tax_amt" t-value="tax_amt + (taxable * tx.amount / 100)"/>
                         </t>
 
-                        <!-- existing row? -->
+                        
                         <t t-if="hsn in hsn_map">
                             <t t-set="old" t-value="hsn_map[hsn]"/>
                             <t t-set="hsn_map"
@@ -499,7 +499,7 @@
                })"/>
                         </t>
 
-                        <!-- new row -->
+                        
                         <t t-if="hsn not in hsn_map">
                             <t t-set="hsn_map"
                                t-value="dict(hsn_map, **{
@@ -513,7 +513,7 @@
 
                     </t>
 
-                    <!-- table -->
+                    
                     <table style="width:100%; border:1px solid black; border-collapse:collapse;">
                         <tr style="background:#f0f0f0;">
                             <th style="padding:6px;">HSN/SAC</th>
@@ -553,7 +553,7 @@
                             <t t-set="tot_tax" t-value="tot_tax + row[1]['tax']"/>
                         </t>
 
-                        <!-- TOTAL -->
+                        
                         <tr style="font-weight:bold; border-top:1px solid black;">
                             <td style="text-align:right; padding:6px;">Total</td>
                             <td style="padding:6px; text-align:right;">
@@ -568,7 +568,7 @@
                             </td>
                         </tr>
 
-                        <!-- TAX WORDS -->
+                        
                         <tr>
                             <td colspan="5" style="padding:6px;">
                                 Tax Amount (in words):

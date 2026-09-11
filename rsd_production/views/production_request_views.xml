@@ -47,7 +47,7 @@
                             string="Cancel"
                             invisible="state in ('done','cancelled')"/>
                     <field name="state" widget="statusbar"
-                           statusbar_visible="requested,accepted,planned,in_production,done"/>
+                           statusbar_visible="requested,accepted,planned,in_production,done,cancelled"/>
                 </header>
                 <sheet>
                     <group>
@@ -55,6 +55,7 @@
                             <field name="name" readonly="1"/>
                             <field name="sale_id" readonly="1"/>
                             <field name="sale_line_id" readonly="1"/>
+                            <field name="picking_id" readonly="1"/>
                             <field name="product_id" readonly="1"/>
                             <field name="product_uom_id" readonly="1"/>
                         </group>

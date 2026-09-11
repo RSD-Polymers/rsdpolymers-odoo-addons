@@ -36,6 +36,7 @@ class ProductionRequestPlanWizard(models.TransientModel):
 
     def action_create_mo(self):
         self.ensure_one()
+        self.env['production.request']._check_production_user()
         requests = self.request_ids.filtered(lambda r: r.state == 'accepted' and not r.mo_id)
         if not requests:
             raise UserError(_('There are no Accepted Production Requests left to plan.'))
@@ -68,8 +69,8 @@ class ProductionRequestPlanWizard(models.TransientModel):
                 'product_uom_id': line.uom_id.id,
                 'bom_id': bom.id,
                 'origin': ', '.join(product_requests.mapped('sale_id.name')),
+                'origin_sale_id': product_requests[0].sale_id.id if product_requests[0].sale_id else False,
                 'company_id': line.company_id.id,
-                'production_request_type': 'order',
             })
             mo.production_request_ids = [Command.set(product_requests.ids)]
             product_requests.write({

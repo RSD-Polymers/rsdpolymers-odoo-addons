@@ -26,6 +26,7 @@
         "views/production_request_list_inherit.xml",
         "views/production_request_mo_view.xml",
         "views/rm_issue_views.xml",
+        "views/stock_picking_views.xml",
     ],
     "installable": True,
     'application': False,

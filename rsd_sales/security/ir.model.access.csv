@@ -1,6 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_sale_create_mo_wizard_admin,sale.create.mo.wizard,model_sale_create_mo_wizard,base.group_system,1,1,1,0
-access_sale_create_mo_wizard_mrp_manager,sale.create.mo.wizard,model_sale_create_mo_wizard,mrp.group_mrp_manager,1,1,1,0
 access_sale_order_approval_wizard,sale.order.approval.wizard,model_sale_order_approval_wizard,base.group_user,1,1,1,1
 access_sale_order_reject_wizard,sale.order.reject.wizard,model_sale_order_reject_wizard,base.group_user,1,1,1,1
 access_sale_order_checker_wizard,sale.order.checker.wizard,model_sale_order_checker_wizard,base.group_user,1,1,1,1
