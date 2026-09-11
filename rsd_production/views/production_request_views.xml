@@ -78,9 +78,6 @@
                         <field name="company_id" readonly="1"/>
                     </group>
                     <div class="oe_button_box" name="button_box">
-                        <button name="action_open_sale_order" type="object" class="oe_stat_button" icon="fa-shopping-cart">
-                            <span>Sales Order</span>
-                        </button>
                         <button name="action_open_mo" type="object" class="oe_stat_button" icon="fa-industry" invisible="not mo_id">
                             <span>Manufacturing Order</span>
                         </button>
