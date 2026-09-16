@@ -36,6 +36,11 @@ class RmIssue(models.Model):
         ('unavailable', 'Unavailable'),
     ], default='not_checked', compute='_compute_availability_state', store=False)
 
+    can_issue_material = fields.Boolean(
+        string='Can Issue RM',
+        compute='_compute_can_issue_material',
+    )
+
     availability_note = fields.Char(compute='_compute_availability_state', store=False)
 
     @api.depends(
@@ -46,6 +51,15 @@ class RmIssue(models.Model):
         'internal_transfer_ref.move_ids.move_line_ids.quantity',
         'internal_transfer_ref.move_ids.move_line_ids.product_uom_id',
     )
+
+    @api.depends('state', 'internal_transfer_ref', 'internal_transfer_ref.state')
+    def _compute_can_issue_material(self):
+        for rm in self:
+            rm.can_issue_material = (
+                    rm.state == 'requested'
+                    and bool(rm.internal_transfer_ref)
+                    and rm.internal_transfer_ref.state == 'done'
+            )
     def _compute_availability_state(self):
         for rm in self:
             if not rm.line_ids:

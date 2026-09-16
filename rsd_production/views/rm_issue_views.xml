@@ -28,6 +28,7 @@
 
                 
                 <header>
+                    <field name="can_issue_material" invisible="1"/>
                     <button name="action_check_availability"
                             string="Check RM Availability"
                             type="object"
