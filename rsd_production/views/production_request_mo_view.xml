@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <xpath expr="//div[contains(@class, 'oe_button_box')]" position="inside">
                 <button class="oe_stat_button" type="object" name="action_view_production_requests" icon="fa-cubes" invisible="production_request_count == 0">
-                    <field name="production_request_count" widget="statinfo" string="Production Requests"/>
+                    <field name="production_request_count" widget="statinfo" string="Production Request"/>
                 </button>
             </xpath>
         </field>

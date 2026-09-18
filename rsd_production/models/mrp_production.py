@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import logging
 
@@ -38,33 +38,70 @@ class MrpProduction(models.Model):
     rm_issue_id = fields.Many2one('rm.issue', string="RM Issue")
     rm_issue_count = fields.Integer(compute="_compute_rm_issue_count")
 
-    production_request_ids = fields.One2many(
-        'production.request', 'mo_id', string="Production Requests",
-        help="Finished Goods production requests fulfilled by this Manufacturing Order.",
+    production_request_line_id = fields.Many2one(
+        'production.request.line',
+        string='Production Request Line',
+        readonly=False,
+        index=True,
+        copy=False,
+        help='The single Production Request Line this Manufacturing Order or Packing Instruction executes.',
+    )
+    production_request_id = fields.Many2one(
+        related='production_request_line_id.request_id',
+        string='Production Request',
+        readonly=True,
+        store=True,
+        index=True,
     )
     production_request_count = fields.Integer(compute="_compute_production_request_count")
 
+    @api.constrains('production_request_line_id', 'product_id', 'product_qty', 'product_uom_id')
+    def _check_production_request_link(self):
+        for mo in self:
+            line = mo.production_request_line_id
+            if not line:
+                continue
+            if mo.product_id != line.product_id:
+                raise UserError(_(
+                    'The Manufacturing Order/Packing Instruction product must match Production Request Line %s.'
+                ) % line.product_id.display_name)
+            if mo.product_uom_id.category_id != line.product_uom_id.category_id:
+                raise UserError(_('The Production Request Line and Manufacturing Order must use compatible Units of Measure.'))
+            if mo.state == 'cancel':
+                continue
+            allocated = line.allocated_qty
+            if allocated > line.shortage_qty + 1e-6:
+                raise UserError(_(
+                    'Execution quantity for %s exceeds the Production Request shortage by %s %s.'
+                ) % (line.product_id.display_name, allocated - line.shortage_qty, line.product_uom_id.name))
+
     def write(self, vals):
+        if 'production_request_line_id' in vals:
+            for mo in self:
+                if mo.production_request_line_id.id != vals.get('production_request_line_id') and mo.state != 'draft':
+                    raise UserError(_('The Production Request Line cannot be changed after the document is confirmed.'))
+        old_lines = self.mapped('production_request_line_id')
         res = super().write(vals)
-        if 'state' in vals:
-            requests = self.mapped('production_request_ids')
-            if requests:
-                requests._sync_state_from_mo()
+        affected_lines = old_lines | self.mapped('production_request_line_id')
+        if affected_lines:
+            affected_lines.mapped('request_id')._sync_state_from_lines()
         return res
 
     def _compute_production_request_count(self):
         for mo in self:
-            mo.production_request_count = len(mo.production_request_ids)
+            mo.production_request_count = 1 if mo.production_request_line_id else 0
 
     def action_view_production_requests(self):
         self.ensure_one()
+        if not self.production_request_line_id:
+            raise UserError(_('No Production Request Line is linked to this document.'))
         return {
             'type': 'ir.actions.act_window',
-            'name': 'Production Requests',
+            'name': 'Production Request',
             'res_model': 'production.request',
-            'view_mode': 'list,form',
-            'domain': [('id', 'in', self.production_request_ids.ids)],
-            'context': {'create': False},
+            'view_mode': 'form',
+            'res_id': self.production_request_line_id.request_id.id,
+            'target': 'current',
         }
 
     def _compute_rm_issue_count(self):

@@ -6,6 +6,13 @@
         <field name="inherit_id" ref="rsd_sales.mrp_production_form_view_inherit_rsd_sales"/>
         <field name="arch" type="xml">
 
+            <xpath expr="//field[@name='origin_sale_id']" position="after">
+                <field name="production_request_line_id"
+                       domain="[('request_id.state', 'in', ['accepted', 'in_production']), ('product_id', '=', product_id)]"
+                       options="{'no_create': True}"
+                       />
+            </xpath>
+
             <xpath expr="//field[@name='state']" position="after">
                 <field name="rm_issue_status"
                        widget="statusbar"
@@ -68,7 +75,7 @@
                         string="Print FG Packed Label"
                         class="oe_highlight"
                         invisible="not is_packing_order"/>
-                
+
                 <button name="action_request_rm_issue"
                         string="RM Issue Request"
                         type="object"
@@ -101,6 +108,13 @@
         <field name="model">mrp.production</field>
         <field name="inherit_id" ref="mrp.mrp_production_tree_view"/>
         <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='origin_sale_id']" position="after">
+                <field name="production_request_line_id"
+                       domain="[('request_id.state', 'in', ['accepted', 'in_production']), ('product_id', '=', product_id)]"
+                       options="{'no_create': True}"
+                       />
+            </xpath>
 
             <xpath expr="//field[@name='state']" position="after">
                 <field name="rm_issue_status"

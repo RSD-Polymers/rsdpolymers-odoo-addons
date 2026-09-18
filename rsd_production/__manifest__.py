@@ -23,7 +23,6 @@
         "views/mrp_production_views.xml",
         "views/sale_order_views.xml",
         "views/production_request_views.xml",
-        "views/production_request_list_inherit.xml",
         "views/production_request_mo_view.xml",
         "views/rm_issue_views.xml",
         "views/stock_picking_views.xml",

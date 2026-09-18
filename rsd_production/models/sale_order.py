@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
 
 
 class SaleOrder(models.Model):
     """
-    This extension exists in rsd_production (not rsd_sales) on purpose:
-    the `production.request` model lives in this module, and rsd_production
-    already depends on rsd_sales. Putting this logic here avoids a circular
-    module dependency (rsd_sales would otherwise need to depend on
-    rsd_production, which depends on rsd_sales).
+    Production Request visibility on Sales Orders.
+
+    Production Requests are created from Delivery Orders. This model only
+    exposes the resulting requests back to Sales for reference.
     """
     _inherit = 'sale.order'
 
@@ -35,7 +33,6 @@ class SaleOrder(models.Model):
         help='Earliest Material Ready Date among active Production Requests. '
              'The source of truth remains production.request.material_ready_date.',
     )
-
 
     @api.depends('production_request_ids.state', 'production_request_ids.material_ready_date')
     def _compute_material_ready_date(self):

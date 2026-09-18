@@ -126,8 +126,29 @@ class StockPicking(models.Model):
             raise UserError(_('Packed - FG location was not found.'))
 
         ProductionRequest = self.env['production.request']
-        created = ProductionRequest.browse()
+        ProductionRequestLine = self.env['production.request.line']
 
+        # A Delivery Order has one active Production Request. This keeps all
+        # shortage products together on one requirement document. If an older
+        # request exists without the new line structure, do not mix the old
+        # record into the new structure; a new request will be created.
+        request = ProductionRequest.search([
+            ('picking_id', '=', self.id),
+            ('state', 'not in', ('done', 'cancelled')),
+        ], order='id desc', limit=1)
+        if request and not request.line_ids:
+            request = ProductionRequest.browse()
+        if not request:
+            sale_move = self.move_ids.filtered(lambda m: m.sale_line_id)[:1]
+            if not sale_move or not sale_move.sale_line_id.order_id:
+                raise UserError(_('This Delivery Order is not linked to a Sales Order.'))
+            request = ProductionRequest.create({
+                'sale_id': sale_move.sale_line_id.order_id.id,
+                'picking_id': self.id,
+                'company_id': self.company_id.id,
+            })
+
+        created_lines = ProductionRequestLine.browse()
         moves = self.move_ids.filtered(
             lambda m:
                 m.state not in ('done', 'cancel')
@@ -137,11 +158,10 @@ class StockPicking(models.Model):
         )
 
         for move in moves:
-            existing = ProductionRequest.search([
-                ('sale_line_id', '=', move.sale_line_id.id),
-                ('state', 'not in', ('done', 'cancelled')),
-            ], limit=1)
-            if existing:
+            existing_line = request.line_ids.filtered(
+                lambda line: line.sale_line_id == move.sale_line_id
+            )[:1]
+            if existing_line:
                 continue
 
             required_qty = move.product_uom_qty
@@ -159,34 +179,38 @@ class StockPicking(models.Model):
             if shortage_qty <= 0:
                 continue
 
-            created |= ProductionRequest.create({
-                'sale_id': move.sale_line_id.order_id.id,
+            created_lines |= ProductionRequestLine.create({
+                'request_id': request.id,
                 'sale_line_id': move.sale_line_id.id,
-                'picking_id': self.id,
                 'product_id': move.product_id.id,
                 'product_uom_id': move.product_uom.id,
                 'required_qty': required_qty,
                 'fg_available_qty': available_qty,
                 'shortage_qty': shortage_qty,
-                'state': 'requested',
             })
 
-        if not created:
+        if not created_lines:
+            # Do not leave an empty header behind. It can happen when the
+            # button is clicked after all shortages have already been covered.
+            if not request.line_ids:
+                request.unlink()
             raise UserError(
                 _('There are no new Packed - FG shortages requiring a Production Request.')
             )
 
         self.message_post(
-            body=_('%d Production Request(s) created for Packed - FG shortage.') % len(created)
+            body=_(
+                'Production Request <b>%s</b> created/updated with %d shortage line(s).'
+            ) % (request.name, len(created_lines))
         )
 
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Production Requests'),
+            'name': _('Production Request'),
             'res_model': 'production.request',
-            'view_mode': 'list,form',
-            'domain': [('id', 'in', created.ids)],
-            'context': {'create': False},
+            'view_mode': 'form',
+            'res_id': request.id,
+            'target': 'current',
         }
 
     def action_view_production_requests(self):
