@@ -6,4 +6,3 @@ from .models import rm_issue_line
 from .models import sale_order
 from .models import production_request
 from .models import production_request_accept_wizard
-from .models import production_request_plan_wizard
