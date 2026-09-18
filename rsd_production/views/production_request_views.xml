@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <delete id="view_production_request_list_plan" model="ir.ui.view"/>
     <record id="view_production_request_list" model="ir.ui.view">
         <field name="name">production.request.list</field>
         <field name="model">production.request</field>
