@@ -9,6 +9,11 @@
         <field name="comment">Users who can approve/reject Sales Orders and confirm orders coming out of the readiness workflow.</field>
     </record>
 
+    <record id="group_sale_option_reader" model="res.groups">
+        <field name="name">Sale Options Reader</field>
+        <field name="category_id" ref="base.module_category_sales_management"/>
+    </record>
+
     
     <record id="group_rd_user" model="res.groups">
         <field name="name">R&amp;D User</field>

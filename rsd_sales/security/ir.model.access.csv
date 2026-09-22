@@ -3,3 +3,4 @@ access_sale_order_approval_wizard,sale.order.approval.wizard,model_sale_order_ap
 access_sale_order_reject_wizard,sale.order.reject.wizard,model_sale_order_reject_wizard,base.group_user,1,1,1,1
 access_sale_order_checker_wizard,sale.order.checker.wizard,model_sale_order_checker_wizard,base.group_user,1,1,1,1
 access_sale_order_checker_reject_wizard,sale.order.checker.reject.wizard,model_sale_order_checker_reject_wizard,base.group_user,1,1,1,1
+access_sale_order_option_reader,sale.order.option.reader,model_sale_order_option,rsd_sales.group_sale_option_reader,1,0,0,0
