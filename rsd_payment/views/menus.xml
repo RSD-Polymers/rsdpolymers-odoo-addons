@@ -2,6 +2,7 @@
 <odoo>
     <menuitem id="menu_rsd_payment_root"
               name="Payment Desk"
+              web_icon="rsd_payment,static/description/icon.png"
               groups="rsd_payment.group_rsd_payment_accounts,rsd_payment.group_rsd_payment_finance,rsd_payment.group_rsd_payment_hod"
               sequence="80"/>
 
