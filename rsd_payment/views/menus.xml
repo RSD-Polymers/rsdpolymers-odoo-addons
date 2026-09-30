@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <menuitem id="menu_rsd_payment_root"
-              name="RSD Payment"
-              groups="rsd_payment.group_rsd_payment_accounts,rsd_payment.group_rsd_payment_finance"
+              name="Payment Desk"
+              groups="rsd_payment.group_rsd_payment_accounts,rsd_payment.group_rsd_payment_finance,rsd_payment.group_rsd_payment_hod"
               sequence="80"/>
 
     <menuitem id="menu_rsd_payment"
               name="Payments"
               parent="menu_rsd_payment_root"
               action="action_rsd_payment"
-              groups="rsd_payment.group_rsd_payment_accounts,rsd_payment.group_rsd_payment_finance"
+              groups="rsd_payment.group_rsd_payment_accounts,rsd_payment.group_rsd_payment_finance,rsd_payment.group_rsd_payment_hod"
               sequence="10"/>
 </odoo>

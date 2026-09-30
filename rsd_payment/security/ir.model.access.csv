@@ -1,5 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_rsd_payment_accounts,rsd.payment accounts,model_rsd_payment,rsd_payment.group_rsd_payment_accounts,1,0,0,0
-access_rsd_payment_finance,rsd.payment finance,model_rsd_payment,rsd_payment.group_rsd_payment_finance,1,1,1,0
+access_rsd_payment_accounts,payment.desk accounts,model_rsd_payment,rsd_payment.group_rsd_payment_accounts,1,0,0,0
+access_rsd_payment_finance,payment.desk finance,model_rsd_payment,rsd_payment.group_rsd_payment_finance,1,1,1,0
+access_rsd_payment_hod,payment.desk hod,model_rsd_payment,rsd_payment.group_rsd_payment_hod,1,1,0,0
 access_rsd_finance_approval_wizard,rsd.finance.approval.wizard finance,model_rsd_finance_approval_wizard,rsd_payment.group_rsd_payment_finance,1,1,1,1
 access_rsd_finance_send_back_wizard,rsd.finance.send.back.wizard finance,model_rsd_finance_send_back_wizard,rsd_payment.group_rsd_payment_finance,1,1,1,1

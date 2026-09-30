@@ -29,7 +29,7 @@
             </xpath>
 
             <xpath expr="//sheet" position="inside">
-                <group string="RSD Payment"
+                <group string="Payment Desk"
                        invisible="rsd_payment_state == False"
                        groups="rsd_payment.group_rsd_payment_accounts,rsd_payment.group_rsd_payment_finance">
                     <field name="rsd_payment_state" readonly="1"/>
@@ -38,6 +38,8 @@
                     <field name="rsd_send_back_reason"
                            readonly="1"
                            invisible="not rsd_send_back_reason"/>
+                    <field name="rsd_accounts_involved" invisible="1"/>
+                    <field name="rsd_finance_involved" invisible="1"/>
                 </group>
             </xpath>
 

@@ -1,9 +1,10 @@
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
 
 
 class RsdPayment(models.Model):
     _name = 'rsd.payment'
-    _description = 'RSD Payment'
+    _description = 'Payment Desk'
     _order = 'id desc'
 
     name = fields.Char(
@@ -54,12 +55,16 @@ class RsdPayment(models.Model):
         copy=False,
     )
     state = fields.Selection(
-        [('approved', 'Approved')],
-        string='Status',
-        default='approved',
+        [
+            ('unpaid', 'Unpaid'),
+            ('paid', 'Paid'),
+        ],
+        string='Payment Status',
+        default='unpaid',
         required=True,
         readonly=True,
         copy=False,
+        tracking=True,
     )
     created_by = fields.Many2one(
         'res.users',
@@ -84,4 +89,14 @@ class RsdPayment(models.Model):
                 vals['name'] = (
                     self.env['ir.sequence'].next_by_code('rsd.payment') or 'New'
                 )
+            vals.setdefault('state', 'unpaid')
         return super().create(vals_list)
+
+    def action_mark_paid(self):
+        if not self.env.user.has_group('rsd_payment.group_rsd_payment_hod'):
+            raise UserError(_('Only HOD users can mark a Payment Desk request as Paid.'))
+        for payment in self:
+            if payment.state == 'paid':
+                continue
+            payment.write({'state': 'paid'})
+        return True
