@@ -20,9 +20,11 @@ journal entry, payment, or reconciliation flow.
         'security/security.xml',
         'security/ir.model.access.csv',
         'data/sequence.xml',
-        'views/expense_sheet_views.xml',
+
         'views/finance_approval_views.xml',
         'views/finance_send_back_views.xml',
+        'views/expense_sheet_views.xml',
+
         'views/rsd_payment_views.xml',
         'views/menus.xml',
     ],
