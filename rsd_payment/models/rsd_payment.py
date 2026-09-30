@@ -49,7 +49,7 @@ class RsdPayment(models.Model):
         copy=False,
     )
     payment_date = fields.Date(
-        string='Payment Date',
+        string='Payment On or Before',
         required=True,
         readonly=True,
         copy=False,
