@@ -55,6 +55,16 @@ class ProductionRequestLine(models.Model):
         help="Quantity that Production needs to manufacture/pack.",
     )
 
+    product_packaging_qty = fields.Float(
+        string="Packaging Qty",
+        digits="Product Unit of Measure",
+    )
+
+    product_packaging_id = fields.Many2one(
+        "product.packaging",
+        string="Packaging",
+    )
+
     company_id = fields.Many2one(
         related="request_id.company_id",
         string="Company",
