@@ -187,6 +187,8 @@ class StockPicking(models.Model):
                 'required_qty': required_qty,
                 'fg_available_qty': available_qty,
                 'shortage_qty': shortage_qty,
+                'product_packaging_id': move.sale_line_id.product_packaging_id.id,
+                'product_packaging_qty': move.sale_line_id.product_packaging_qty,
             })
 
         if not created_lines:
@@ -218,8 +220,8 @@ class StockPicking(models.Model):
         return {
             'type': 'ir.actions.act_window',
             'name': _('Production Requests'),
-            'res_model': 'production.request.line',
-            'view_mode': 'list',
+            'res_model': 'production.request',
+            'view_mode': 'list,form',
             'domain': [('picking_id', '=', self.id)],
             'context': {'create': False},
         }

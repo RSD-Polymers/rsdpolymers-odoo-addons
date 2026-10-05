@@ -1,20 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <delete id="view_production_request_list_plan" model="ir.ui.view"/>
-    <!-- Product-wise Production Request list. One row is shown per product/request line. -->
-    <record id="view_production_request_line_list" model="ir.ui.view">
+    <!-- Product-wise Production Request list. One row per Production Request line. -->
+    <record id="view_production_request_list" model="ir.ui.view">
         <field name="name">production.request.line.list</field>
         <field name="model">production.request.line</field>
         <field name="arch" type="xml">
-            <list
-                create="0"
-                edit="0"
-                delete="0"
-                decoration-warning="state == 'requested'"
-                decoration-info="state == 'accepted'"
-                decoration-success="state == 'done'"
-                decoration-muted="state == 'cancelled'">
-                <field name="request_name" string="Request No."/>
+            <list create="0" edit="0" delete="0"
+                  decoration-warning="state == 'requested'"
+                  decoration-info="state == 'accepted'"
+                  decoration-success="state == 'done'"
+                  decoration-muted="state == 'cancelled'">
+                <!-- Many2one is intentionally used here so the Request No. is clickable and opens the original Production Request form. -->
+                <field name="request_id" string="Request No."/>
                 <field name="sale_id" string="Sales Order"/>
                 <field name="picking_id" string="Delivery Order"/>
                 <field name="product_id" string="Product"/>
@@ -25,6 +23,10 @@
                 <field name="state" string="Status"/>
                 <field name="requested_by" string="Requested By"/>
                 <field name="accepted_by" string="Accepted By"/>
+                <button name="action_open_production_request"
+                        type="object"
+                        string="Open"
+                        icon="fa-external-link"/>
             </list>
         </field>
     </record>
@@ -88,6 +90,8 @@
                                     <field name="product_id"/>
                                     <field name="product_uom_id" string="UoM"/>
                                     <field name="required_qty"/>
+                                    <field name="product_packaging_qty" string="Packaging Qty"/>
+                                    <field name="product_packaging_id" string="Packaging"/>
                                     <field name="fg_available_qty"/>
                                     <field name="shortage_qty"/>
                                     <field name="mo_qty"/>
@@ -156,7 +160,7 @@
         <field name="name">Production Requests</field>
         <field name="res_model">production.request.line</field>
         <field name="view_mode">list</field>
-        <field name="view_id" ref="view_production_request_line_list"/>
+        <field name="view_id" ref="view_production_request_list"/>
         <field name="context">{'create': False}</field>
     </record>
 

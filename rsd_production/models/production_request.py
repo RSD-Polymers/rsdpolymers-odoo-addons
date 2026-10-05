@@ -211,13 +211,6 @@ class ProductionRequestLine(models.Model):
         index=True,
     )
 
-    request_name = fields.Char(
-        string='Request No.',
-        related='request_id.name',
-        store=True,
-        readonly=True,
-        index=True,
-    )
     sale_id = fields.Many2one(
         'sale.order',
         string='Sales Order',
@@ -260,18 +253,6 @@ class ProductionRequestLine(models.Model):
         store=True,
         readonly=True,
     )
-    sale_line_id = fields.Many2one(
-        'sale.order.line',
-        string='Sales Order Line',
-        readonly=True,
-        index=True,
-    )
-    product_id = fields.Many2one(
-        'product.product', string='Finished Product', required=True, readonly=True,
-    )
-    product_uom_id = fields.Many2one(
-        'uom.uom', string='Unit of Measure', required=True, readonly=True,
-    )
 
     product_packaging_id = fields.Many2one(
         'product.packaging',
@@ -285,6 +266,29 @@ class ProductionRequestLine(models.Model):
         related='sale_line_id.product_packaging_qty',
         store=True,
         readonly=True,
+    )
+
+    def action_open_production_request(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Production Request'),
+            'res_model': 'production.request',
+            'view_mode': 'form',
+            'res_id': self.request_id.id,
+            'target': 'current',
+        }
+    sale_line_id = fields.Many2one(
+        'sale.order.line',
+        string='Sales Order Line',
+        readonly=True,
+        index=True,
+    )
+    product_id = fields.Many2one(
+        'product.product', string='Finished Product', required=True, readonly=True,
+    )
+    product_uom_id = fields.Many2one(
+        'uom.uom', string='Unit of Measure', required=True, readonly=True,
     )
 
     required_qty = fields.Float(string='SO Required Qty', required=True, readonly=True)
