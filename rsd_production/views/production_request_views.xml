@@ -11,8 +11,8 @@
                   decoration-info="state == 'accepted'"
                   decoration-success="state == 'done'"
                   decoration-muted="state == 'cancelled'">
-                <!-- request_id is a Many2one; Odoo opens the related Production Request when clicked. -->
-                <field name="request_id" string="Request No."/>
+                <!-- Use the Many2one relation so clicking Request No. opens the original Production Request form. -->
+                <field name="request_id" string="Request No." widget="many2one" options="{'no_open': False, 'no_create': True, 'no_create_edit': True}"/>
                 <field name="sale_id" string="Sales Order"/>
                 <field name="picking_id" string="Delivery Order"/>
                 <field name="product_id" string="Product"/>
