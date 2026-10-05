@@ -12,7 +12,7 @@
                   decoration-success="state == 'done'"
                   decoration-muted="state == 'cancelled'">
                 <!-- request_id is a Many2one; Odoo opens the related Production Request when clicked. -->
-                
+                <field name="request_id" string="Request No."/>
                 <field name="sale_id" string="Sales Order"/>
                 <field name="picking_id" string="Delivery Order"/>
                 <field name="product_id" string="Product"/>
