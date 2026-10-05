@@ -288,8 +288,8 @@
 
     <menuitem id="menu_production_request"
               name="Production Requests"
-              parent="menu_production_root"
+              parent="stock.menu_stock_transfers"
               action="action_production_request"
-              sequence="10"/>
+              sequence="40"/>
 
 </odoo>
