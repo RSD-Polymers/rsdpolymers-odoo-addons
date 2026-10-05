@@ -15,6 +15,10 @@
 
                 <field name="request_id"
                        string="Request No."/>
+                <button name="action_open_production_request"
+                        type="object"
+                        string="Open Request"
+                        class="btn-link"/>
 
                 <field name="sale_id"
                        string="Sales Order"/>

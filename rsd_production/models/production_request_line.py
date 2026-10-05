@@ -18,6 +18,11 @@ class ProductionRequestLine(models.Model):
         ondelete="cascade",
         index=True,
     )
+    request_name = fields.Char(
+        string='Request No.',
+        related='request_id.name',
+        readonly=True,
+    )
 
     sale_line_id = fields.Many2one(
         "sale.order.line",
