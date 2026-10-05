@@ -218,8 +218,8 @@ class StockPicking(models.Model):
         return {
             'type': 'ir.actions.act_window',
             'name': _('Production Requests'),
-            'res_model': 'production.request',
-            'view_mode': 'list,form',
+            'res_model': 'production.request.line',
+            'view_mode': 'list',
             'domain': [('picking_id', '=', self.id)],
             'context': {'create': False},
         }

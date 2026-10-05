@@ -210,6 +210,56 @@ class ProductionRequestLine(models.Model):
         ondelete='cascade',
         index=True,
     )
+
+    request_name = fields.Char(
+        string='Request No.',
+        related='request_id.name',
+        store=True,
+        readonly=True,
+        index=True,
+    )
+    sale_id = fields.Many2one(
+        'sale.order',
+        string='Sales Order',
+        related='request_id.sale_id',
+        store=True,
+        readonly=True,
+        index=True,
+    )
+    picking_id = fields.Many2one(
+        'stock.picking',
+        string='Delivery Order',
+        related='request_id.picking_id',
+        store=True,
+        readonly=True,
+        index=True,
+    )
+    material_ready_date = fields.Date(
+        string='Material Ready Date',
+        related='request_id.material_ready_date',
+        store=True,
+        readonly=True,
+    )
+    state = fields.Selection(
+        string='Status',
+        related='request_id.state',
+        store=True,
+        readonly=True,
+    )
+    requested_by = fields.Many2one(
+        'res.users',
+        string='Requested By',
+        related='request_id.requested_by',
+        store=True,
+        readonly=True,
+    )
+    accepted_by = fields.Many2one(
+        'res.users',
+        string='Accepted By',
+        related='request_id.accepted_by',
+        store=True,
+        readonly=True,
+    )
     sale_line_id = fields.Many2one(
         'sale.order.line',
         string='Sales Order Line',
@@ -221,6 +271,20 @@ class ProductionRequestLine(models.Model):
     )
     product_uom_id = fields.Many2one(
         'uom.uom', string='Unit of Measure', required=True, readonly=True,
+    )
+
+    product_packaging_id = fields.Many2one(
+        'product.packaging',
+        string='Packaging',
+        related='sale_line_id.product_packaging_id',
+        store=True,
+        readonly=True,
+    )
+    product_packaging_qty = fields.Float(
+        string='Packaging Qty',
+        related='sale_line_id.product_packaging_qty',
+        store=True,
+        readonly=True,
     )
 
     required_qty = fields.Float(string='SO Required Qty', required=True, readonly=True)
