@@ -9,18 +9,36 @@
     <record id="view_production_request_list" model="ir.ui.view">
         <field name="name">production.request.line.list</field>
         <field name="model">production.request.line</field>
+
         <field name="arch" type="xml">
             <list string="Production Requests">
 
-                <field name="request_id" string="Request No."/>
-                <field name="sale_id" string="Sales Order"/>
-                <field name="picking_id" string="Delivery Order"/>
-                <field name="product_id" string="Product"/>
-                <field name="required_qty" string="Required Qty"/>
-                <field name="product_packaging_qty" string="Packaging Qty"/>
-                <field name="product_packaging_id" string="Packaging"/>
-                <field name="material_ready_date" string="Material Ready Date"/>
-                <field name="state" string="Status"/>
+                <field name="request_id"
+                       string="Request No."/>
+
+                <field name="sale_id"
+                       string="Sales Order"/>
+
+                <field name="picking_id"
+                       string="Delivery Order"/>
+
+                <field name="product_id"
+                       string="Product"/>
+
+                <field name="required_qty"
+                       string="Required Qty"/>
+
+                <field name="product_packaging_qty"
+                       string="Packaging Qty"/>
+
+                <field name="product_packaging_id"
+                       string="Packaging"/>
+
+                <field name="material_ready_date"
+                       string="Material Ready Date"/>
+
+                <field name="state"
+                       string="Status"/>
 
             </list>
         </field>
@@ -31,41 +49,38 @@
     <!-- PRODUCTION REQUEST FORM -->
     <!-- ========================================================= -->
 
-    <record id="view_production_request_form" model="ir.ui.view">
+    <record id="view_production_request_form"
+            model="ir.ui.view">
+
         <field name="name">production.request.form</field>
         <field name="model">production.request</field>
+
         <field name="arch" type="xml">
 
             <form string="Production Request">
 
                 <header>
 
-                    <!-- Accept -->
+                    <!-- ACCEPT -->
                     <button name="action_accept"
                             string="Accept"
                             type="object"
                             class="btn-primary"
                             invisible="state != 'requested'"/>
 
-                    <!-- Reject -->
-                    <button name="action_reject"
-                            string="Reject"
+                    <!-- CANCEL -->
+                    <button name="action_cancel"
+                            string="Cancel"
                             type="object"
                             class="btn-secondary"
-                            invisible="state != 'requested'"/>
-
-                    <!-- Execution -->
-                    <button name="action_execution"
-                            string="Execution"
-                            type="object"
-                            class="btn-primary"
-                            invisible="state != 'accepted'"/>
+                            invisible="state in ('done', 'cancelled')"/>
 
                     <field name="state"
                            widget="statusbar"
-                           statusbar_visible="requested,accepted,rejected,execution"/>
+                           statusbar_visible="requested,accepted,in_production,done,cancelled"/>
 
                 </header>
+
 
                 <sheet>
 
@@ -74,6 +89,7 @@
                             <field name="name"/>
                         </h1>
                     </div>
+
 
                     <group>
 
@@ -86,6 +102,7 @@
                         <group>
                             <field name="requested_by"/>
                             <field name="accepted_by"/>
+                            <field name="accepted_date"/>
                         </group>
 
                     </group>
@@ -101,9 +118,10 @@
 
                             <field name="line_ids">
 
-                                <list editable="bottom">
+                                <list>
 
-                                    <field name="product_id"/>
+                                    <field name="product_id"
+                                           string="Product"/>
 
                                     <field name="product_uom_id"
                                            string="UoM"/>
@@ -122,6 +140,18 @@
 
                                     <field name="shortage_qty"
                                            string="Shortage Qty"/>
+
+                                    <field name="mo_qty"
+                                           string="MO Qty"/>
+
+                                    <field name="pi_qty"
+                                           string="PI Qty"/>
+
+                                    <field name="allocated_qty"
+                                           string="Allocated Qty"/>
+
+                                    <field name="remaining_qty"
+                                           string="Remaining Qty"/>
 
                                 </list>
 
@@ -143,16 +173,13 @@
     <!-- ACCEPT PRODUCTION REQUEST WIZARD -->
     <!-- ========================================================= -->
 
-    <record id="view_production_request_accept_wizard" model="ir.ui.view">
+    <record id="view_production_request_accept_wizard"
+            model="ir.ui.view">
 
-        <field name="name">production.request.accept.wizard.form</field>
+        <field name="name">
+            production.request.accept.wizard.form
+        </field>
 
-        <!-- IMPORTANT:
-             Keep this on ONE LINE.
-             The previous multiline value was being passed to Odoo
-             with whitespace and caused:
-             Model not found: production.request.accept.wizard
-        -->
         <field name="model">production.request.accept.wizard</field>
 
         <field name="arch" type="xml">
@@ -161,7 +188,7 @@
 
                 <group>
 
-                    <field name="production_request_id"
+                    <field name="request_id"
                            invisible="1"/>
 
                     <field name="material_ready_date"/>
@@ -170,7 +197,7 @@
 
                 <footer>
 
-                    <button name="action_confirm"
+                    <button name="action_accept"
                             string="Confirm"
                             type="object"
                             class="btn-primary"/>
@@ -184,7 +211,6 @@
             </form>
 
         </field>
-
     </record>
 
 
@@ -195,11 +221,10 @@
     <record id="view_production_request_execution_wizard"
             model="ir.ui.view">
 
-        <field name="name">production.request.execution.wizard.form</field>
+        <field name="name">
+            production.request.execution.wizard.form
+        </field>
 
-        <!-- IMPORTANT:
-             Keep this on ONE LINE.
-        -->
         <field name="model">production.request.execution.wizard</field>
 
         <field name="arch" type="xml">
@@ -208,19 +233,19 @@
 
                 <group>
 
-                    <field name="production_request_id"
+                    <field name="request_line_id"
                            invisible="1"/>
 
-                    <field name="line_id"/>
+                    <field name="execution_type"/>
 
-                    <field name="execution_qty"/>
+                    <field name="quantity"/>
 
                 </group>
 
                 <footer>
 
-                    <button name="action_confirm"
-                            string="Confirm"
+                    <button name="action_create"
+                            string="Create"
                             type="object"
                             class="btn-primary"/>
 
@@ -246,10 +271,7 @@
 
         <field name="name">Production Requests</field>
 
-        <!-- IMPORTANT:
-             Main menu opens production.request.line,
-             therefore the list is product-wise.
-        -->
+        <!-- PRODUCT-WISE LIST -->
         <field name="res_model">production.request.line</field>
 
         <field name="view_mode">list</field>
