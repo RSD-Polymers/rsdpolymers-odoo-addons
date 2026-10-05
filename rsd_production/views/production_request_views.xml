@@ -1,25 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <odoo>
 
-    <!-- Remove old planning list view if it exists -->
-<!--    <delete id="view_production_request_list_plan" model="ir.ui.view"/>-->
-
-
     <!-- ========================================================= -->
-    <!-- PRODUCT-WISE PRODUCTION REQUEST LIST                     -->
+    <!-- PRODUCTION REQUEST LINE - PRODUCT WISE LIST -->
     <!-- ========================================================= -->
 
     <record id="view_production_request_list" model="ir.ui.view">
         <field name="name">production.request.line.list</field>
         <field name="model">production.request.line</field>
         <field name="arch" type="xml">
-            <list create="0"
-                  edit="0"
-                  delete="0"
-                  decoration-warning="state == 'requested'"
-                  decoration-info="state == 'accepted'"
-                  decoration-success="state == 'done'"
-                  decoration-muted="state == 'cancelled'">
+            <list string="Production Requests">
 
                 <field name="request_id" string="Request No."/>
                 <field name="sale_id" string="Sales Order"/>
@@ -37,133 +28,88 @@
 
 
     <!-- ========================================================= -->
-    <!-- PRODUCTION REQUEST FORM                                   -->
+    <!-- PRODUCTION REQUEST FORM -->
     <!-- ========================================================= -->
 
     <record id="view_production_request_form" model="ir.ui.view">
         <field name="name">production.request.form</field>
         <field name="model">production.request</field>
         <field name="arch" type="xml">
-            <form>
+
+            <form string="Production Request">
 
                 <header>
 
+                    <!-- Accept -->
                     <button name="action_accept"
+                            string="Accept"
                             type="object"
-                            string="Accept Request"
-                            class="oe_highlight"
-                            groups="mrp.group_mrp_user,mrp.group_mrp_manager"
+                            class="btn-primary"
                             invisible="state != 'requested'"/>
 
-                    <button name="action_cancel"
+                    <!-- Reject -->
+                    <button name="action_reject"
+                            string="Reject"
                             type="object"
-                            string="Cancel"
-                            invisible="state in ('done','cancelled')"/>
+                            class="btn-secondary"
+                            invisible="state != 'requested'"/>
+
+                    <!-- Execution -->
+                    <button name="action_execution"
+                            string="Execution"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'accepted'"/>
 
                     <field name="state"
                            widget="statusbar"
-                           statusbar_visible="requested,accepted,in_production,done"/>
+                           statusbar_visible="requested,accepted,rejected,execution"/>
 
                 </header>
 
-
                 <sheet>
 
-                    <!-- ================================================= -->
-                    <!-- STAT BUTTONS                                      -->
-                    <!-- ================================================= -->
-
-                    <div class="oe_button_box" name="button_box">
-
-                        <button name="action_view_mos"
-                                type="object"
-                                class="oe_stat_button"
-                                icon="fa-industry"
-                                invisible="mo_count == 0">
-
-                            <field name="mo_count"
-                                   widget="statinfo"
-                                   string="Manufacturing Orders"/>
-
-                        </button>
-
-
-                        <button name="action_view_pis"
-                                type="object"
-                                class="oe_stat_button"
-                                icon="fa-cubes"
-                                invisible="pi_count == 0">
-
-                            <field name="pi_count"
-                                   widget="statinfo"
-                                   string="Packing Instructions"/>
-
-                        </button>
-
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
                     </div>
-
-
-                    <!-- ================================================= -->
-                    <!-- PRODUCTION REQUEST HEADER INFORMATION             -->
-                    <!-- ================================================= -->
 
                     <group>
 
                         <group>
-
-                            <field name="name"
-                                   readonly="1"/>
-
-                            <field name="sale_id"
-                                   readonly="1"/>
-
-                            <field name="picking_id"
-                                   readonly="1"/>
-
+                            <field name="sale_id"/>
+                            <field name="picking_id"/>
+                            <field name="material_ready_date"/>
                         </group>
 
-
                         <group>
-
-                            <field name="material_ready_date"
-                                   readonly="1"/>
-
-                            <field name="requested_by"
-                                   readonly="1"/>
-
-                            <field name="accepted_by"
-                                   readonly="1"/>
-
-                            <field name="accepted_date"
-                                   readonly="1"/>
-
+                            <field name="requested_by"/>
+                            <field name="accepted_by"/>
                         </group>
 
                     </group>
 
 
                     <!-- ================================================= -->
-                    <!-- PRODUCTION LINES                                  -->
+                    <!-- PRODUCTION LINES -->
                     <!-- ================================================= -->
 
                     <notebook>
 
-                        <page string="Production Lines"
-                              name="production_lines">
+                        <page string="Production Lines">
 
-                            <field name="line_ids"
-                                   nolabel="1">
+                            <field name="line_ids">
 
-                                <list create="0"
-                                      delete="0"
-                                      edit="0">
+                                <list editable="bottom">
 
                                     <field name="product_id"/>
 
                                     <field name="product_uom_id"
                                            string="UoM"/>
 
-                                    <field name="required_qty"/>
+                                    <field name="required_qty"
+                                           string="Required Qty"/>
 
                                     <field name="product_packaging_qty"
                                            string="Packaging Qty"/>
@@ -171,14 +117,11 @@
                                     <field name="product_packaging_id"
                                            string="Packaging"/>
 
-                                    <field name="fg_available_qty"/>
+                                    <field name="fg_available_qty"
+                                           string="FG Available Qty"/>
 
-                                    <field name="shortage_qty"/>
-
-                                    <!--
-                                    Create MO and Create PI buttons
-                                    intentionally removed.
-                                    -->
+                                    <field name="shortage_qty"
+                                           string="Shortage Qty"/>
 
                                 </list>
 
@@ -188,41 +131,29 @@
 
                     </notebook>
 
-
-                    <!-- ================================================= -->
-                    <!-- COMPANY                                            -->
-                    <!-- ================================================= -->
-
-                    <group>
-
-                        <field name="company_id"
-                               readonly="1"/>
-
-                    </group>
-
                 </sheet>
 
-
-                <chatter/>
-
             </form>
+
         </field>
     </record>
 
 
     <!-- ========================================================= -->
-    <!-- ACCEPT PRODUCTION REQUEST WIZARD                          -->
+    <!-- ACCEPT PRODUCTION REQUEST WIZARD -->
     <!-- ========================================================= -->
 
     <record id="view_production_request_accept_wizard" model="ir.ui.view">
 
-        <field name="name">
-            production.request.accept.wizard.form
-        </field>
+        <field name="name">production.request.accept.wizard.form</field>
 
-        <field name="model">
-            production.request.accept.wizard
-        </field>
+        <!-- IMPORTANT:
+             Keep this on ONE LINE.
+             The previous multiline value was being passed to Odoo
+             with whitespace and caused:
+             Model not found: production.request.accept.wizard
+        -->
+        <field name="model">production.request.accept.wizard</field>
 
         <field name="arch" type="xml">
 
@@ -230,18 +161,18 @@
 
                 <group>
 
-                    <field name="request_id"/>
+                    <field name="production_request_id"
+                           invisible="1"/>
 
                     <field name="material_ready_date"/>
 
                 </group>
 
-
                 <footer>
 
-                    <button name="action_accept"
+                    <button name="action_confirm"
+                            string="Confirm"
                             type="object"
-                            string="Accept"
                             class="btn-primary"/>
 
                     <button string="Cancel"
@@ -258,40 +189,39 @@
 
 
     <!-- ========================================================= -->
-    <!-- PRODUCTION REQUEST EXECUTION WIZARD                       -->
+    <!-- EXECUTION WIZARD -->
     <!-- ========================================================= -->
 
     <record id="view_production_request_execution_wizard"
             model="ir.ui.view">
 
-        <field name="name">
-            production.request.execution.wizard.form
-        </field>
+        <field name="name">production.request.execution.wizard.form</field>
 
-        <field name="model">
-            production.request.execution.wizard
-        </field>
+        <!-- IMPORTANT:
+             Keep this on ONE LINE.
+        -->
+        <field name="model">production.request.execution.wizard</field>
 
         <field name="arch" type="xml">
 
-            <form string="Create Production Document">
+            <form string="Production Request Execution">
 
                 <group>
 
-                    <field name="request_line_id"/>
+                    <field name="production_request_id"
+                           invisible="1"/>
 
-                    <field name="execution_type"/>
+                    <field name="line_id"/>
 
-                    <field name="quantity"/>
+                    <field name="execution_qty"/>
 
                 </group>
 
-
                 <footer>
 
-                    <button name="action_create"
+                    <button name="action_confirm"
+                            string="Confirm"
                             type="object"
-                            string="Create"
                             class="btn-primary"/>
 
                     <button string="Cancel"
@@ -308,23 +238,21 @@
 
 
     <!-- ========================================================= -->
-    <!-- PRODUCTION REQUEST MENU ACTION                            -->
+    <!-- PRODUCTION REQUEST ACTION -->
     <!-- ========================================================= -->
 
     <record id="action_production_request"
             model="ir.actions.act_window">
 
-        <field name="name">
-            Production Requests
-        </field>
+        <field name="name">Production Requests</field>
 
-        <field name="res_model">
-            production.request.line
-        </field>
+        <!-- IMPORTANT:
+             Main menu opens production.request.line,
+             therefore the list is product-wise.
+        -->
+        <field name="res_model">production.request.line</field>
 
-        <field name="view_mode">
-            list
-        </field>
+        <field name="view_mode">list</field>
 
         <field name="view_id"
                ref="view_production_request_list"/>
@@ -333,14 +261,13 @@
 
 
     <!-- ========================================================= -->
-    <!-- MENU                                                       -->
+    <!-- PRODUCTION REQUEST MENU -->
     <!-- ========================================================= -->
 
     <menuitem id="menu_production_request"
               name="Production Requests"
-              parent="mrp.menu_mrp_manufacturing"
+              parent="menu_production_root"
               action="action_production_request"
-              groups="mrp.group_mrp_user,mrp.group_mrp_manager"
-              sequence="1"/>
+              sequence="10"/>
 
 </odoo>
