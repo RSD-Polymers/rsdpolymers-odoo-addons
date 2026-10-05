@@ -211,14 +211,6 @@ class ProductionRequestLine(models.Model):
         index=True,
     )
 
-    request_name = fields.Char(
-        string='Request No.',
-        related='request_id.name',
-        store=True,
-        readonly=True,
-        index=True,
-    )
-
     sale_id = fields.Many2one(
         'sale.order',
         string='Sales Order',

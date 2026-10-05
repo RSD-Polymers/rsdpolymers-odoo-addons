@@ -11,8 +11,8 @@
                   decoration-info="state == 'accepted'"
                   decoration-success="state == 'done'"
                   decoration-muted="state == 'cancelled'">
-                <!-- Many2one is intentionally used here so the Request No. is clickable and opens the original Production Request form. -->
-                <field name="request_name" string="Request No."/>
+                <!-- Use the Many2one relation so clicking Request No. opens the original Production Request form. -->
+                <field name="request_id" string="Request No."/>
                 <field name="sale_id" string="Sales Order"/>
                 <field name="picking_id" string="Delivery Order"/>
                 <field name="product_id" string="Product"/>
