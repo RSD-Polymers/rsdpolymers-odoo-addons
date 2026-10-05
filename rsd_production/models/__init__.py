@@ -4,6 +4,7 @@ from . import rm_issue
 from . import rm_issue_line
 from . import sale_order
 from . import production_request
+from . import production_request_line
 from . import production_request_accept_wizard
 from . import production_request_execution_wizard
 from . import stock_picking
