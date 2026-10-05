@@ -268,16 +268,6 @@ class ProductionRequestLine(models.Model):
         readonly=True,
     )
 
-    def action_open_production_request(self):
-        self.ensure_one()
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Production Request'),
-            'res_model': 'production.request',
-            'view_mode': 'form',
-            'res_id': self.request_id.id,
-            'target': 'current',
-        }
     sale_line_id = fields.Many2one(
         'sale.order.line',
         string='Sales Order Line',
