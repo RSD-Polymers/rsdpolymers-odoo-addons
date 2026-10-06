@@ -1,7 +1,7 @@
 {
     "name": "RSD Polymer Production",
     'icon': '/rsd_sales/static/description/icon.png',
-    "version": "18.0.1.0",
+    "version": "18.0.1.1",
     "summary": "Production Module Customization",
     'description': """
         This is RSD Polymer Customization module for Sales.
@@ -20,13 +20,23 @@
         "reports/print_label_template.xml",
         "reports/rm_issue_report.xml",
         "reports/rm_issue_template.xml",
+        "reports/production_request_report.xml",
+        "reports/production_request_template.xml",
         "views/mrp_production_views.xml",
         "views/sale_order_views.xml",
         "views/production_request_views.xml",
         "views/production_request_mo_view.xml",
         "views/rm_issue_views.xml",
         "views/stock_picking_views.xml",
+        "views/production_dashboard_views.xml",
     ],
+    "assets": {
+        "web.assets_backend": [
+            "rsd_production/static/src/js/production_dashboard.js",
+            "rsd_production/static/src/xml/production_dashboard.xml",
+            "rsd_production/static/src/js/production_dashboard.scss",
+        ],
+    },
     "installable": True,
     'application': False,
     'license': 'LGPL-3',

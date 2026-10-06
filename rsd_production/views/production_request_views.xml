@@ -11,13 +11,13 @@
         <field name="model">production.request.line</field>
 
         <field name="arch" type="xml">
-            <list string="Production Requests">
+            <list string="Production Requests" create="0">
 
                 <field name="request_id"
                        string="Request No."/>
                 <button name="action_open_production_request"
                         type="object"
-                        string="Open Request"
+                        string="View"
                         class="btn-link"/>
 
                 <field name="sale_id"
@@ -292,8 +292,8 @@
 
     <menuitem id="menu_production_request"
               name="Production Requests"
-              parent="stock.menu_stock_transfers"
+              parent="mrp.menu_mrp_manufacturing"
               action="action_production_request"
-              sequence="40"/>
+              sequence="0"/>
 
 </odoo>

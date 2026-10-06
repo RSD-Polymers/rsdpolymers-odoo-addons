@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Manufacturing > Dashboard -->
+    <record id="action_production_dashboard" model="ir.actions.client">
+        <field name="name">Dashboard</field>
+        <field name="tag">rsd_production_dashboard</field>
+    </record>
+
+    <menuitem id="menu_production_dashboard"
+              name="Dashboard"
+              parent="mrp.menu_mrp_root"
+              action="action_production_dashboard"
+              sequence="0"/>
+
+</odoo>

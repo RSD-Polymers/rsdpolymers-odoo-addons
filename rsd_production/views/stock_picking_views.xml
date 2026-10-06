@@ -10,7 +10,7 @@
                         string="Create Production Request"
                         class="oe_highlight"
                         groups="stock.group_stock_user"
-                        invisible="picking_type_code != 'outgoing' or state in ('done','cancel') or not is_store_user or not has_production_shortage"/>
+                        invisible="picking_type_code != 'outgoing' or state in ('done','cancel') or not is_store_user"/>
             </xpath>
             <xpath expr="//div[contains(@class, 'oe_button_box')]" position="inside">
                 <button class="oe_stat_button"

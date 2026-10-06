@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="production_request_template">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="o">
+                <div class="page">
+                    <h2 style="text-align:center;">PRODUCTION REQUEST</h2>
+
+                    <table class="table table-bordered" style="margin-top:20px;">
+                        <tr>
+                            <td><strong>Request No.</strong></td>
+                            <td><t t-esc="o.name"/></td>
+                            <td><strong>Status</strong></td>
+                            <td><t t-esc="dict(o._fields['state'].selection).get(o.state)"/></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sales Order</strong></td>
+                            <td><t t-esc="o.sale_id.display_name or ''"/></td>
+                            <td><strong>Delivery Order</strong></td>
+                            <td><t t-esc="o.picking_id.display_name or ''"/></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Material Ready Date</strong></td>
+                            <td><t t-esc="o.material_ready_date or ''"/></td>
+                            <td><strong>Requested By</strong></td>
+                            <td><t t-esc="o.requested_by.name or ''"/></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Accepted By</strong></td>
+                            <td><t t-esc="o.accepted_by.name or ''"/></td>
+                            <td><strong>Accepted On</strong></td>
+                            <td><t t-esc="o.accepted_date or ''"/></td>
+                        </tr>
+                    </table>
+
+                    <h4 style="margin-top:25px;">Product Details</h4>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Sr. No.</th>
+                                <th>Product</th>
+                                <th>UoM</th>
+                                <th>Required Qty</th>
+                                <th>Packaging Qty</th>
+                                <th>Packaging</th>
+                                <th>FG Available</th>
+                                <th>Shortage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-set="i" t-value="1"/>
+                            <t t-foreach="o.line_ids" t-as="line">
+                                <tr>
+                                    <td><t t-esc="i"/></td>
+                                    <td><t t-esc="line.product_id.display_name"/></td>
+                                    <td><t t-esc="line.product_uom_id.name"/></td>
+                                    <td><t t-esc="line.required_qty"/></td>
+                                    <td><t t-esc="line.product_packaging_qty"/></td>
+                                    <td><t t-esc="line.product_packaging_id.name or ''"/></td>
+                                    <td><t t-esc="line.fg_available_qty"/></td>
+                                    <td><t t-esc="line.shortage_qty"/></td>
+                                </tr>
+                                <t t-set="i" t-value="i + 1"/>
+                            </t>
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top:70px;">
+                        <table style="width:100%; text-align:center;">
+                            <tr>
+                                <td style="width:33%;"><strong>Requested By</strong><br/><br/><t t-esc="o.requested_by.name or ''"/></td>
+                                <td style="width:33%;"><strong>Accepted By</strong><br/><br/><t t-esc="o.accepted_by.name or ''"/></td>
+                                <td style="width:33%;"><strong>Production</strong><br/><br/>________________</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

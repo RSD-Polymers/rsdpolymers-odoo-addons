@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="rsd_production.ProductionDashboard">
+        <div class="o_rsd_production_dashboard container-fluid py-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 class="mb-1">Manufacturing Dashboard</h2>
+                    <div class="text-muted">Production Request overview</div>
+                </div>
+                <button type="button" class="btn btn-secondary" t-on-click="refresh">
+                    <i class="fa fa-refresh me-1"/> Refresh
+                </button>
+            </div>
+
+            <t t-if="state.loading">
+                <div class="text-center p-5">
+                    <i class="fa fa-spinner fa-spin fa-2x"/>
+                    <div class="mt-2 text-muted">Loading dashboard...</div>
+                </div>
+            </t>
+
+            <t t-else="">
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('all')">
+                            <div class="card-body">
+                                <div class="text-muted">Total Requests</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.total"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('requested')">
+                            <div class="card-body">
+                                <div class="text-muted">Requested</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.requested"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('accepted')">
+                            <div class="card-body">
+                                <div class="text-muted">Accepted</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.accepted"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('in_production')">
+                            <div class="card-body">
+                                <div class="text-muted">In Production</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.in_production"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('done')">
+                            <div class="card-body">
+                                <div class="text-muted">Done</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.done"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('cancelled')">
+                            <div class="card-body">
+                                <div class="text-muted">Cancelled</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.cancelled"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('material_ready_pending')">
+                            <div class="card-body">
+                                <div class="text-muted">Material Ready Pending</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.material_ready_pending"/>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card shadow-sm h-100 o_rsd_kpi" t-on-click="() => openRequests('overdue')">
+                            <div class="card-body">
+                                <div class="text-muted">Overdue</div>
+                                <div class="display-6 fw-bold" t-esc="state.data.overdue"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-xl-7">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header fw-bold">Product-wise Requests</div>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th class="text-end">Requests</th>
+                                            <th class="text-end">Required Qty</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-if="!state.data.products.length">
+                                            <tr><td colspan="3" class="text-center text-muted p-4">No data</td></tr>
+                                        </t>
+                                        <t t-foreach="state.data.products" t-as="product" t-key="product.id">
+                                            <tr class="o_rsd_clickable" t-on-click="() => openProduct(product.id)">
+                                                <td t-esc="product.name"/>
+                                                <td class="text-end" t-esc="product.request_count"/>
+                                                <td class="text-end" t-esc="product.required_qty"/>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-xl-5">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header fw-bold">Recent Production Requests</div>
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Request</th>
+                                            <th>Product</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-if="!state.data.recent.length">
+                                            <tr><td colspan="3" class="text-center text-muted p-4">No data</td></tr>
+                                        </t>
+                                        <t t-foreach="state.data.recent" t-as="request" t-key="request.id">
+                                            <tr class="o_rsd_clickable" t-on-click="() => openRequest(request.id)">
+                                                <td t-esc="request.name"/>
+                                                <td t-esc="request.product"/>
+                                                <td t-esc="request.state_label"/>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </t>
+</templates>

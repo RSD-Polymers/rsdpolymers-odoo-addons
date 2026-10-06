@@ -1,0 +1,11 @@
+.o_rsd_production_dashboard {
+    .o_rsd_kpi,
+    .o_rsd_clickable {
+        cursor: pointer;
+    }
+
+    .o_rsd_kpi:hover,
+    .o_rsd_clickable:hover {
+        transform: translateY(-1px);
+    }
+}

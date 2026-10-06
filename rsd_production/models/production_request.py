@@ -98,22 +98,106 @@ class ProductionRequest(models.Model):
 
 
 
+    @api.model
+    def _get_financial_year(self, request_date=None):
+        request_date = fields.Date.to_date(request_date or fields.Date.context_today(self))
+        if request_date.month >= 4:
+            return request_date.year, request_date.year + 1
+        return request_date.year - 1, request_date.year
+
+    @api.model
+    def _next_production_request_name(self, request_date=None):
+        request_date = fields.Date.to_date(request_date or fields.Date.context_today(self))
+        fy_start, fy_end = self._get_financial_year(request_date)
+
+        sequence = self.env['ir.sequence'].search([
+            ('code', '=', 'production.request'),
+            '|',
+            ('company_id', '=', self.env.company.id),
+            ('company_id', '=', False),
+        ], order='company_id desc, id', limit=1)
+        if not sequence:
+            return 'New'
+
+        generated = sequence.with_context(
+            ir_sequence_date=request_date,
+        ).next_by_id()
+        if not generated:
+            return 'New'
+
+        fy_prefix = f'PR/{fy_start}-{str(fy_end)[-2:]}/'
+        numeric_part = generated.rsplit('/', 1)[-1]
+        return f'{fy_prefix}{numeric_part}'
+
     @api.model_create_multi
-
     def create(self, vals_list):
-
         for vals in vals_list:
-
             if vals.get('name', 'New') == 'New':
-
-                vals['name'] = self.env['ir.sequence'].next_by_code('production.request') or 'New'
-
+                vals['name'] = self._next_production_request_name()
             vals.setdefault('requested_by', self.env.uid)
-
             vals.setdefault('state', 'requested')
-
         return super().create(vals_list)
 
+
+
+    @api.model
+    def get_dashboard_data(self):
+        """Return the data used by the Manufacturing Production Request dashboard.
+
+        The method deliberately uses the current user's access rights and record
+        rules; it does not use sudo, so the dashboard shows only records the
+        logged-in user is allowed to see.
+        """
+        today = fields.Date.context_today(self)
+        Line = self.env['production.request.line']
+
+        data = {
+            'today': fields.Date.to_string(today),
+            'total': self.search_count([]),
+            'requested': self.search_count([('state', '=', 'requested')]),
+            'accepted': self.search_count([('state', '=', 'accepted')]),
+            'in_production': self.search_count([('state', '=', 'in_production')]),
+            'done': self.search_count([('state', '=', 'done')]),
+            'cancelled': self.search_count([('state', '=', 'cancelled')]),
+            'material_ready_pending': self.search_count([('state', '=', 'requested')]),
+            'overdue': self.search_count([
+                ('material_ready_date', '<', today),
+                ('state', 'not in', ['done', 'cancelled']),
+            ]),
+            'products': [],
+            'recent': [],
+        }
+
+        product_groups = Line.read_group(
+            domain=[],
+            fields=['product_id', 'required_qty:sum', 'request_id:count_distinct'],
+            groupby=['product_id'],
+            orderby='required_qty desc',
+            limit=10,
+        )
+        for group in product_groups:
+            product = group.get('product_id')
+            if not product:
+                continue
+            data['products'].append({
+                'id': product[0],
+                'name': product[1],
+                'request_count': group.get('request_id_count_distinct', 0),
+                'required_qty': group.get('required_qty_sum', 0.0),
+            })
+
+        recent_requests = self.search([], order='create_date desc, id desc', limit=10)
+        state_labels = dict(self._fields['state'].selection)
+        for request in recent_requests:
+            first_line = request.line_ids[:1]
+            data['recent'].append({
+                'id': request.id,
+                'name': request.name,
+                'product': first_line.product_id.display_name if first_line else '',
+                'state_label': state_labels.get(request.state, request.state or ''),
+            })
+
+        return data
 
 
     def _compute_counts(self):

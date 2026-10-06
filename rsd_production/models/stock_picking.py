@@ -127,28 +127,8 @@ class StockPicking(models.Model):
 
         ProductionRequest = self.env['production.request']
         ProductionRequestLine = self.env['production.request.line']
+        Quant = self.env['stock.quant']
 
-        # A Delivery Order has one active Production Request. This keeps all
-        # shortage products together on one requirement document. If an older
-        # request exists without the new line structure, do not mix the old
-        # record into the new structure; a new request will be created.
-        request = ProductionRequest.search([
-            ('picking_id', '=', self.id),
-            ('state', 'not in', ('done', 'cancelled')),
-        ], order='id desc', limit=1)
-        if request and not request.line_ids:
-            request = ProductionRequest.browse()
-        if not request:
-            sale_move = self.move_ids.filtered(lambda m: m.sale_line_id)[:1]
-            if not sale_move or not sale_move.sale_line_id.order_id:
-                raise UserError(_('This Delivery Order is not linked to a Sales Order.'))
-            request = ProductionRequest.create({
-                'sale_id': sale_move.sale_line_id.order_id.id,
-                'picking_id': self.id,
-                'company_id': self.company_id.id,
-            })
-
-        created_lines = ProductionRequestLine.browse()
         moves = self.move_ids.filtered(
             lambda m:
                 m.state not in ('done', 'cancel')
@@ -156,62 +136,119 @@ class StockPicking(models.Model):
                 and m.sale_line_id
                 and m.product_id.is_storable
         )
+        if not moves:
+            raise UserError(
+                _('No eligible product lines were found on this Delivery Order.')
+            )
 
+        # One Production Request belongs to exactly one product. If the same
+        # product occurs on more than one stock move, combine those moves into
+        # one request and one request line.
+        product_moves = {}
         for move in moves:
-            existing_line = request.line_ids.filtered(
-                lambda line: line.sale_line_id == move.sale_line_id
+            product_moves.setdefault(move.product_id.id, self.env['stock.move'])
+            product_moves[move.product_id.id] |= move
+
+        created_requests = ProductionRequest.browse()
+        existing_requests = ProductionRequest.search([
+            ('picking_id', '=', self.id),
+            ('state', '!=', 'cancelled'),
+        ])
+
+        for product_id, product_move_set in product_moves.items():
+            existing_request = existing_requests.filtered(
+                lambda request: request.line_ids
+                and any(line.product_id.id == product_id for line in request.line_ids)
             )[:1]
-            if existing_line:
+            if existing_request:
                 continue
 
-            required_qty = move.product_uom_qty
-            available_qty = self.env['stock.quant']._get_available_quantity(
-                move.product_id,
+            product = self.env['product.product'].browse(product_id)
+            required_qty = 0.0
+            packaging_qty = 0.0
+            packaging = self.env['product.packaging'].browse()
+            sale_line = self.env['sale.order.line'].browse()
+
+            for move in product_move_set:
+                qty = move.product_uom_qty
+                qty = move.product_uom._compute_quantity(
+                    qty, product.uom_id, round=False
+                )
+                required_qty += qty
+
+                if move.sale_line_id:
+                    if not sale_line:
+                        sale_line = move.sale_line_id
+                    if not packaging and move.sale_line_id.product_packaging_id:
+                        packaging = move.sale_line_id.product_packaging_id
+                    packaging_qty += move.sale_line_id.product_packaging_qty or 0.0
+
+            available_qty = Quant._get_available_quantity(
+                product,
                 fg_location,
             )
-            available_qty = move.product_id.uom_id._compute_quantity(
+            available_qty = product.uom_id._compute_quantity(
                 available_qty,
-                move.product_uom,
+                product.uom_id,
                 round=False,
             )
             shortage_qty = max(required_qty - available_qty, 0.0)
 
-            if shortage_qty <= 0:
-                continue
+            source_sale = sale_line.order_id if sale_line else self.env['sale.order']
+            if not source_sale:
+                raise UserError(
+                    _('Delivery Order %s is not linked to a Sales Order for product %s.')
+                    % (self.name, product.display_name)
+                )
 
-            created_lines |= ProductionRequestLine.create({
+            request = ProductionRequest.create({
+                'sale_id': source_sale.id,
+                'picking_id': self.id,
+                'company_id': self.company_id.id,
+            })
+
+            ProductionRequestLine.create({
                 'request_id': request.id,
-                'sale_line_id': move.sale_line_id.id,
-                'product_id': move.product_id.id,
-                'product_uom_id': move.product_uom.id,
+                'sale_line_id': sale_line.id if sale_line else False,
+                'product_id': product.id,
+                'product_uom_id': product.uom_id.id,
                 'required_qty': required_qty,
                 'fg_available_qty': available_qty,
                 'shortage_qty': shortage_qty,
-                'product_packaging_id': move.sale_line_id.product_packaging_id.id,
-                'product_packaging_qty': move.sale_line_id.product_packaging_qty,
+                'product_packaging_id': packaging.id if packaging else False,
+                'product_packaging_qty': packaging_qty,
             })
 
-        if not created_lines:
-            # Do not leave an empty header behind. It can happen when the
-            # button is clicked after all shortages have already been covered.
-            if not request.line_ids:
-                request.unlink()
+            created_requests |= request
+            existing_requests |= request
+
+        if not created_requests:
             raise UserError(
-                _('There are no new Packed - FG shortages requiring a Production Request.')
+                _('Production Requests already exist for all eligible products on this Delivery Order.')
             )
 
         self.message_post(
             body=_(
-                'Production Request <b>%s</b> created/updated with %d shortage line(s).'
-            ) % (request.name, len(created_lines))
+                '%d Production Request(s) created for %d product(s).'
+            ) % (len(created_requests), len(created_requests))
         )
+
+        if len(created_requests) == 1:
+            return {
+                'type': 'ir.actions.act_window',
+                'name': _('Production Request'),
+                'res_model': 'production.request',
+                'view_mode': 'form',
+                'res_id': created_requests.id,
+                'target': 'current',
+            }
 
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Production Request'),
+            'name': _('Production Requests'),
             'res_model': 'production.request',
-            'view_mode': 'form',
-            'res_id': request.id,
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', created_requests.ids)],
             'target': 'current',
         }
 
