@@ -14,7 +14,4 @@
     <menuitem id="menu_rnd_planning_type" name="Planning Types" parent="menu_rnd_configuration"
               action="action_rnd_planning_type" sequence="10"/>
 
-    <menuitem id="menu_rnd_settings" name="Settings" parent="menu_rnd_configuration"
-              action="action_rnd_config_settings" sequence="20"/>
-
 </odoo>
