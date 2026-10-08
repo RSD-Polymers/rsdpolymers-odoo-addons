@@ -28,7 +28,6 @@ Sales & Marketing -> R&D receives requirement -> R&D project owner reviews & acc
         'views/rnd_project_views.xml',
         'views/rnd_experiment_views.xml',
         'views/rnd_planning_type_views.xml',
-        'views/res_config_settings_views.xml',
         'views/menu_views.xml',
     ],
     'installable': True,
