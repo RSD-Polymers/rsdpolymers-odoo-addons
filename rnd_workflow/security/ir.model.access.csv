@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_rnd_planning_type_all,rnd.planning.type.all,model_rnd_planning_type,base.group_user,1,0,0,0
+access_rnd_planning_type_owner,rnd.planning.type.owner,model_rnd_planning_type,group_rnd_owner,1,1,1,1
+access_rnd_project_sm,rnd.project.sm,model_rnd_project,group_rnd_sm,1,1,1,0
+access_rnd_project_officer,rnd.project.officer,model_rnd_project,group_rnd_officer,1,0,0,0
+access_rnd_project_qc,rnd.project.qc,model_rnd_project,group_qc_officer,1,0,0,0
+access_rnd_project_performance,rnd.project.performance,model_rnd_project,group_performance_officer,1,0,0,0
+access_rnd_project_owner,rnd.project.owner,model_rnd_project,group_rnd_owner,1,1,1,1
+access_rnd_experiment_sm,rnd.experiment.sm,model_rnd_experiment,group_rnd_sm,1,0,0,0
+access_rnd_experiment_officer,rnd.experiment.officer,model_rnd_experiment,group_rnd_officer,1,1,1,0
+access_rnd_experiment_qc,rnd.experiment.qc,model_rnd_experiment,group_qc_officer,1,1,0,0
+access_rnd_experiment_performance,rnd.experiment.performance,model_rnd_experiment,group_performance_officer,1,1,0,0
+access_rnd_experiment_owner,rnd.experiment.owner,model_rnd_experiment,group_rnd_owner,1,1,1,1

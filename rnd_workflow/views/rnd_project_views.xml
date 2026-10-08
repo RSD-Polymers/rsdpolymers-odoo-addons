@@ -1,0 +1,150 @@
+<odoo>
+
+    <record id="view_rnd_project_form" model="ir.ui.view">
+        <field name="name">rnd.project.form</field>
+        <field name="model">rnd.project</field>
+        <field name="arch" type="xml">
+            <form string="R&amp;D Project">
+                <header>
+                    <button name="action_submit_to_rnd" type="object" string="Submit to R&amp;D" groups="rnd_workflow.group_rnd_sm"
+                            class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_accept" type="object" string="Accept &amp; Confirm Delivery Date" groups="rnd_workflow.group_rnd_owner"
+                            class="oe_highlight" invisible="state != 'rnd_review'"/>
+                    <button name="action_start_execution" type="object" string="Start Execution" groups="rnd_workflow.group_rnd_owner"
+                            class="oe_highlight" invisible="state != 'planning'"/>
+                    <button name="action_final_review" type="object" string="Move to Final Review" groups="rnd_workflow.group_rnd_owner"
+                            class="oe_highlight" invisible="state != 'execution'"/>
+                    <button name="action_close" type="object" string="Close Project" groups="rnd_workflow.group_rnd_owner"
+                            class="oe_highlight" invisible="state != 'final_review'"/>
+                    <button name="action_reset_to_draft" type="object" string="Reset to Draft" groups="rnd_workflow.group_rnd_owner"
+                            invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,rnd_review,planning,execution,final_review,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_experiments" type="object" class="oe_stat_button" icon="fa-flask">
+                            <field name="experiment_count" widget="statinfo" string="Experiments"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Requirement title..." readonly="state != 'draft'"/></h1>
+                        <field name="code" readonly="1"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="sm_user_id" readonly="state != 'draft'"/>
+                            <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
+                            <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                        </group>
+                        <group>
+                            <field name="planning_type_ids" widget="many2many_tags" readonly="state != 'planning'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Requirement">
+                            <field name="description" placeholder="Describe the requirement from Sales &amp; Marketing..." readonly="state != 'draft'"/>
+                        </page>
+                        <page string="Batches / Experiments">
+                            <field name="experiment_ids" readonly="state != 'execution'">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="assigned_user_id"/>
+                                    <field name="qc_user_id"/>
+                                    <field name="performance_user_id"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Final Review">
+                            <field name="final_review_notes" placeholder="Final review notes..." readonly="state != 'final_review'"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_rnd_project_list" model="ir.ui.view">
+        <field name="name">rnd.project.list</field>
+        <field name="model">rnd.project</field>
+        <field name="arch" type="xml">
+            <list string="R&amp;D Projects">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="sm_user_id" readonly="state != 'draft'"/>
+                <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
+                <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                <field name="state" widget="badge"
+                       decoration-info="state in ('draft','rnd_review')"
+                       decoration-warning="state in ('planning','execution')"
+                       decoration-success="state == 'closed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_rnd_project_kanban" model="ir.ui.view">
+        <field name="name">rnd.project.kanban</field>
+        <field name="model">rnd.project</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
+                <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                <field name="state"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2">
+                            <strong><field name="name"/></strong>
+                            <div class="text-muted"><field name="code"/></div>
+                            <div t-if="record.rnd_owner_id.value">
+                                Owner: <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
+                            </div>
+                            <div t-if="record.delivery_date.value">
+                                Delivery: <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_rnd_project_search" model="ir.ui.view">
+        <field name="name">rnd.project.search</field>
+        <field name="model">rnd.project</field>
+        <field name="arch" type="xml">
+            <search string="R&amp;D Projects">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="sm_user_id" readonly="state != 'draft'"/>
+                <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
+                <filter string="My Projects" name="my_projects" domain="[('rnd_owner_id','=',uid)]"/>
+                <filter string="Open" name="open" domain="[('state','!=','closed')]"/>
+                <filter string="Closed" name="closed" domain="[('state','=','closed')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_state" context="{'group_by':'state'}"/>
+                    <filter string="R&amp;D Owner" name="group_owner" context="{'group_by':'rnd_owner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_rnd_project" model="ir.actions.act_window">
+        <field name="name">R&amp;D Projects</field>
+        <field name="res_model">rnd.project</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create your first R&amp;D project requirement</p>
+        </field>
+    </record>
+
+</odoo>

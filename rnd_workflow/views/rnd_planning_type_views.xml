@@ -1,0 +1,20 @@
+<odoo>
+
+    <record id="view_rnd_planning_type_list" model="ir.ui.view">
+        <field name="name">rnd.planning.type.list</field>
+        <field name="model">rnd.planning.type</field>
+        <field name="arch" type="xml">
+            <list string="Planning Types" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_rnd_planning_type" model="ir.actions.act_window">
+        <field name="name">Planning Types</field>
+        <field name="res_model">rnd.planning.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,20 @@
+<odoo>
+
+    <menuitem id="menu_rnd_root" name="R&amp;D Workflow" sequence="35" web_icon="rnd_workflow,static/description/icon.png"/>
+
+    <menuitem id="menu_rnd_project" name="Projects" parent="menu_rnd_root"
+              action="action_rnd_project" sequence="10"/>
+
+    <menuitem id="menu_rnd_experiment" name="Experiments" parent="menu_rnd_root"
+              action="action_rnd_experiment" sequence="20"/>
+
+    <menuitem id="menu_rnd_configuration" name="Configuration" parent="menu_rnd_root" sequence="90"
+              groups="group_rnd_owner"/>
+
+    <menuitem id="menu_rnd_planning_type" name="Planning Types" parent="menu_rnd_configuration"
+              action="action_rnd_planning_type" sequence="10"/>
+
+    <menuitem id="menu_rnd_settings" name="Settings" parent="menu_rnd_configuration"
+              action="action_rnd_config_settings" sequence="20"/>
+
+</odoo>

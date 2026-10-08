@@ -1,0 +1,94 @@
+<odoo>
+    <record id="module_category_rnd_workflow" model="ir.module.category">
+        <field name="name">R&amp;D Workflow</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="group_rnd_sm" model="res.groups">
+        <field name="name">Sales &amp; Marketing</field>
+        <field name="category_id" ref="module_category_rnd_workflow"/>
+    </record>
+
+    <record id="group_rnd_officer" model="res.groups">
+        <field name="name">R&amp;D Officer</field>
+        <field name="category_id" ref="module_category_rnd_workflow"/>
+    </record>
+
+    <record id="group_qc_officer" model="res.groups">
+        <field name="name">QC Officer</field>
+        <field name="category_id" ref="module_category_rnd_workflow"/>
+    </record>
+
+    <record id="group_performance_officer" model="res.groups">
+        <field name="name">Performance Officer</field>
+        <field name="category_id" ref="module_category_rnd_workflow"/>
+    </record>
+
+    <record id="group_rnd_owner" model="res.groups">
+        <field name="name">R&amp;D Project Owner / Manager</field>
+        <field name="category_id" ref="module_category_rnd_workflow"/>
+        <field name="implied_ids" eval="[(4, ref('group_rnd_officer')), (4, ref('group_qc_officer')), (4, ref('group_performance_officer'))]"/>
+    </record>
+
+    <!-- Project: Sales & Marketing can edit only their own New requirements. -->
+    <record id="rule_rnd_project_sm_write" model="ir.rule">
+        <field name="name">R&amp;D Project: Sales &amp; Marketing edit own new requirements</field>
+        <field name="model_id" ref="model_rnd_project"/>
+        <field name="domain_force">[('sm_user_id', '=', user.id), ('state', '=', 'draft')]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_sm'))]"/>
+        <field name="perm_read">False</field>
+        <field name="perm_write">True</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+    </record>
+
+    <record id="rule_rnd_project_owner_full_access" model="ir.rule">
+        <field name="name">R&amp;D Project: Owner full access</field>
+        <field name="model_id" ref="model_rnd_project"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_owner'))]"/>
+    </record>
+
+    <!-- Experiment write access is limited to the user responsible for the current
+         task, or the R&D owner. The Python workflow methods enforce the actual
+         transition and role rules. -->
+    <record id="rule_rnd_experiment_officer_write" model="ir.rule">
+        <field name="name">R&amp;D Experiment: assigned R&amp;D user can edit</field>
+        <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">['|', ('assigned_user_id', '=', user.id), ('rnd_owner_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_officer'))]"/>
+        <field name="perm_read">False</field>
+        <field name="perm_write">True</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+    </record>
+
+    <record id="rule_rnd_experiment_qc_write" model="ir.rule">
+        <field name="name">R&amp;D Experiment: assigned QC user can edit</field>
+        <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">['|', ('qc_user_id', '=', user.id), ('rnd_owner_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_qc_officer'))]"/>
+        <field name="perm_read">False</field>
+        <field name="perm_write">True</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+    </record>
+
+    <record id="rule_rnd_experiment_performance_write" model="ir.rule">
+        <field name="name">R&amp;D Experiment: assigned Performance user can edit</field>
+        <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">['|', ('performance_user_id', '=', user.id), ('rnd_owner_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_performance_officer'))]"/>
+        <field name="perm_read">False</field>
+        <field name="perm_write">True</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+    </record>
+
+    <record id="rule_rnd_experiment_owner_full_access" model="ir.rule">
+        <field name="name">R&amp;D Experiment: Owner full access</field>
+        <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_owner'))]"/>
+    </record>
+</odoo>
