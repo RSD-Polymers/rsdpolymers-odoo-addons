@@ -58,6 +58,19 @@ class ProductionRequest(models.Model):
 
     accepted_date = fields.Datetime(string='Accepted On', readonly=True, tracking=True)
 
+    rejection_reason = fields.Text(string='Rejection Reason', readonly=True, tracking=True)
+    rejected_by = fields.Many2one('res.users', string='Rejected By', readonly=True, tracking=True)
+    rejected_date = fields.Datetime(string='Rejected On', readonly=True, tracking=True)
+
+    production_done_by = fields.Many2one('res.users', string='Production Completed By', readonly=True, tracking=True)
+    production_done_date = fields.Datetime(string='Production Completed On', readonly=True, tracking=True)
+    store_acknowledged = fields.Boolean(string='Store Acknowledged', readonly=True, tracking=True, default=False)
+    store_acknowledged_by = fields.Many2one('res.users', string='Store Acknowledged By', readonly=True, tracking=True)
+    store_acknowledged_date = fields.Datetime(string='Store Acknowledged On', readonly=True, tracking=True)
+    sales_acknowledged = fields.Boolean(string='Sales Acknowledged', readonly=True, tracking=True, default=False)
+    sales_acknowledged_by = fields.Many2one('res.users', string='Sales Acknowledged By', readonly=True, tracking=True)
+    sales_acknowledged_date = fields.Datetime(string='Sales Acknowledged On', readonly=True, tracking=True)
+
 
 
     state = fields.Selection([
@@ -323,36 +336,168 @@ class ProductionRequest(models.Model):
 
 
         date_text = fields.Date.to_string(material_ready_date)
-
-        self.message_post(
-
-            body=_('Production accepted this request. Material Ready Date: \<b>%s\</b>.') % date_text,
-
-            subtype_xmlid='mail.mt_note',
-
+        partners = self._get_notification_partners()
+        accepted_body = _('Production Request <b>%s</b> was accepted. Material Ready Date: <b>%s</b>.') % (
+            self.name, date_text)
+        self.sudo().message_post(
+            body=accepted_body,
+            partner_ids=partners.ids,
+            subtype_xmlid='mail.mt_comment',
         )
-
         if self.sale_id:
-
-            self.sale_id.message_post(
-
-                body=_('Production Request \<b>%s\</b> was accepted. Material Ready Date: \<b>%s\</b>.')
-
-                % (self.name, date_text),
-
-                subtype_xmlid='mail.mt_note',
-
+            self.sale_id.sudo().message_post(
+                body=accepted_body,
+                partner_ids=partners.ids,
+                subtype_xmlid='mail.mt_comment',
             )
 
         return True
 
 
 
+    def _get_notification_partners(self):
+        self.ensure_one()
+        partners = self.env['res.partner']
+        if self.requested_by and self.requested_by.partner_id:
+            partners |= self.requested_by.partner_id
+        if self.sale_id and self.sale_id.user_id and self.sale_id.user_id.partner_id:
+            partners |= self.sale_id.user_id.partner_id
+        return partners
+
+    def action_reject(self):
+        self.ensure_one()
+        self._check_production_user()
+        if self.state in ('done', 'cancelled', 'production_done'):
+            raise UserError(_('This Production Request can no longer be rejected.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Reject Production Request'),
+            'res_model': 'production.request.reject.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_request_id': self.id},
+        }
+
+    def _action_reject(self, reason):
+        self.ensure_one()
+        self._check_production_user()
+        if self.state in ('done', 'cancelled', 'production_done'):
+            raise UserError(_('This Production Request can no longer be rejected.'))
+        active_docs = (self.line_ids.mapped('mo_ids') | self.line_ids.mapped('pi_ids')).filtered(
+            lambda doc: doc.state not in ('cancel', 'done')
+        )
+        if active_docs:
+            raise UserError(_(
+                'Cannot reject %s because Manufacturing Orders/Packing Instructions are still active.'
+            ) % self.name)
+        values = {
+            'state': 'cancelled',
+            'rejection_reason': reason,
+            'rejected_by': self.env.user.id,
+            'rejected_date': fields.Datetime.now(),
+        }
+        self.sudo().write(values)
+        partners = self._get_notification_partners()
+        body = _('Production Request <b>%s</b> was rejected by %s.<br/><b>Reason:</b> %s') % (
+            self.name, self.env.user.display_name, reason)
+        self.sudo().message_post(body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
+        if self.sale_id:
+            self.sale_id.sudo().message_post(
+                body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
+        return True
+
+    def _all_execution_documents_done(self):
+        self.ensure_one()
+        lines = self.line_ids
+        executions = lines.mapped('mo_ids') | lines.mapped('pi_ids')
+        executions = executions.filtered(lambda doc: doc.state != 'cancel')
+        return bool(lines and executions and all(line.remaining_qty <= 1e-6 for line in lines)
+                    and all(doc.state == 'done' for doc in executions))
+
+    def action_mark_production_done(self):
+        for request in self:
+            request._check_production_user()
+            if request.state not in ('accepted', 'in_production'):
+                raise UserError(_('Only accepted or in-production requests can be marked Production Done.'))
+            if not request._all_execution_documents_done():
+                raise UserError(_(
+                    'All required quantities must be allocated and all linked Manufacturing Orders/Packing Instructions must be Done first.'
+                ))
+            request.sudo().write({
+                'state': 'production_done',
+                'production_done_by': self.env.user.id,
+                'production_done_date': fields.Datetime.now(),
+            })
+            partners = request._get_notification_partners()
+            body = _('Production Request <b>%s</b> has been marked Production Done. Store and Sales must acknowledge completion.') % request.name
+            request.sudo().message_post(body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
+            if request.sale_id:
+                request.sale_id.sudo().message_post(body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
+        return True
+
+    def _check_store_acknowledger(self):
+        self.ensure_one()
+        user = self.env.user
+        if user.has_group('base.group_system') or user.has_group('stock.group_stock_manager'):
+            return
+        employee = user.employee_id
+        department = employee.department_id.name.strip().lower() if employee and employee.department_id else ''
+        if user != self.requested_by and department != 'store':
+            raise UserError(_('Only the Store requester or an authorized Store user can acknowledge completion.'))
+
+    def action_acknowledge_store(self):
+        for request in self:
+            if request.state != 'production_done':
+                raise UserError(_('Store can acknowledge only after Production marks the request done.'))
+            request._check_store_acknowledger()
+            if not request.store_acknowledged:
+                request.sudo().write({
+                    'store_acknowledged': True,
+                    'store_acknowledged_by': self.env.user.id,
+                    'store_acknowledged_date': fields.Datetime.now(),
+                })
+                request.sudo().message_post(
+                    body=_('Store acknowledged completion of Production Request <b>%s</b>.') % request.name,
+                    partner_ids=request._get_notification_partners().ids,
+                    subtype_xmlid='mail.mt_comment')
+            request._close_if_acknowledged()
+        return True
+
+    def action_acknowledge_sales(self):
+        for request in self:
+            if request.state != 'production_done':
+                raise UserError(_('Sales can acknowledge only after Production marks the request done.'))
+            user = self.env.user
+            if not (user.has_group('base.group_system') or user.has_group('sales_team.group_sale_manager')
+                    or (request.sale_id and request.sale_id.user_id == user)):
+                raise UserError(_('Only the Salesperson assigned to the Sales Order or a Sales Manager can acknowledge completion.'))
+            if not request.sales_acknowledged:
+                request.sudo().write({
+                    'sales_acknowledged': True,
+                    'sales_acknowledged_by': user.id,
+                    'sales_acknowledged_date': fields.Datetime.now(),
+                })
+                request.sudo().message_post(
+                    body=_('Sales acknowledged completion of Production Request <b>%s</b>.') % request.name,
+                    partner_ids=request._get_notification_partners().ids,
+                    subtype_xmlid='mail.mt_comment')
+            request._close_if_acknowledged()
+        return True
+
+    def _close_if_acknowledged(self):
+        for request in self:
+            if request.state == 'production_done' and request.store_acknowledged and request.sales_acknowledged:
+                request.sudo().write({'state': 'done'})
+                request.sudo().message_post(
+                    body=_('Production Request <b>%s</b> is now closed. Store and Sales have both acknowledged completion.') % request.name,
+                    partner_ids=request._get_notification_partners().ids,
+                    subtype_xmlid='mail.mt_comment')
+
     def _sync_state_from_lines(self):
 
         for request in self:
 
-            if request.state in ('cancelled', 'requested'):
+            if request.state in ('cancelled', 'requested', 'production_done', 'done'):
 
                 continue
 
@@ -388,47 +533,19 @@ class ProductionRequest(models.Model):
 
 
 
-            if all_allocated and all_done:
-
-                request.state = 'done'
-
-            else:
-
-                request.state = 'in_production'
+            # Completion is a deliberate Production action; do not close automatically.
+            request.state = 'in_production'
 
 
 
     def action_cancel(self):
-
-        for request in self:
-
-            if request.state == 'done':
-
-                raise UserError(_('Completed Production Requests cannot be cancelled.'))
-
-            active_docs = (request.line_ids.mapped('mo_ids') | request.line_ids.mapped('pi_ids')).filtered(
-
-                lambda doc: doc.state not in ('cancel', 'done')
-
-            )
-
-            if active_docs:
-
-                raise UserError(
-
-                    _('Cannot cancel %s because Manufacturing Orders/Packing Instructions are still active.')
-
-                    % request.name
-
-                )
-
-            request.state = 'cancelled'
-
+        # Keep legacy calls safe, but route users through the reason-required Reject wizard.
+        return self.action_reject()
 
 
     def unlink(self):
 
-        raise UserError(_('Production Requests cannot be deleted. Use Cancel to close the request.'))
+        raise UserError(_('Production Requests cannot be deleted. Use Reject to close the request.'))
 
 
 

@@ -18,6 +18,7 @@
                        widget="statusbar"
                        statusbar_visible="not_requested,requested,issued"
                        invisible="is_packing_order"/>
+                <field name="rm_issue_not_required" invisible="1"/>
             </xpath>
             <xpath expr="//button[@name='check_quality']" position="attributes">
                 <attribute name="invisible">1</attribute>
@@ -28,29 +29,29 @@
             </xpath>
 
             <xpath expr="//button[@name='button_maintenance_req']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued' and not rm_issue_not_required)</attribute>
             </xpath>
             <xpath expr="//button[@name='action_cancel']" position="attributes">
                 <attribute name="invisible">state in ('done','cancel')</attribute>
             </xpath>
 
             <xpath expr="//button[@name='button_mark_done'][@invisible='not move_raw_ids or not show_produce']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued' and not rm_issue_not_required) or not move_raw_ids or not show_produce</attribute>
             </xpath>
 
             <xpath expr="//button[@name='button_mark_done'][@invisible='not move_raw_ids or not show_produce_all']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or not move_raw_ids or not show_produce_all</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued' and not rm_issue_not_required) or not move_raw_ids or not show_produce_all</attribute>
             </xpath>
 
             <xpath expr="//button[@name='button_mark_done'][@invisible='move_raw_ids or not show_produce']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued' and not rm_issue_not_required) or move_raw_ids or not show_produce</attribute>
             </xpath>
 
             <xpath expr="//button[@name='button_mark_done'][@invisible='move_raw_ids or not show_produce_all']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued') or move_raw_ids or not show_produce_all</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued' and not rm_issue_not_required) or move_raw_ids or not show_produce_all</attribute>
             </xpath>
             <xpath expr="//button[@name='action_start']" position="attributes">
-                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued')</attribute>
+                <attribute name="invisible">(not is_packing_order and rm_issue_status != 'issued' and not rm_issue_not_required)</attribute>
             </xpath>
             <xpath expr="//button[@name='do_unreserve']" position="attributes">
                 <attribute name="invisible">state not in ('draft','confirmed')</attribute>

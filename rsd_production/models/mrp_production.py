@@ -31,6 +31,8 @@ class MrpProduction(models.Model):
         compute="_compute_show_request_rm_button"
     )
 
+    rm_issue_not_required = fields.Boolean(compute="_compute_rm_issue_not_required")
+
     show_rm_issue_smart_button = fields.Boolean(
         compute="_compute_show_rm_issue_smart_button"
     )
@@ -117,18 +119,38 @@ class MrpProduction(models.Model):
         for rec in self:
             rec.prepared_by = rec.create_uid.name
 
-    @api.depends('state', 'product_qty', 'qty_producing', 'rm_issue_status', 'is_packing_order')
+    def _is_unpack_only_components(self):
+        """True only when this MO has components and every active component is FG Un-Pack."""
+        self.ensure_one()
+        category = self.env['product.category'].search([
+            ('complete_name', '=', 'All / Sales / Finished Goods (Un-Pack)')
+        ], limit=1)
+        if not category:
+            return False
+        unpack_category_ids = self.env['product.category'].search([
+            ('id', 'child_of', category.id)
+        ]).ids
+        components = self.move_raw_ids.filtered(lambda move: move.state != 'cancel' and move.product_id)
+        return bool(components) and all(
+            move.product_id.categ_id and move.product_id.categ_id.id in unpack_category_ids
+            for move in components
+        )
+
+    @api.depends('state', 'product_qty', 'qty_producing', 'rm_issue_status', 'is_packing_order', 'move_raw_ids', 'move_raw_ids.product_id', 'move_raw_ids.state')
     def _compute_show_produce(self):
-
         super()._compute_show_produce()
-
         for production in self:
-
-            # Block production until RM is issued
-            if not production.is_packing_order and production.rm_issue_status != 'issued':
+            # If every component is FG Un-Pack, RM Issue is not required for this MO.
+            if not production.is_packing_order and production.rm_issue_status != 'issued' and not production._is_unpack_only_components():
                 production.show_produce = False
                 production.show_produce_all = False
 
+    @api.depends('is_packing_order', 'move_raw_ids', 'move_raw_ids.product_id', 'move_raw_ids.state')
+    def _compute_rm_issue_not_required(self):
+        for rec in self:
+            rec.rm_issue_not_required = not rec.is_packing_order and rec._is_unpack_only_components()
+
+    @api.depends('is_packing_order', 'move_raw_ids', 'move_raw_ids.product_id', 'move_raw_ids.state')
     def _compute_show_request_rm_button(self):
         user = self.env.user
         is_admin = user.has_group('base.group_system')
@@ -138,7 +160,7 @@ class MrpProduction(models.Model):
             is_production = user.employee_id.department_id.name.strip().lower() == "production"
 
         for rec in self:
-            rec.show_request_rm_button = is_admin or is_production
+            rec.show_request_rm_button = (is_admin or is_production) and not rec._is_unpack_only_components()
 
     def _compute_show_rm_issue_smart_button(self):
         user = self.env.user
@@ -179,6 +201,8 @@ class MrpProduction(models.Model):
     def action_request_rm_issue(self):
         self.ensure_one()
         self._check_rm_function_state()
+        if self._is_unpack_only_components():
+            raise UserError(_('RM Issue is not required because all components of this Manufacturing Order are Finished Goods (Un-Pack).'))
         # Keep one editable draft per MO, but allow repeated requests after submission.
         draft = self.env['rm.issue'].search([('mo_id', '=', self.id), ('state', '=', 'draft')], limit=1)
         if draft:

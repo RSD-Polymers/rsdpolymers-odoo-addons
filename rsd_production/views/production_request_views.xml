@@ -73,16 +73,30 @@
                             class="btn-primary"
                             invisible="state != 'requested'"/>
 
-                    <!-- CANCEL -->
-                    <button name="action_cancel"
-                            string="Cancel"
+                    <button name="action_reject"
+                            string="Reject"
                             type="object"
                             class="btn-secondary"
-                            invisible="state in ('done', 'cancelled')"/>
+                            invisible="state in ('done', 'cancelled', 'production_done')"/>
+                    <button name="action_mark_production_done"
+                            string="Mark Production Done"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state not in ('accepted', 'in_production')"/>
+                    <button name="action_acknowledge_store"
+                            string="Acknowledge (Store)"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'production_done' or store_acknowledged"/>
+                    <button name="action_acknowledge_sales"
+                            string="Acknowledge (Sales)"
+                            type="object"
+                            class="btn-primary"
+                            invisible="state != 'production_done' or sales_acknowledged"/>
 
                     <field name="state"
                            widget="statusbar"
-                           statusbar_visible="requested,accepted,in_production,done,cancelled"/>
+                           statusbar_visible="requested,accepted,in_production,production_done,done,cancelled"/>
 
                 </header>
 
@@ -108,6 +122,17 @@
                             <field name="requested_by"/>
                             <field name="accepted_by"/>
                             <field name="accepted_date"/>
+                            <field name="rejection_reason" invisible="not rejection_reason"/>
+                            <field name="rejected_by" invisible="not rejected_by"/>
+                            <field name="rejected_date" invisible="not rejected_date"/>
+                            <field name="production_done_by" invisible="not production_done_by"/>
+                            <field name="production_done_date" invisible="not production_done_date"/>
+                            <field name="store_acknowledged"/>
+                            <field name="store_acknowledged_by" invisible="not store_acknowledged_by"/>
+                            <field name="store_acknowledged_date" invisible="not store_acknowledged_date"/>
+                            <field name="sales_acknowledged"/>
+                            <field name="sales_acknowledged_by" invisible="not sales_acknowledged_by"/>
+                            <field name="sales_acknowledged_date" invisible="not sales_acknowledged_date"/>
                         </group>
 
                     </group>
@@ -297,5 +322,13 @@
               parent="mrp.menu_mrp_manufacturing"
               action="action_production_request"
               sequence="0"/>
+
+    <!-- Same Production Request action for Store users in Inventory -->
+    <menuitem id="menu_production_request_inventory"
+              name="Production Requests"
+              parent="stock.menu_stock_root"
+              action="action_production_request"
+              groups="stock.group_stock_user,stock.group_stock_manager"
+              sequence="55"/>
 
 </odoo>

@@ -10,3 +10,5 @@ from . import production_request_execution_wizard
 from . import stock_picking
 
 from . import rm_return
+
+from . import production_request_reject_wizard

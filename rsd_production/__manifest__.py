@@ -24,6 +24,7 @@
         "reports/production_request_template.xml",
         "views/mrp_production_views.xml",
         "views/sale_order_views.xml",
+        "views/production_request_reject_wizard_views.xml",
         "views/production_request_views.xml",
         "views/production_request_mo_view.xml",
         "views/rm_issue_views.xml",
