@@ -35,8 +35,9 @@ class MrpProduction(models.Model):
         compute="_compute_show_rm_issue_smart_button"
     )
 
-    rm_issue_id = fields.Many2one('rm.issue', string="RM Issue")
+    rm_issue_id = fields.Many2one('rm.issue', string="Latest RM Issue")
     rm_issue_count = fields.Integer(compute="_compute_rm_issue_count")
+    rm_return_count = fields.Integer(compute="_compute_rm_return_count")
 
     production_request_line_id = fields.Many2one(
         'production.request.line',
@@ -106,9 +107,11 @@ class MrpProduction(models.Model):
 
     def _compute_rm_issue_count(self):
         for mo in self:
-            mo.rm_issue_count = self.env['rm.issue'].search_count([
-                ('mo_id', '=', mo.id)
-            ])
+            mo.rm_issue_count = self.env['rm.issue'].search_count([('mo_id', '=', mo.id)])
+
+    def _compute_rm_return_count(self):
+        for mo in self:
+            mo.rm_return_count = self.env['rm.return'].search_count([('mo_id', '=', mo.id)])
 
     def _compute_prepared_by(self):
         for rec in self:
@@ -152,84 +155,63 @@ class MrpProduction(models.Model):
     # RM ISSUE REQUEST (Production → Store)
     # -----------------------------------------------------
 
-    def action_request_rm_issue(self):
 
+    def button_mark_done(self):
         for mo in self:
+            if not mo.is_packing_order:
+                pending_returns = self.env['rm.return'].search_count([
+                    ('mo_id', '=', mo.id),
+                    ('state', 'in', ['draft', 'submitted']),
+                ])
+                if pending_returns:
+                    raise UserError(_(
+                        'Complete or cancel all Draft/Submitted RM Return requests before using Produce All.'
+                    ))
+        return super().button_mark_done()
 
-            if mo.is_packing_order:
+    def _check_rm_function_state(self):
+        self.ensure_one()
+        if self.state not in ('confirmed', 'progress', 'to_close'):
+            raise UserError(_('RM Issue and RM Return are available only when the MO is Confirmed, In Progress or To Close.'))
+        if self.is_packing_order:
+            raise UserError(_('RM Issue and RM Return are not available for Packing Orders.'))
+
+    def action_request_rm_issue(self):
+        self.ensure_one()
+        self._check_rm_function_state()
+        # Keep one editable draft per MO, but allow repeated requests after submission.
+        draft = self.env['rm.issue'].search([('mo_id', '=', self.id), ('state', '=', 'draft')], limit=1)
+        if draft:
+            return {'type': 'ir.actions.act_window', 'name': _('RM Issue'), 'res_model': 'rm.issue', 'view_mode': 'form', 'res_id': draft.id, 'target': 'current'}
+
+        rm_issue = self.env['rm.issue'].create({
+            'mo_id': self.id,
+            'sale_id': self.origin_sale_id.id if self.origin_sale_id else False,
+            'company_id': self.company_id.id,
+        })
+        excluded_category = self.env['product.category'].search([('complete_name', '=', 'All / Sales / Finished Goods (Un-Pack)')], limit=1)
+        lines = []
+        for move in self.move_raw_ids.filtered(lambda m: m.state != 'cancel' and m.product_id):
+            if excluded_category and move.product_id.categ_id and move.product_id.categ_id.id in self.env['product.category'].search([('id', 'child_of', excluded_category.id)]).ids:
                 continue
-
-            if mo.state not in ('confirmed', 'progress'):
-                raise UserError("RM Issue Request can only be sent after confirming the MO.")
-
-            # ✅ Create RM Issue document
-            rm_issue = self.env['rm.issue'].create({
-                'mo_id': mo.id,
-                'sale_id': mo.origin_sale_id.id if mo.origin_sale_id else False,
-                'company_id': mo.company_id.id,
-            })
-
-            # ✅ Create lines from BOM
-            lines = []
-            for line in mo.move_raw_ids:
-                lines.append((0, 0, {
-                    'product_id': line.product_id.id,
-                    'qty': line.product_uom_qty,
-                    'uom_id': line.product_uom.id,
-                }))
-
+            lines.append((0, 0, {'product_id': move.product_id.id, 'qty': move.product_uom_qty, 'uom_id': move.product_uom.id}))
+        if lines:
             rm_issue.line_ids = lines
+        self.rm_issue_id = rm_issue.id
+        return {'type': 'ir.actions.act_window', 'name': _('RM Issue'), 'res_model': 'rm.issue', 'view_mode': 'form', 'res_id': rm_issue.id, 'target': 'current'}
 
-            rm_issue.action_mark_requested()
+    def action_request_rm_return(self):
+        self.ensure_one()
+        self._check_rm_function_state()
+        return {'type': 'ir.actions.act_window', 'name': _('RM Return'), 'res_model': 'rm.return', 'view_mode': 'form', 'context': {'default_mo_id': self.id, 'default_company_id': self.company_id.id}, 'target': 'current'}
 
-            mo.rm_issue_id = rm_issue.id
-            mo.rm_issue_status = 'requested'
-
-            body = f"""
-                <p>Hello Store Team,</p>
-
-                <p>Raw material issue has been requested for the following Manufacturing Order:</p>
-
-                <p>
-                    <b>MO:</b> {mo.name}<br/>
-                    <b>Product:</b> {mo.product_id.display_name}<br/>
-                    <b>Quantity:</b> {mo.product_qty}
-                </p>
-
-                <p>Please issue the required raw materials.</p>
-            """
-
-            mail_values = {
-                'subject': f'RM Issue Request for {mo.name}',
-                'body_html': body,
-                'email_to': 'store@rsdpolymers.com',
-                'email_from': 'production@rsdpolymers.com',
-            }
-
-            self.env['mail.mail'].sudo().create(mail_values).send()
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': 'Success',
-                'message': 'RM Issue Request sent to Store Department.',
-                'type': 'success',
-                'sticky': False,
-                'next': {
-                    'type': 'ir.actions.client',
-                    'tag': 'reload',
-                },
-            }
-        }
+    def action_view_rm_returns(self):
+        self.ensure_one()
+        return {'type': 'ir.actions.act_window', 'name': _('RM Returns'), 'res_model': 'rm.return', 'view_mode': 'list,form', 'domain': [('mo_id', '=', self.id)], 'target': 'current'}
 
     def action_view_rm_issue(self):
         self.ensure_one()
-
-        return {
-            'type': 'ir.actions.act_window',
-            'name': 'RM Issue',
-            'res_model': 'rm.issue',
-            'view_mode': 'form',
-            'res_id': self.rm_issue_id.id,
-        }
+        issues = self.env['rm.issue'].search([('mo_id', '=', self.id)], order='id desc')
+        if len(issues) == 1:
+            return {'type': 'ir.actions.act_window', 'name': _('RM Issue'), 'res_model': 'rm.issue', 'view_mode': 'form', 'res_id': issues.id, 'target': 'current'}
+        return {'type': 'ir.actions.act_window', 'name': _('RM Issues'), 'res_model': 'rm.issue', 'view_mode': 'list,form', 'domain': [('mo_id', '=', self.id)], 'target': 'current'}

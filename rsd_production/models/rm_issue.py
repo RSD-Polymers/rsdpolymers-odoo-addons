@@ -124,6 +124,7 @@ class RmIssue(models.Model):
 
     def action_check_availability(self):
         self.ensure_one()
+        self.mo_id._check_rm_function_state()
         self._check_store_user()
 
         if self.state != 'requested':
@@ -212,14 +213,32 @@ class RmIssue(models.Model):
 
     def action_mark_requested(self):
         self.ensure_one()
+        if not (self.env.user.has_group('mrp.group_mrp_user') or self.env.user.has_group('base.group_system')):
+            raise UserError(_('Only Production users can submit RM Issue requests.'))
+        self.mo_id._check_rm_function_state()
+        if not self.line_ids:
+            raise UserError(_('Add at least one eligible raw-material line before submitting the request.'))
         if self.state != 'draft':
             raise UserError(_('Only Draft RM Issues can be submitted.'))
         self.state = 'requested'
         self.requested_by = self.env.user
+        # Keep the MO-level readiness flag meaningful for the first request.
+        # Later requests on an already-running MO must not re-block production.
+        if self.mo_id.state == 'confirmed' and self.mo_id.rm_issue_status != 'issued':
+            self.mo_id.rm_issue_status = 'requested'
+        self.mo_id.message_post(body=_('RM Issue request %s was submitted by %s.') % (self.name, self.env.user.display_name))
+        self.env['mail.mail'].sudo().create({
+            'subject': 'RM Issue Request for %s' % self.mo_id.name,
+            'body_html': '<p>RM Issue request <b>%s</b> was submitted for MO <b>%s</b>. Please review and process it.</p>' % (self.name, self.mo_id.name),
+            'email_to': 'store@rsdpolymers.com',
+            'email_from': 'production@rsdpolymers.com',
+        }).send()
 
     def action_issue_material(self):
         self._check_store_user()
         for rm in self:
+            if rm.mo_id.state not in ('confirmed', 'progress', 'to_close'):
+                raise UserError(_('RM can only be issued while the MO is Confirmed, In Progress or To Close.'))
             if rm.state != 'requested':
                 raise UserError("RM issue request is not in Requested state.")
 
@@ -237,7 +256,7 @@ class RmIssue(models.Model):
                 'state': 'issued',
                 'issued_by': self.env.user.id,
             })
-            if rm.mo_id:
+            if rm.mo_id and not self.env['rm.issue'].search_count([('mo_id', '=', rm.mo_id.id), ('state', '=', 'requested'), ('id', '!=', rm.id)]):
                 rm.mo_id.rm_issue_status = 'issued'
 
             body = f"""
@@ -303,6 +322,7 @@ class RmIssue(models.Model):
 
     def action_create_internal_transfer(self):
         self.ensure_one()
+        self.mo_id._check_rm_function_state()
         self._check_store_user()
 
         if self.internal_transfer_ref:

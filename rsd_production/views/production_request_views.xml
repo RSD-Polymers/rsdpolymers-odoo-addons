@@ -30,7 +30,8 @@
                        string="Product"/>
 
                 <field name="required_qty"
-                       string="Required Qty"/>
+                       string="Required Qty"
+                       readonly="state != 'requested'"/>
 
                 <field name="product_packaging_qty"
                        string="Packaging Qty"/>
@@ -131,7 +132,8 @@
                                            string="UoM"/>
 
                                     <field name="required_qty"
-                                           string="Required Qty"/>
+                                           string="Required Qty"
+                                           readonly="state != 'requested'"/>
 
                                     <field name="product_packaging_qty"
                                            string="Packaging Qty"/>

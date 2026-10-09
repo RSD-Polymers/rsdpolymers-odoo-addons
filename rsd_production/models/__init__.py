@@ -8,3 +8,5 @@ from . import production_request
 from . import production_request_accept_wizard
 from . import production_request_execution_wizard
 from . import stock_picking
+
+from . import rm_return

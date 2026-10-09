@@ -657,9 +657,10 @@ class ProductionRequestLine(models.Model):
 
     )
 
-
-
-    required_qty = fields.Float(string='SO Required Qty', required=True, readonly=True)
+    required_qty = fields.Float(
+        string='SO Required Qty',
+        required=True,
+    )
 
     fg_available_qty = fields.Float(string='Packed FG Available', required=True, readonly=True)
 

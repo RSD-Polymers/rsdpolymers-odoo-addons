@@ -25,6 +25,13 @@ class StockPicking(models.Model):
         compute='_compute_is_store_user',
         store=False,
     )
+    rm_return_id = fields.Many2one(
+        'rm.return',
+        string='RM Return',
+        readonly=True,
+        copy=False,
+        index=True,
+    )
 
     def _compute_production_request_count(self):
         for picking in self:
@@ -46,6 +53,119 @@ class StockPicking(models.Model):
         is_store = privileged or department == 'store'
         for picking in self:
             picking.is_store_user = is_store
+
+    def _is_production_department_user(self):
+        user = self.env.user
+        if user.has_group('base.group_system') or user.has_group('stock.group_stock_manager'):
+            return False
+        employee = user.employee_id
+        department = employee.department_id.name.strip().lower() if employee and employee.department_id else ''
+        return department == 'production'
+
+    def _check_production_fg_transfer(self, rm_return_expected_state=None):
+        category = self.env['product.category'].search([
+            ('complete_name', '=', 'All / Sales / Finished Goods (Un-Pack)')
+        ], limit=1)
+        if not category:
+            raise UserError(_(
+                'The product category All / Sales / Finished Goods (Un-Pack) '
+                'was not found. Contact an administrator.'
+            ))
+        child_categories = self.env['product.category'].search([
+            ('id', 'child_of', category.id)
+        ])
+
+        for picking in self:
+            if picking.picking_type_id.code != 'internal':
+                continue
+
+            if picking.rm_return_id:
+                rm_return = picking.rm_return_id
+                if rm_return.picking_id != picking:
+                    raise UserError(_('This transfer is not the linked transfer for its RM Return request.'))
+                expected_state = rm_return_expected_state or 'draft'
+                if (
+                    picking.location_id != rm_return.source_location_id
+                    or picking.location_dest_id != rm_return.destination_location_id
+                    or rm_return.state != expected_state
+                    or rm_return.picking_id != picking
+                    or rm_return.company_id != picking.company_id
+                    or rm_return.mo_id.company_id != picking.company_id
+                ):
+                    raise UserError(_(
+                        'This RM Return transfer does not match its request or the expected workflow state (%s).'
+                    ) % expected_state)
+
+                expected = {}
+                for line in rm_return.line_ids.filtered(lambda ln: ln.qty > 0):
+                    key = line.product_id.id
+                    qty = line.uom_id._compute_quantity(line.qty, line.product_id.uom_id, round=False)
+                    expected[key] = expected.get(key, 0.0) + qty
+                actual = {}
+                for move in (picking.move_ids | picking.move_ids_without_package).filtered(
+                    lambda mv: mv.product_id and mv.state != 'cancel'
+                ):
+                    key = move.product_id.id
+                    qty = move.product_uom._compute_quantity(
+                        move.product_uom_qty, move.product_id.uom_id, round=False
+                    )
+                    actual[key] = actual.get(key, 0.0) + qty
+
+                if not expected or set(expected) != set(actual):
+                    raise UserError(_('The transfer products must match the RM Return request.'))
+                from odoo.tools.float_utils import float_compare
+                for product_id, expected_qty in expected.items():
+                    product = self.env['product.product'].browse(product_id)
+                    if float_compare(
+                        actual[product_id], expected_qty,
+                        precision_rounding=product.uom_id.rounding,
+                    ) != 0:
+                        raise UserError(_('The transfer quantities must match the RM Return request.'))
+                continue
+
+            products = (picking.move_ids | picking.move_ids_without_package).mapped('product_id')
+            if not products or any(
+                product.categ_id.id not in child_categories.ids for product in products
+            ):
+                raise UserError(_(
+                    'Production users can only confirm Internal Transfers '
+                    'containing products from All / Sales / Finished Goods (Un-Pack).'
+                ))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if any(vals.get('rm_return_id') for vals in vals_list):
+            raise UserError(_('RM Return links can only be assigned by the RM Return workflow.'))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if 'rm_return_id' in vals and any(
+            picking.rm_return_id.id != vals.get('rm_return_id', False) for picking in self
+        ):
+            raise UserError(_('RM Return links can only be changed by the RM Return workflow.'))
+        return super().write(vals)
+
+    def _link_rm_return_workflow(self, rm_return):
+        """Private server-side link; public create/write cannot assign this relation."""
+        self.ensure_one()
+        if rm_return.picking_id != self or rm_return.state != 'draft':
+            raise UserError(_('Only the linked Draft RM Return can be attached to this transfer.'))
+        return super(StockPicking, self).write({'rm_return_id': rm_return.id})
+
+    def action_confirm(self):
+        # RM Return transfers must be checked regardless of the current user.
+        # Other internal transfers are restricted for Production department users.
+        if self._is_production_department_user() or self.filtered('rm_return_id'):
+            self._check_production_fg_transfer(rm_return_expected_state='draft')
+        return super().action_confirm()
+
+    def button_validate(self):
+        # Recheck RM Return lines at validation too, because Store may edit the
+        # stock moves after confirmation. Normal FG transfer restrictions remain
+        # specific to Production department users.
+        if self._is_production_department_user() or self.filtered('rm_return_id'):
+            self._check_production_fg_transfer(rm_return_expected_state='submitted')
+        return super().button_validate()
 
     def _get_packed_fg_location(self):
         self.ensure_one()

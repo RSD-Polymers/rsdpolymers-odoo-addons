@@ -20,4 +20,12 @@
         Current Indian financial year: 01-Apr-2026 to 31-Mar-2027.
         The custom ir.sequence override creates future FY ranges automatically.
     -->
+
+    <record id="seq_rm_return" model="ir.sequence">
+        <field name="name">RM Return</field>
+        <field name="code">rm.return</field>
+        <field name="prefix">RMR/%(year)s/</field>
+        <field name="padding">4</field>
+    </record>
+
 </odoo>

@@ -80,7 +80,20 @@
                         string="RM Issue Request"
                         type="object"
                         class="btn-primary"
-                        invisible="is_packing_order or rm_issue_status != 'not_requested' or state not in ('confirmed','progress') or not show_request_rm_button"/>
+                        invisible="is_packing_order or state not in ('confirmed','progress','to_close') or not show_request_rm_button"/>
+                <button name="action_request_rm_return"
+                        string="Return RM"
+                        type="object"
+                        class="btn-secondary"
+                        invisible="is_packing_order or state not in ('confirmed','progress','to_close') or not show_request_rm_button"/>
+                <button name="action_view_rm_returns"
+                        string="RM Returns"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-undo"
+                        invisible="rm_return_count == 0 or is_packing_order">
+                    <field name="rm_return_count" widget="statinfo" string="RM Returns"/>
+                </button>
             </xpath>
 
             <xpath expr="//field[@name='user_id']" position="attributes">

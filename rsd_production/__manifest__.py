@@ -27,6 +27,7 @@
         "views/production_request_views.xml",
         "views/production_request_mo_view.xml",
         "views/rm_issue_views.xml",
+        "views/rm_return_views.xml",
         "views/stock_picking_views.xml",
         "views/production_dashboard_views.xml",
     ],

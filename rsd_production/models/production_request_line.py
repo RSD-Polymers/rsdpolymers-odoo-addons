@@ -144,6 +144,31 @@ class ProductionRequestLine(models.Model):
         "pi_ids.product_uom_id",
         "pi_ids.state",
     )
+    def write(self, vals):
+        """Allow Store Users to change Required Qty only while the
+        Production Request is still in Requested state.
+        """
+        if 'required_qty' in vals:
+            for line in self:
+                request = line.request_id
+
+                # Required Qty cannot be changed after the request is accepted.
+                if request.state != 'requested':
+                    raise UserError(
+                        _(
+                            'Required Qty can only be changed while '
+                            'Production Request %s is in Requested state.'
+                        ) % request.name
+                    )
+
+                # Only Store Users can change Required Qty.
+                if not self.env.user.has_group('stock.group_stock_user'):
+                    raise UserError(
+                        _('Only Store Users can change the Required Qty.')
+                    )
+
+        return super().write(vals)
+
     def _compute_execution_qty(self):
         for line in self:
             mo_qty = 0.0

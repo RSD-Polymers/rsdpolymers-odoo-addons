@@ -28,6 +28,7 @@
                 
                 <header>
                     <field name="can_issue_material" invisible="1"/>
+                    <button name="action_mark_requested" string="Submit RM Request" type="object" class="btn-primary" invisible="state != 'draft'"/>
                     <button name="action_check_availability"
                             string="Check RM Availability"
                             type="object"
@@ -90,11 +91,11 @@
                     <notebook>
                         <page string="Lines">
 
-                            <field name="line_ids" nolabel="1">
+                            <field name="line_ids" nolabel="1" readonly="state != 'draft'">
                                 <list editable="bottom">
-                                    <field name="product_id" required="1"/>
-                                    <field name="qty"/>
-                                    <field name="uom_id"/>
+                                    <field name="product_id" required="1" domain="[('is_storable', '=', True)]"/>
+                                    <field name="qty" required="1"/>
+                                    <field name="uom_id" required="1"/>
                                 </list>
                             </field>
 
@@ -107,9 +108,19 @@
         </field>
     </record>
 
-    <menuitem id="menu_rm_issue"
+    <!-- Inventory entry point for Store users -->
+    <menuitem id="menu_rm_issue_inventory"
               name="RM Issue"
               parent="stock.menu_stock_transfers"
               action="action_rm_issue"
+              groups="stock.group_stock_user,stock.group_stock_manager"
               sequence="50"/>
+
+    <!-- Manufacturing entry point for Production users -->
+    <menuitem id="menu_rm_issue_manufacturing"
+              name="RM Issue Requests"
+              parent="mrp.menu_mrp_root"
+              action="action_rm_issue"
+              groups="mrp.group_mrp_user"
+              sequence="65"/>
 </odoo>
