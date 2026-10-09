@@ -119,7 +119,7 @@
     <!-- Manufacturing entry point for Production users -->
     <menuitem id="menu_rm_issue_manufacturing"
               name="RM Issue Requests"
-              parent="mrp.menu_mrp_root"
+              parent="mrp.menu_mrp_manufacturing"
               action="action_rm_issue"
               groups="mrp.group_mrp_user"
               sequence="65"/>

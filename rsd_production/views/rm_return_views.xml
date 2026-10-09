@@ -42,5 +42,5 @@
     <menuitem id="menu_rm_return_inventory" name="RM Returns" parent="stock.menu_stock_transfers" action="action_rm_return" groups="stock.group_stock_user,stock.group_stock_manager" sequence="51"/>
 
     <!-- Manufacturing entry point for Production users -->
-    <menuitem id="menu_rm_return_manufacturing" name="RM Return Requests" parent="mrp.menu_mrp_root" action="action_rm_return" groups="mrp.group_mrp_user" sequence="66"/>
+    <menuitem id="menu_rm_return_manufacturing" name="RM Return Requests" parent="mrp.menu_mrp_manufacturing" action="action_rm_return" groups="mrp.group_mrp_user" sequence="66"/>
 </odoo>
