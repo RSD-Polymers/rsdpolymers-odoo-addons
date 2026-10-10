@@ -1,0 +1,5 @@
+<odoo>
+    <record id="group_production_request_store_acknowledger" model="res.groups">
+        <field name="name">Production Request Store Acknowledger</field>
+    </record>
+</odoo>

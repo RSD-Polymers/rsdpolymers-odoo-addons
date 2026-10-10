@@ -8,9 +8,10 @@
         """,
     'author': 'RSD Polymer',
     'website': 'https://www.rsdpolymers.com/',
-    "depends": ["stock", "sale", "account", "rsd_sales", "mrp", "product", "hr"],
+    "depends": ["stock", "sale", "account", "rsd_sales", "mrp", "product", "hr", "web_studio"],
     "data": [
         "data/sequence.xml",
+        "security/production_request_security.xml",
         "security/ir.model.access.csv",
         "reports/delivery_challan_report.xml",
         "reports/delivery_challan_template.xml",

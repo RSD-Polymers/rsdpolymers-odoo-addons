@@ -23,6 +23,21 @@
                            string="Production Requests"/>
                 </button>
             </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Production Requests" name="production_requests_tab"
+                      invisible="production_request_count == 0">
+                    <field name="production_request_ids" readonly="1" nolabel="1">
+                        <list create="0" delete="0">
+                            <field name="name" string="Request No."/>
+                            <field name="sale_id" string="Sales Order"/>
+                            <field name="state" string="Status"/>
+                            <field name="store_acknowledged" string="Store Acknowledged"/>
+                            <field name="store_acknowledged_by" string="Acknowledged By"/>
+                            <field name="store_acknowledged_date" string="Acknowledged On"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
         </field>
     </record>
 </odoo>

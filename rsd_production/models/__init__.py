@@ -14,3 +14,5 @@ from . import rm_return
 from . import production_request_reject_wizard
 
 from . import res_config_settings
+
+from . import mail_activity

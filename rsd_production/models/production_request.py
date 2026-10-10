@@ -67,6 +67,10 @@ class ProductionRequest(models.Model):
     store_acknowledged = fields.Boolean(string='Store Acknowledged', readonly=True, tracking=True, default=False)
     store_acknowledged_by = fields.Many2one('res.users', string='Store Acknowledged By', readonly=True, tracking=True)
     store_acknowledged_date = fields.Datetime(string='Store Acknowledged On', readonly=True, tracking=True)
+    can_acknowledge_store = fields.Boolean(
+        string='Can Acknowledge as Store', compute='_compute_can_acknowledge_store',
+    )
+    # Retained for compatibility with existing records; Sales acknowledgement is no longer used.
     sales_acknowledged = fields.Boolean(string='Sales Acknowledged', readonly=True, tracking=True, default=False)
     sales_acknowledged_by = fields.Many2one('res.users', string='Sales Acknowledged By', readonly=True, tracking=True)
     sales_acknowledged_date = fields.Datetime(string='Sales Acknowledged On', readonly=True, tracking=True)
@@ -416,23 +420,71 @@ class ProductionRequest(models.Model):
         return bool(lines and executions and all(line.remaining_qty <= 1e-6 for line in lines)
                     and all(doc.state == 'done' for doc in executions))
 
+    def _schedule_store_ack_activity(self):
+        """Create one Approve activity for the eligible request creator."""
+        Activity = self.env['mail.activity'].sudo()
+        activity_type = self.env.ref(
+            'web_studio.mail_activity_data_approve'
+        )
+        store_group = self.env.ref(
+            'rsd_production.group_production_request_store_acknowledger'
+        )
+
+        for request in self:
+            # Do not create duplicate acknowledgement activities.
+            existing = Activity.search([
+                ('production_request_id', '=', request.id),
+                ('activity_type_id', '=', activity_type.id),
+            ], limit=1)
+
+            if existing:
+                continue
+
+            # Assign the activity to the actual request creator only.
+            store_user = request.create_uid
+
+            if (
+                    not store_user
+                    or not store_user.active
+                    or store_group not in store_user.groups_id
+            ):
+                raise UserError(_(
+                    'Production Request %(request)s cannot be marked as '
+                    'Production Done because its creator must be an active '
+                    'member of the Production Request Store Acknowledger group.'
+                ) % {'request': request.name})
+
+            # Attach the activity to the linked Delivery Order when available.
+            target = request.picking_id or request
+            model = 'stock.picking' if request.picking_id else 'production.request'
+
+            Activity.create({
+                'activity_type_id': activity_type.id,
+                'res_model_id': self.env['ir.model']._get_id(model),
+                'res_id': target.id,
+                'user_id': store_user.id,
+                'summary': _('Acknowledge Production Request %s') % request.name,
+                'note': _(
+                    'Please acknowledge completion of Production Request '
+                    '%(request)s for Sales Order %(sale)s. '
+                    'This activity is explicitly linked to the Production Request.'
+                ) % {
+                            'request': request.name,
+                            'sale': request.sale_id.display_name or '',
+                        },
+                'date_deadline': fields.Date.context_today(request),
+                'production_request_id': request.id,
+            })
+
     def action_mark_production_done(self):
         for request in self:
             request._check_production_user()
-
             if request.state not in ('accepted', 'in_production'):
-                raise UserError(_(
-                    'Only accepted or in-production requests can be marked Production Done.'
-                ))
+                raise UserError(_('Only accepted or in-production requests can be marked Production Done.'))
 
-            execution_creation_enabled = (
-                    self.env['ir.config_parameter'].sudo().get_param(
-                        'rsd_production.allow_production_request_mo_pi', 'False'
-                    ) == 'True'
-            )
-
-            # Require allocation and completed execution documents only
-            # when MO/PI creation is enabled in Manufacturing Settings.
+            execution_creation_enabled = self.env['ir.config_parameter'].sudo().get_param(
+                'rsd_production.allow_production_request_mo_pi', 'False'
+            ) == 'True'
             if execution_creation_enabled and not request._all_execution_documents_done():
                 raise UserError(_(
                     'All required quantities must be allocated and all linked '
@@ -444,83 +496,104 @@ class ProductionRequest(models.Model):
                 'production_done_by': self.env.user.id,
                 'production_done_date': fields.Datetime.now(),
             })
-
+            request._schedule_store_ack_activity()
             partners = request._get_notification_partners()
             body = _(
                 'Production Request <b>%s</b> has been marked Production Done. '
-                'Store and Sales must acknowledge completion.'
+                'Store acknowledgement is required to close the request.'
             ) % request.name
-
             request.sudo().message_post(
-                body=body,
-                partner_ids=partners.ids,
-                subtype_xmlid='mail.mt_comment',
-            )
-
+                body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
             if request.sale_id:
                 request.sale_id.sudo().message_post(
-                    body=body,
-                    partner_ids=partners.ids,
-                    subtype_xmlid='mail.mt_comment',
-                )
-
+                    body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
         return True
+
+    def _is_authorized_store_user(self, user):
+        self.ensure_one()
+        return user.has_group(
+            'rsd_production.group_production_request_store_acknowledger'
+        )
+
+    @api.depends_context('uid')
+    def _compute_can_acknowledge_store(self):
+        user = self.env.user
+        for request in self:
+            request.can_acknowledge_store = bool(
+                request.state == 'production_done'
+                and not request.store_acknowledged
+                and request._is_authorized_store_user(user)
+            )
 
     def _check_store_acknowledger(self):
         self.ensure_one()
-        user = self.env.user
-        if user.has_group('base.group_system') or user.has_group('stock.group_stock_manager'):
-            return
-        employee = user.employee_id
-        department = employee.department_id.name.strip().lower() if employee and employee.department_id else ''
-        if user != self.requested_by and department != 'store':
-            raise UserError(_('Only the Store requester or an authorized Store user can acknowledge completion.'))
+        if not self._is_authorized_store_user(self.env.user):
+            raise UserError(_(
+                'Only members of the Production Request Store Acknowledger group '
+                'can acknowledge completion.'
+            ))
 
     def action_acknowledge_store(self):
         for request in self:
-            if request.state != 'production_done':
-                raise UserError(_('Store can acknowledge only after Production marks the request done.'))
+            if request.state not in ('production_done', 'done'):
+                raise UserError(_(
+                    'Store can acknowledge only after Production marks '
+                    'the request done.'
+                ))
+
             request._check_store_acknowledger()
+
             if not request.store_acknowledged:
                 request.sudo().write({
                     'store_acknowledged': True,
                     'store_acknowledged_by': self.env.user.id,
                     'store_acknowledged_date': fields.Datetime.now(),
                 })
-                request.sudo().message_post(
-                    body=_('Store acknowledged completion of Production Request <b>%s</b>.') % request.name,
-                    partner_ids=request._get_notification_partners().ids,
-                    subtype_xmlid='mail.mt_comment')
-            request._close_if_acknowledged()
-        return True
 
-    def action_acknowledge_sales(self):
-        for request in self:
-            if request.state != 'production_done':
-                raise UserError(_('Sales can acknowledge only after Production marks the request done.'))
-            user = self.env.user
-            if not (user.has_group('base.group_system') or user.has_group('sales_team.group_sale_manager')
-                    or (request.sale_id and request.sale_id.user_id == user)):
-                raise UserError(_('Only the Salesperson assigned to the Sales Order or a Sales Manager can acknowledge completion.'))
-            if not request.sales_acknowledged:
-                request.sudo().write({
-                    'sales_acknowledged': True,
-                    'sales_acknowledged_by': user.id,
-                    'sales_acknowledged_date': fields.Datetime.now(),
-                })
                 request.sudo().message_post(
-                    body=_('Sales acknowledged completion of Production Request <b>%s</b>.') % request.name,
+                    body=_(
+                        'Store acknowledged completion of Production Request '
+                        '<b>%s</b>.'
+                    ) % request.name,
                     partner_ids=request._get_notification_partners().ids,
-                    subtype_xmlid='mail.mt_comment')
+                    subtype_xmlid='mail.mt_comment',
+                )
+
+            # Find only the Approve activity linked to this request.
+            approve_type = self.env.ref(
+                'web_studio.mail_activity_data_approve',
+                raise_if_not_found=False,
+            )
+
+            if (
+                    approve_type
+                    and not self.env.context.get('skip_activity_completion')
+            ):
+                activities = self.env['mail.activity'].sudo().search([
+                    ('production_request_id', '=', request.id),
+                    ('activity_type_id', '=', approve_type.id),
+                ])
+
+                if activities:
+                    activities.with_context(
+                        skip_production_request_ack_sync=True
+                    ).action_feedback(
+                        feedback=_(
+                            'Acknowledged through the Production Request button.'
+                        )
+                    )
+
+            # Close the request after Store acknowledgement.
             request._close_if_acknowledged()
+
         return True
 
     def _close_if_acknowledged(self):
         for request in self:
-            if request.state == 'production_done' and request.store_acknowledged and request.sales_acknowledged:
+            if request.state == 'production_done' and request.store_acknowledged:
                 request.sudo().write({'state': 'done'})
                 request.sudo().message_post(
-                    body=_('Production Request <b>%s</b> is now closed. Store and Sales have both acknowledged completion.') % request.name,
+                    body=_('Production Request <b>%s</b> is now closed after Store acknowledgement.') % request.name,
                     partner_ids=request._get_notification_partners().ids,
                     subtype_xmlid='mail.mt_comment')
 
