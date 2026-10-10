@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_inherit_production_request" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.production.request</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="mrp.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='mrp']" position="inside">
+                <block title="Production Requests" name="rsd_production_request_settings">
+                    <setting id="allow_production_request_mo_pi"
+                             string="Allow MO/PI Creation from Production Requests"
+                             help="Enable this option to allow authorized Production users to create Manufacturing Orders and Packing Instructions directly from Production Request lines.">
+                        <field name="allow_production_request_mo_pi"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

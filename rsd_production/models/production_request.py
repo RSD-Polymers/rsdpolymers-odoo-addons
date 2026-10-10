@@ -81,6 +81,8 @@ class ProductionRequest(models.Model):
 
         ('in_production', 'In Production'),
 
+        ('production_done', 'Production Done'),
+
         ('done', 'Done'),
 
         ('cancelled', 'Cancelled'),
@@ -692,6 +694,29 @@ class ProductionRequestLine(models.Model):
 
     )
 
+    execution_creation_enabled = fields.Boolean(
+        string='MO/PI Creation Enabled',
+        compute='_compute_execution_creation_enabled',
+    )
+
+    @api.depends_context('uid')
+    def _compute_execution_creation_enabled(self):
+        enabled = self.env['ir.config_parameter'].sudo().get_param(
+            'rsd_production.allow_production_request_mo_pi', 'False'
+        ) == 'True'
+        for line in self:
+            line.execution_creation_enabled = enabled
+
+    def _check_execution_creation_enabled(self):
+        enabled = self.env['ir.config_parameter'].sudo().get_param(
+            'rsd_production.allow_production_request_mo_pi', 'False'
+        ) == 'True'
+        if not enabled:
+            raise UserError(_(
+                'Creating Manufacturing Orders and Packing Instructions from Production Requests is disabled. '
+                'An administrator can enable it in Manufacturing Settings.'
+            ))
+
     requested_by = fields.Many2one(
 
         'res.users',
@@ -876,6 +901,7 @@ class ProductionRequestLine(models.Model):
     def _check_execution_allowed(self):
 
         for line in self:
+            line._check_execution_creation_enabled()
 
             if line.request_id.state not in ('accepted', 'in_production'):
 

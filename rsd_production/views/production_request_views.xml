@@ -42,6 +42,19 @@
                 <field name="material_ready_date"
                        string="Material Ready Date"/>
 
+                <field name="execution_creation_enabled" column_invisible="1"/>
+                <button name="action_create_mo"
+                        type="object"
+                        string="Create MO"
+                        class="btn-secondary"
+                        invisible="not execution_creation_enabled or state not in ('accepted', 'in_production') or remaining_qty &lt;= 0"/>
+                <button name="action_create_pi"
+                        type="object"
+                        string="Create PI"
+                        class="btn-secondary"
+                        invisible="not execution_creation_enabled or state not in ('accepted', 'in_production') or remaining_qty &lt;= 0"/>
+
+                <field name="remaining_qty" column_invisible="1"/>
                 <field name="state"
                        string="Status"/>
 
@@ -194,6 +207,8 @@
 
                 </sheet>
 
+                <chatter/>
+
             </form>
 
         </field>
@@ -323,12 +338,12 @@
               action="action_production_request"
               sequence="0"/>
 
-    <!-- Same Production Request action for Store users in Inventory -->
+    <!-- Visible to Inventory users; the action reuses the product-wise request list. -->
     <menuitem id="menu_production_request_inventory"
               name="Production Requests"
               parent="stock.menu_stock_root"
               action="action_production_request"
-              groups="stock.group_stock_user,stock.group_stock_manager"
+              groups="stock.group_stock_user"
               sequence="55"/>
 
 </odoo>
