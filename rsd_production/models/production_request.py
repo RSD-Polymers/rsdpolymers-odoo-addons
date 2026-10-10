@@ -419,22 +419,51 @@ class ProductionRequest(models.Model):
     def action_mark_production_done(self):
         for request in self:
             request._check_production_user()
+
             if request.state not in ('accepted', 'in_production'):
-                raise UserError(_('Only accepted or in-production requests can be marked Production Done.'))
-            if not request._all_execution_documents_done():
                 raise UserError(_(
-                    'All required quantities must be allocated and all linked Manufacturing Orders/Packing Instructions must be Done first.'
+                    'Only accepted or in-production requests can be marked Production Done.'
                 ))
+
+            execution_creation_enabled = (
+                    self.env['ir.config_parameter'].sudo().get_param(
+                        'rsd_production.allow_production_request_mo_pi', 'False'
+                    ) == 'True'
+            )
+
+            # Require allocation and completed execution documents only
+            # when MO/PI creation is enabled in Manufacturing Settings.
+            if execution_creation_enabled and not request._all_execution_documents_done():
+                raise UserError(_(
+                    'All required quantities must be allocated and all linked '
+                    'Manufacturing Orders/Packing Instructions must be Done first.'
+                ))
+
             request.sudo().write({
                 'state': 'production_done',
                 'production_done_by': self.env.user.id,
                 'production_done_date': fields.Datetime.now(),
             })
+
             partners = request._get_notification_partners()
-            body = _('Production Request <b>%s</b> has been marked Production Done. Store and Sales must acknowledge completion.') % request.name
-            request.sudo().message_post(body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
+            body = _(
+                'Production Request <b>%s</b> has been marked Production Done. '
+                'Store and Sales must acknowledge completion.'
+            ) % request.name
+
+            request.sudo().message_post(
+                body=body,
+                partner_ids=partners.ids,
+                subtype_xmlid='mail.mt_comment',
+            )
+
             if request.sale_id:
-                request.sale_id.sudo().message_post(body=body, partner_ids=partners.ids, subtype_xmlid='mail.mt_comment')
+                request.sale_id.sudo().message_post(
+                    body=body,
+                    partner_ids=partners.ids,
+                    subtype_xmlid='mail.mt_comment',
+                )
+
         return True
 
     def _check_store_acknowledger(self):
