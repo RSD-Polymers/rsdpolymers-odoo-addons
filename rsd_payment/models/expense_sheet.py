@@ -107,18 +107,16 @@ class HrExpenseSheet(models.Model):
 
     def write(self, vals):
         """
-        Payment Desk restriction applies ONLY to Accounts and Finance users.
+        Payment Desk restriction applies only to Accounts and Finance users
+        editing Expense Reports belonging to other employees.
 
-        Employee / Manager / other normal Odoo users are not restricted by
-        Payment Desk.
-
-        Native Odoo operations and controlled Payment Desk workflow operations
-        can bypass this restriction using the context flag.
+        Employees and Managers retain the normal Odoo workflow.
+        Accounts and Finance users can edit their own Expense Reports.
         """
 
-        # Allow controlled internal operations.
+        # Allow controlled internal workflow operations.
         if self.env.context.get(
-            'rsd_payment_bypass_write_restriction'
+                'rsd_payment_bypass_write_restriction'
         ):
             return super().write(vals)
 
@@ -134,54 +132,49 @@ class HrExpenseSheet(models.Model):
             'rsd_payment.group_rsd_payment_finance'
         )
 
-        # IMPORTANT:
-        # If the user is neither Accounts nor Finance, Payment Desk must not
-        # restrict the normal Odoo Expense workflow.
+        # Users outside Accounts and Finance retain normal Odoo behavior.
         if not accounts_user and not finance_user:
             return super().write(vals)
 
-        # -------------------------------------------------------------
-        # User belongs to BOTH Accounts and Finance
-        # -------------------------------------------------------------
+        # Apply the stage restriction only to reports owned by other users.
+        restricted_sheets = self.filtered(
+            lambda sheet: sheet.employee_id.user_id != self.env.user
+        )
 
+        # All selected reports belong to the current user.
+        if not restricted_sheets:
+            return super().write(vals)
+
+        # User belongs to both Accounts and Finance.
         if accounts_user and finance_user:
-
             if any(
-                sheet.rsd_payment_state not in (
-                    'accounts_review',
-                    'finance_review',
-                )
-                for sheet in self
+                    sheet.rsd_payment_state not in (
+                            'accounts_review',
+                            'finance_review',
+                    )
+                    for sheet in restricted_sheets
             ):
                 raise UserError(_(
                     'Expense Reports can only be edited during '
                     'Accounts Review or Finance Review.'
                 ))
 
-        # -------------------------------------------------------------
-        # Accounts only
-        # -------------------------------------------------------------
-
+        # Accounts only.
         elif accounts_user:
-
             if any(
-                sheet.rsd_payment_state != 'accounts_review'
-                for sheet in self
+                    sheet.rsd_payment_state != 'accounts_review'
+                    for sheet in restricted_sheets
             ):
                 raise UserError(_(
                     'Expense Reports can only be edited by Accounts '
                     'while they are in Accounts Review.'
                 ))
 
-        # -------------------------------------------------------------
-        # Finance only
-        # -------------------------------------------------------------
-
+        # Finance only.
         elif finance_user:
-
             if any(
-                sheet.rsd_payment_state != 'finance_review'
-                for sheet in self
+                    sheet.rsd_payment_state != 'finance_review'
+                    for sheet in restricted_sheets
             ):
                 raise UserError(_(
                     'Expense Reports can only be edited by Finance '
