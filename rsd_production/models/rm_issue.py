@@ -179,30 +179,131 @@ class RmIssue(models.Model):
         if transfer.state in ('cancel', 'done'):
             raise UserError(_('A cancelled or completed Internal Transfer cannot be linked.'))
 
-    def write(self, vals):
-        if 'internal_transfer_ref' in vals and not self.env.context.get('skip_internal_transfer_link_check'):
-            new_transfer_id = vals.get('internal_transfer_ref') or False
-            if new_transfer_id:
-                self._check_internal_transfer_link(new_transfer_id)
-
-            changing_transfer = any(
-                rm.internal_transfer_ref.id != new_transfer_id
-                for rm in self
-            )
-            if changing_transfer and not (
-                self.env.user.has_group('base.group_system')
-                or self.env.user.has_group('stock.group_stock_manager')
-            ):
-                raise UserError(
-                    _('Only a Store Admin can manually link or change the Internal Transfer.')
-                )
-        return super().write(vals)
-
     line_ids = fields.One2many('rm.issue.line', 'rm_issue_id')
 
 
     requested_by = fields.Many2one('res.users')
     issued_by = fields.Many2one('res.users')
+
+    # Production feedback about the Store's material issue transaction.
+    production_feedback_intime = fields.Selection(
+        [('yes', 'Yes'), ('no', 'No')], string='Material Issued Intime',
+        copy=False, tracking=True,
+    )
+    production_feedback_correct = fields.Selection(
+        [('yes', 'Yes'), ('no', 'No')], string='Material Issued Correctly',
+        copy=False, tracking=True,
+    )
+    production_feedback_submitted = fields.Boolean(
+        string='Production Feedback Submitted', default=False, readonly=True, copy=False, tracking=True,
+    )
+    production_feedback_by = fields.Many2one(
+        'res.users', string='Production Feedback By', readonly=True, copy=False, tracking=True,
+    )
+    production_feedback_date = fields.Datetime(
+        string='Production Feedback On', readonly=True, copy=False, tracking=True,
+    )
+    can_submit_production_feedback = fields.Boolean(compute='_compute_can_submit_production_feedback')
+
+    @api.depends('state', 'production_feedback_submitted')
+    @api.depends_context('uid')
+    def _compute_can_submit_production_feedback(self):
+        is_production_user = (
+            self.env.user.has_group('mrp.group_mrp_user')
+            or self.env.user.has_group('base.group_system')
+        )
+        for rm in self:
+            rm.can_submit_production_feedback = bool(
+                rm.state == 'issued' and not rm.production_feedback_submitted and is_production_user
+            )
+
+    def action_submit_production_feedback(self):
+        if not (
+            self.env.user.has_group('mrp.group_mrp_user')
+            or self.env.user.has_group('base.group_system')
+        ):
+            raise UserError(_('Only Production users can submit feedback on Store material issues.'))
+        for rm in self:
+            if rm.state != 'issued':
+                raise UserError(_('Production feedback can be submitted only after the raw materials are issued.'))
+            if rm.production_feedback_submitted:
+                raise UserError(_('Production feedback has already been submitted.'))
+            if not rm.production_feedback_intime or not rm.production_feedback_correct:
+                raise UserError(_('Please select Yes or No for both Intime and Correct before submitting feedback.'))
+            rm.write({
+                'production_feedback_submitted': True,
+                'production_feedback_by': self.env.user.id,
+                'production_feedback_date': fields.Datetime.now(),
+            })
+            rm.message_post(
+                body=_('Production feedback submitted for RM Issue <b>%s</b>.') % rm.name,
+                subtype_xmlid='mail.mt_comment',
+            )
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
+
+        def write(self, vals):
+            # Protect manual Internal Transfer linking.
+            if (
+                    'internal_transfer_ref' in vals
+                    and not self.env.context.get('skip_internal_transfer_link_check')
+            ):
+                new_transfer_id = vals.get('internal_transfer_ref') or False
+
+                if new_transfer_id:
+                    self._check_internal_transfer_link(new_transfer_id)
+
+                changing_transfer = any(
+                    rm.internal_transfer_ref.id != new_transfer_id
+                    for rm in self
+                )
+
+                if changing_transfer and not (
+                        self.env.user.has_group('base.group_system')
+                        or self.env.user.has_group('stock.group_stock_manager')
+                ):
+                    raise UserError(_(
+                        'Only a Store Admin can manually link or change '
+                        'the Internal Transfer.'
+                    ))
+
+            # Protect Production feedback fields.
+            feedback_fields = {
+                'production_feedback_intime',
+                'production_feedback_correct',
+                'production_feedback_submitted',
+                'production_feedback_by',
+                'production_feedback_date',
+            }
+
+            if feedback_fields.intersection(vals):
+                is_production_user = (
+                        self.env.user.has_group('mrp.group_mrp_user')
+                        or self.env.user.has_group('base.group_system')
+                )
+
+                if not is_production_user:
+                    raise UserError(_(
+                        'Only Production users can change Production feedback.'
+                    ))
+
+                if any(rm.production_feedback_submitted for rm in self):
+                    if not self.env.user.has_group('base.group_system'):
+                        raise UserError(_(
+                            'Submitted Production feedback is locked '
+                            'and cannot be changed.'
+                        ))
+
+            return super().write(vals)
+
+        if feedback_fields.intersection(vals):
+            if not (
+                self.env.user.has_group('mrp.group_mrp_user')
+                or self.env.user.has_group('base.group_system')
+            ):
+                raise UserError(_('Only Production users can change Production feedback.'))
+            if any(rm.production_feedback_submitted for rm in self) and not self.env.user.has_group('base.group_system'):
+                raise UserError(_('Submitted Production feedback is locked and cannot be changed.'))
+        return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):

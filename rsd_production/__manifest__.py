@@ -27,6 +27,7 @@
         "views/res_config_settings_views.xml",
         "views/sale_order_views.xml",
         "views/production_request_reject_wizard_views.xml",
+        "views/production_request_feedback_wizard_views.xml",
         "views/production_request_views.xml",
         "views/production_request_mo_view.xml",
         "views/rm_issue_views.xml",

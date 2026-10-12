@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_production_request_feedback_wizard_form" model="ir.ui.view">
+        <field name="name">production.request.feedback.wizard.form</field>
+        <field name="model">production.request.feedback.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Store Feedback">
+                <group>
+                    <field name="request_id"/>
+                    <field name="intime" widget="radio" options="{'horizontal': true}"/>
+                    <field name="correct" widget="radio" options="{'horizontal': true}"/>
+                </group>
+                <footer>
+                    <button name="action_submit_feedback" string="Submit Feedback" type="object" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

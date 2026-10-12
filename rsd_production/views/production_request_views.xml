@@ -103,6 +103,13 @@
                             class="btn-primary"
                             groups="rsd_production.group_production_request_store_acknowledger"
                             invisible="not can_acknowledge_store"/>
+                    <field name="can_submit_store_feedback" invisible="1"/>
+                    <button name="action_open_store_feedback"
+                            string="Submit Store Feedback"
+                            type="object"
+                            class="btn-primary"
+                            groups="rsd_production.group_production_request_store_acknowledger"
+                            invisible="not can_submit_store_feedback"/>
 
                     <field name="state"
                            widget="statusbar"
@@ -195,6 +202,25 @@
 
                             </field>
 
+                        </page>
+                        <page string="Store Feedback">
+                            <group>
+                                <group string="Feedback on Production">
+                                    <field name="store_feedback_intime"
+                                           widget="radio"
+                                           options="{'horizontal': true}"
+                                           readonly="1"/>
+                                    <field name="store_feedback_correct"
+                                           widget="radio"
+                                           options="{'horizontal': true}"
+                                           readonly="1"/>
+                                </group>
+                                <group string="Submission Details">
+                                    <field name="store_feedback_submitted" readonly="1"/>
+                                    <field name="store_feedback_by" invisible="not store_feedback_by"/>
+                                    <field name="store_feedback_date" invisible="not store_feedback_date"/>
+                                </group>
+                            </group>
                         </page>
 
                     </notebook>

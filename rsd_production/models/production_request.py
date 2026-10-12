@@ -70,6 +70,26 @@ class ProductionRequest(models.Model):
     can_acknowledge_store = fields.Boolean(
         string='Can Acknowledge as Store', compute='_compute_can_acknowledge_store',
     )
+
+    # Store feedback about Production, recorded after Store acknowledges the request.
+    store_feedback_intime = fields.Selection(
+        [('yes', 'Yes'), ('no', 'No')], string='Production Completed Intime',
+        copy=False, tracking=True,
+    )
+    store_feedback_correct = fields.Selection(
+        [('yes', 'Yes'), ('no', 'No')], string='Production Completed Correctly',
+        copy=False, tracking=True,
+    )
+    store_feedback_submitted = fields.Boolean(
+        string='Store Feedback Submitted', default=False, readonly=True, copy=False, tracking=True,
+    )
+    store_feedback_by = fields.Many2one(
+        'res.users', string='Store Feedback By', readonly=True, copy=False, tracking=True,
+    )
+    store_feedback_date = fields.Datetime(
+        string='Store Feedback On', readonly=True, copy=False, tracking=True,
+    )
+    can_submit_store_feedback = fields.Boolean(compute='_compute_can_submit_store_feedback')
     # Retained for compatibility with existing records; Sales acknowledgement is no longer used.
     sales_acknowledged = fields.Boolean(string='Sales Acknowledged', readonly=True, tracking=True, default=False)
     sales_acknowledged_by = fields.Many2one('res.users', string='Sales Acknowledged By', readonly=True, tracking=True)
@@ -532,6 +552,32 @@ class ProductionRequest(models.Model):
                 'Only members of the Production Request Store Acknowledger group '
                 'can acknowledge completion.'
             ))
+
+    @api.depends('store_acknowledged', 'store_feedback_submitted')
+    @api.depends_context('uid')
+    def _compute_can_submit_store_feedback(self):
+        for request in self:
+            request.can_submit_store_feedback = bool(
+                request.store_acknowledged
+                and not request.store_feedback_submitted
+                and request._is_authorized_store_user(self.env.user)
+            )
+
+    def action_open_store_feedback(self):
+        self.ensure_one()
+        self._check_store_acknowledger()
+        if not self.store_acknowledged:
+            raise UserError(_('Store feedback can be submitted only after Store acknowledgement.'))
+        if self.store_feedback_submitted:
+            raise UserError(_('Store feedback has already been submitted.'))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Store Feedback'),
+            'res_model': 'production.request.feedback.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_request_id': self.id},
+        }
 
     def action_acknowledge_store(self):
         for request in self:

@@ -46,6 +46,13 @@
                             type="object"
                             class="btn-success"
                             invisible="not can_issue_material"/>
+                    <field name="can_submit_production_feedback" invisible="1"/>
+                    <button name="action_submit_production_feedback"
+                            string="Submit Production Feedback"
+                            type="object"
+                            class="btn-primary"
+                            groups="mrp.group_mrp_user,base.group_system"
+                            invisible="not can_submit_production_feedback"/>
 
                     <button name="action_print_rm_slip"
                             string="RM Issue Slip"
@@ -100,6 +107,31 @@
                             </field>
 
                         </page>
+
+                        <page string="Production Feedback"
+                              invisible="state != 'issued'">
+                            <group>
+                                <group string="Feedback on Store"
+                                       groups="mrp.group_mrp_user,base.group_system">
+                                    <field name="production_feedback_intime"
+                                           widget="radio"
+                                           options="{'horizontal': true}"
+                                           readonly="production_feedback_submitted"/>
+                                    <field name="production_feedback_correct"
+                                           widget="radio"
+                                           options="{'horizontal': true}"
+                                           readonly="production_feedback_submitted"/>
+                                </group>
+                                <group string="Submission Details">
+                                    <field name="production_feedback_submitted" readonly="1"/>
+                                    <field name="production_feedback_by"
+                                           invisible="not production_feedback_by"/>
+                                    <field name="production_feedback_date"
+                                           invisible="not production_feedback_date"/>
+                                </group>
+                            </group>
+                        </page>
+
                     </notebook>
 
                 </sheet>
