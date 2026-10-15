@@ -66,6 +66,47 @@ class SaleOrder(models.Model):
     )
 
     # -------------------------------------------------------------------------
+    # STORE / PACKED FG WORKFLOW
+    # -------------------------------------------------------------------------
+
+    is_fully_in_stock = fields.Boolean(
+        string="Is Fully In Stock",
+        compute="_compute_stock_status",
+    )
+
+    has_stock_shortage = fields.Boolean(
+        string="Has Stock Shortage",
+        compute="_compute_stock_status",
+    )
+
+    fg_delivery_mode = fields.Selection([
+        ('wait_full', 'Deliver Only When Fully Available'),
+        ('partial', 'Deliver Available Quantity Now'),
+    ],
+        string="FG Delivery Mode",
+        default='wait_full',
+        tracking=True,
+        help=(
+            "Controls how the Store team handles delivery of this order's "
+            "Packed FG stock:\n"
+            "- Deliver Only When Fully Available: wait until all lines can "
+            "be fully reserved.\n"
+            "- Deliver Available Quantity Now: ship whatever is available "
+            "and backorder the rest."
+        ),
+    )
+
+    store_user = fields.Boolean(
+        string="Is Store User",
+        compute='_compute_store_user',
+        store=False,
+        help=(
+            "Indicates if the current user belongs to the Store department, "
+            "and can therefore reserve/deliver Packed FG stock against this order."
+        ),
+    )
+
+    # -------------------------------------------------------------------------
     # PRODUCTION DEPARTMENT VISIBILITY
     # -------------------------------------------------------------------------
     #
@@ -85,6 +126,33 @@ class SaleOrder(models.Model):
             "Manufacturing department."
         ),
     )
+
+    # =========================================================================
+    # STORE USER
+    # =========================================================================
+
+    @api.depends_context('uid')
+    def _compute_store_user(self):
+        user = self.env.user
+
+        is_privileged = (
+            user.has_group('base.group_system')
+            or user.has_group('stock.group_stock_manager')
+        )
+
+        employee = self.env['hr.employee'].sudo().search(
+            [('user_id', '=', user.id)],
+            limit=1,
+        )
+
+        is_store = bool(
+            employee
+            and employee.department_id
+            and employee.department_id.name.strip().lower() == 'store'
+        )
+
+        for order in self:
+            order.store_user = is_privileged or is_store
 
     # =========================================================================
     # PRODUCTION USER BY DEPARTMENT
@@ -119,6 +187,223 @@ class SaleOrder(models.Model):
 
         for rec in self:
             rec.is_sales_manager = is_manager
+
+    # =========================================================================
+    # PACKED FG PICKINGS
+    # =========================================================================
+
+    def _get_fg_pickings(self):
+        """
+        Return outgoing customer deliveries linked to this Sales Order
+        that are not yet completed or cancelled.
+        """
+        self.ensure_one()
+
+        return self.picking_ids.filtered(
+            lambda p:
+                p.picking_type_id.code == 'outgoing'
+                and p.state not in ('done', 'cancel')
+        )
+
+    # =========================================================================
+    # RESERVE PACKED FG
+    # =========================================================================
+
+    def action_reserve_fg(self):
+        """
+        Reserve available Packed FG stock against the Sales Order's
+        outgoing Delivery Order(s).
+        """
+        for order in self:
+            pickings = order._get_fg_pickings()
+
+            if not pickings:
+                raise UserError(
+                    _(
+                        "There is no outgoing delivery to reserve stock "
+                        "against for %s."
+                    ) % order.name
+                )
+
+            pickings.action_assign()
+
+            order.message_post(
+                body=_(
+                    "Packed FG stock reservation attempted for the "
+                    "delivery order(s)."
+                )
+            )
+
+        return True
+
+    # =========================================================================
+    # UNRESERVE PACKED FG
+    # =========================================================================
+
+    def action_unreserve_fg(self):
+        """
+        Release any stock currently reserved against this Sales Order's
+        outgoing Delivery Order(s).
+        """
+        for order in self:
+            pickings = order._get_fg_pickings()
+
+            if not pickings:
+                raise UserError(
+                    _(
+                        "There is no outgoing delivery to unreserve "
+                        "for %s."
+                    ) % order.name
+                )
+
+            pickings.do_unreserve()
+
+            order.message_post(
+                body=_(
+                    "Packed FG stock reservation was released for "
+                    "the delivery order(s)."
+                )
+            )
+
+        return True
+
+    # =========================================================================
+    # DELIVER AVAILABLE QUANTITY
+    # =========================================================================
+
+    def action_deliver_available(self):
+        """
+        Deliver whatever Packed FG quantity is currently available.
+
+        Any remaining quantity is handled through Odoo's standard
+        backorder process.
+        """
+        for order in self:
+            pickings = order._get_fg_pickings()
+
+            if not pickings:
+                raise UserError(
+                    _(
+                        "There is no outgoing delivery to process "
+                        "for %s."
+                    ) % order.name
+                )
+
+            pickings.action_assign()
+
+            res = pickings.with_context(
+                skip_backorder=False
+            ).button_validate()
+
+            if (
+                isinstance(res, dict)
+                and res.get('res_model') == 'stock.backorder.confirmation'
+            ):
+                wizard = self.env[
+                    res['res_model']
+                ].with_context(
+                    res.get('context', {})
+                ).create({})
+
+                wizard.process()
+
+            order.message_post(
+                body=_(
+                    "Available Packed FG stock was delivered; "
+                    "remaining quantity backordered."
+                )
+            )
+
+        return True
+
+    # =========================================================================
+    # WAIT FOR COMPLETE STOCK
+    # =========================================================================
+
+    def action_wait_for_complete(self):
+        """
+        Switch the order back to waiting for full FG availability
+        before delivery.
+        """
+        for order in self:
+            order.fg_delivery_mode = 'wait_full'
+
+            order.message_post(
+                body=_(
+                    "Delivery mode set back to "
+                    "'Deliver Only When Fully Available'."
+                )
+            )
+
+        return True
+
+    # =========================================================================
+    # STOCK STATUS
+    # =========================================================================
+
+    @api.depends(
+        'order_line.product_uom_qty',
+        'order_line.product_id',
+        'state',
+        'approval_state',
+    )
+    def _compute_stock_status(self):
+        """
+        Check live Packed - FG availability for the Sales Order.
+
+        This is informational/store-side stock checking only.
+        It does NOT block Sales Manager approval.
+        """
+
+        packed_loc = self.env['stock.location'].search(
+            [('name', '=', 'Packed - FG')],
+            limit=1,
+        )
+
+        for order in self:
+
+            # Only relevant for normal Odoo Sales Order states.
+            if (
+                order.state not in ('draft', 'sent', 'sale')
+                or not order.order_line
+            ):
+                order.is_fully_in_stock = False
+                order.has_stock_shortage = False
+                continue
+
+            all_in_stock = True
+            has_storable_lines = False
+
+            for line in order.order_line:
+
+                if (
+                    not line.display_type
+                    and line.product_id.type == 'consu'
+                    and line.product_id.is_storable
+                ):
+                    has_storable_lines = True
+
+                    if packed_loc:
+                        live_qty = (
+                            self.env['stock.quant']
+                            ._get_available_quantity(
+                                line.product_id,
+                                packed_loc,
+                            )
+                        )
+                    else:
+                        live_qty = 0.0
+
+                    if live_qty < line.product_uom_qty:
+                        all_in_stock = False
+                        break
+
+            if has_storable_lines:
+                order.is_fully_in_stock = all_in_stock
+                order.has_stock_shortage = not all_in_stock
+            else:
+                order.is_fully_in_stock = False
+                order.has_stock_shortage = False
 
     # =========================================================================
     # ALL PRODUCTS IN STOCK
