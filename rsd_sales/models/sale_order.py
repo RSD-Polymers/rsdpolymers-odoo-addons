@@ -193,7 +193,12 @@ class SaleOrder(models.Model):
                     else:
                         live_qty = 0.0
 
-                    if live_qty < line.product_uom_qty:
+                    remaining_qty = max(
+                        line.product_uom_qty - line.qty_delivered,
+                        0.0,
+                    )
+
+                    if live_qty < remaining_qty:
                         all_in_stock = False
                         break
 
