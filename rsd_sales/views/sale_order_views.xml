@@ -56,16 +56,10 @@
 
             </xpath>
 
-            <xpath expr="//button[@id='create_invoice']"
-                   position="attributes">
-
-                <attribute name="groups">
-                    account.group_account_user,
-                    account.group_account_manager,
-                    base.group_system
-                </attribute>
-
+            <xpath expr="//button[@id='create_invoice']" position="attributes">
+                <attribute name="groups">account.group_account_user,account.group_account_manager,base.group_system</attribute>
             </xpath>
+
 
             <xpath expr="//button[@id='create_invoice_percentage']"
                    position="attributes">
