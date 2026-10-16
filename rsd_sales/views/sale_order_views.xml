@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    
-    
-    
-
     <record id="view_sale_order_form_inherit" model="ir.ui.view">
         <field name="name">sale.order.form.inherit</field>
         <field name="model">sale.order</field>
@@ -12,10 +7,6 @@
         <field name="priority">9999</field>
 
         <field name="arch" type="xml">
-
-            
-            
-            
 
             <xpath expr="//sheet" position="before">
 
@@ -56,11 +47,6 @@
 
             </xpath>
 
-
-            
-            
-            
-
             <xpath expr="//label[@for='commitment_date']"
                    position="attributes">
 
@@ -70,8 +56,6 @@
 
             </xpath>
 
-
-            
             <xpath expr="//button[@id='create_invoice']"
                    position="attributes">
 
@@ -83,8 +67,6 @@
 
             </xpath>
 
-
-            
             <xpath expr="//button[@id='create_invoice_percentage']"
                    position="attributes">
 
@@ -92,8 +74,6 @@
 
             </xpath>
 
-
-            
             <xpath expr="//button[@id='send_proforma_primary']"
                    position="attributes">
 
@@ -108,8 +88,6 @@
 
             </xpath>
 
-
-            
             <xpath expr="//button[@id='send_by_email']"
                    position="attributes">
 
@@ -123,11 +101,6 @@
                 <attribute name="invisible">1</attribute>
 
             </xpath>
-
-
-            
-            
-            
 
             <xpath expr="//field[@name='partner_id']"
                    position="attributes">
@@ -201,11 +174,6 @@
 
             </xpath>
 
-
-            
-            
-            
-
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']"
                    position="attributes">
 
@@ -260,7 +228,6 @@
 
             </xpath>
 
-
             <xpath expr="//field[@name='sale_order_option_ids']"
                    position="attributes">
 
@@ -269,11 +236,6 @@
                 </attribute>
 
             </xpath>
-
-
-            
-            
-            
 
             <xpath expr="//field[@name='state']"
                    position="attributes">
@@ -284,11 +246,6 @@
 
             </xpath>
 
-
-            
-            
-            
-
             <xpath expr="//field[@name='user_id']"
                    position="after">
 
@@ -296,11 +253,6 @@
                        readonly="approval_state == 'approved'"/>
 
             </xpath>
-
-
-            
-            
-            
 
             <xpath expr="//field[@name='payment_term_id']"
                    position="after">
@@ -313,7 +265,6 @@
 
             </xpath>
 
-
             <xpath expr="//field[@name='sale_order_template_id']"
                    position="after">
 
@@ -321,11 +272,6 @@
                        readonly="state in ['sale', 'done'] or approval_state != 'draft'"/>
 
             </xpath>
-
-
-            
-            
-            
 
             <xpath expr="//field[@name='order_line']//field[@name='product_id']"
                    position="attributes">
@@ -342,11 +288,6 @@
 
             </xpath>
 
-
-            
-            
-            
-
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']"
                    position="after">
 
@@ -362,11 +303,6 @@
 
             </xpath>
 
-
-            
-            
-            
-
             <xpath expr="//field[@name='order_line']/list/field[@name='product_packaging_qty']"
                    position="attributes">
 
@@ -379,12 +315,6 @@
                 </attribute>
 
             </xpath>
-
-
-            
-            
-            
-            
 
             <xpath expr="//field[@name='order_line']/list/field[@name='product_uom_qty']"
                    position="before">
@@ -400,11 +330,6 @@
                        readonly="parent.state in ('sale','done','cancel')"/>
 
             </xpath>
-
-
-            
-            
-            
 
             <xpath expr="//field[@name='tax_totals']"
                    position="attributes">
@@ -506,7 +431,6 @@
 
             </xpath>
 
-
             <xpath expr="//page[@name='other_information']"
                    position="attributes">
 
@@ -524,8 +448,6 @@
                 </attribute>
 
             </xpath>
-
-
             
             <xpath expr="//button[@name='action_preview_sale_order']"
                    position="attributes">
@@ -533,12 +455,6 @@
                 <attribute name="invisible">1</attribute>
 
             </xpath>
-
-
-            
-            
-            
-            
 
             <xpath expr="//button[@id='action_confirm']"
                    position="attributes">
@@ -554,17 +470,8 @@
 
             </xpath>
 
-
-            
-            
-            
-
             <xpath expr="//header"
                    position="inside">
-
-                
-                
-                
 
                 <button name="action_send_for_checking"
                         type="object"
@@ -572,31 +479,16 @@
                         class="btn-primary"
                         invisible="state not in ('draft','sent') or approval_state != 'draft'"/>
 
-
-                
-                
-                
-
                 <button name="action_checker_checked"
                         type="object"
                         string="Checked"
                         class="oe_highlight"
                         invisible="approval_state != 'send_for_checking'"/>
 
-
-                
-                
-                
-
                 <button name="action_checker_reject"
                         type="object"
                         string="Reject"
                         invisible="approval_state != 'send_for_checking'"/>
-
-
-                
-                
-                
 
                 <button name="action_send_for_approval"
                         type="object"
@@ -604,144 +496,59 @@
                         class="btn-primary"
                         invisible="approval_state != 'checked' or state not in ('draft','sent')"/>
 
-
-                
-                
-                
-
                 <button name="action_approve_order"
                         type="object"
                         string="Approve"
                         class="oe_highlight"
                         groups="rsd_sales.group_sale_approver"
                         invisible="approval_state != 'send_for_approval'"/>
-
-
-                
-                
-                
-
                 <button name="action_reject_order"
                         type="object"
                         string="Reject"
                         groups="rsd_sales.group_sale_approver"
                         invisible="approval_state != 'send_for_approval'"/>
-
             </xpath>
-
-
-            
-            
-            
-
             <xpath expr="//page[@name='other_information']"
                    position="after">
-
                 <page string="Approval History"
                       name="approval_history"
                       invisible="is_production_user_by_dept">
-
                     <group>
-
                         <group>
-
                             <field name="approval_state"
                                    readonly="1"/>
-
                             <field name="checker_id"
                                    string="Sales Executive-BD (Checker)"
                                    readonly="1"
                                    options="{'no_open': True, 'no_create': True}"/>
-
                         </group>
-
                         <group>
-
                             <field name="approval_manager_id"
                                    string="Sales Manager"
                                    readonly="1"
                                    options="{'no_open': True, 'no_create': True}"/>
-
                             <field name="rejection_remarks"
                                    readonly="1"
                                    widget="text"/>
-
                         </group>
-
                     </group>
-
                 </page>
-
             </xpath>
-
-
-            
-            
-            
-
             <xpath expr="//header"
                    position="inside">
-
-                <button name="action_reserve_fg"
-                        type="object"
-                        string="Reserve FG"
-                        class="btn-secondary"
-                        groups="stock.group_stock_user"
-                        invisible="state != 'sale' or not store_user"/>
-
-                <button name="action_unreserve_fg"
-                        type="object"
-                        string="Unreserve FG"
-                        class="btn-secondary"
-                        groups="stock.group_stock_user"
-                        invisible="state != 'sale' or not store_user"/>
-
-                <button name="action_deliver_available"
-                        type="object"
-                        string="Deliver Available"
-                        class="oe_highlight"
-                        groups="stock.group_stock_user"
-                        invisible="state != 'sale' or not store_user"/>
-
-                <button name="action_wait_for_complete"
-                        type="object"
-                        string="Wait for Complete"
-                        class="btn-secondary"
-                        groups="stock.group_stock_user"
-                        invisible="state != 'sale' or not store_user"/>
-
             </xpath>
-
-
-            
-            
-            
-
             <xpath expr="//page[@name='other_information']"
                    position="before">
-
                 <page string="FG Fulfilment"
                       name="fg_fulfilment">
-
                     <group>
-
                         <group>
-
-                            <field name="fg_delivery_mode"
-                                   readonly="state != 'sale'"/>
-
                             <field name="has_stock_shortage"
                                    readonly="1"/>
-
                         </group>
-
                     </group>
-
                 </page>
-
             </xpath>
-
         </field>
     </record>
-
 </odoo>
