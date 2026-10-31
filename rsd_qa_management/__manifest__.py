@@ -16,9 +16,9 @@ Includes a demo dashboard and navigation structure for future QA workflows.
     ],
     "assets": {
         "web.assets_backend": [
-            "qa_management/static/src/dashboard/qa_dashboard.js",
-            "qa_management/static/src/dashboard/qa_dashboard.xml",
-            "qa_management/static/src/dashboard/qa_dashboard.scss",
+            "rsd_qa_management/static/src/dashboard/qa_dashboard.js",
+            "rsd_qa_management/static/src/dashboard/qa_dashboard.xml",
+            "rsd_qa_management/static/src/dashboard/qa_dashboard.scss",
         ],
     },
     "application": True,

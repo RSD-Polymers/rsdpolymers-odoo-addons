@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
-    <t t-name="qa_management.QaDashboard" owl="1">
+    <t t-name="rsd_qa_management.QaDashboard" owl="1">
         <div class="o_qa_dashboard">
             <div class="o_qa_dashboard_header">
                 <div>

@@ -4,7 +4,7 @@ import { registry } from "@web/core/registry";
 import { Component } from "@odoo/owl";
 
 export class QaDashboard extends Component {
-    static template = "qa_management.QaDashboard";
+    static template = "rsd_qa_management.QaDashboard";
 
     setup() {
         // Static sample values for the initial dashboard layout.
@@ -30,4 +30,4 @@ export class QaDashboard extends Component {
     }
 }
 
-registry.category("actions").add("qa_management.dashboard", QaDashboard);
+registry.category("actions").add("rsd_qa_management.dashboard", QaDashboard);
