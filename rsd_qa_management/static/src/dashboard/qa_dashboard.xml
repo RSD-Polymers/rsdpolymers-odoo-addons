@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="qa_management.QaDashboard" owl="1">
+        <div class="o_qa_dashboard">
+            <div class="o_qa_dashboard_header">
+                <div>
+                    <div class="o_qa_eyebrow">QUALITY MANAGEMENT</div>
+                    <h1>Quality Assurance Dashboard</h1>
+                    <p>Monitor quality activities, compliance and operational follow-ups.</p>
+                </div>
+                <div class="o_qa_header_tag"><i class="fa fa-shield"/> Quality • Overview</div>
+            </div>
+
+            <div class="o_qa_metric_grid">
+                <t t-foreach="metrics" t-as="metric" t-key="metric.label">
+                    <div class="o_qa_metric_card">
+                        <div class="o_qa_metric_top">
+                            <span t-esc="metric.label"/>
+                            <span t-att-class="'o_qa_metric_icon text-' + metric.color">
+                                <i t-att-class="'fa ' + metric.icon"/>
+                            </span>
+                        </div>
+                        <div class="o_qa_metric_value" t-esc="metric.value"/>
+                        <div class="o_qa_metric_hint">Demo data <span>•</span> Configure workflow later</div>
+                    </div>
+                </t>
+            </div>
+
+            <div class="o_qa_section_heading">
+                <div><h2>QA Workspaces</h2><p>Application areas planned for implementation</p></div>
+            </div>
+            <div class="o_qa_workspace_grid">
+                <t t-foreach="quickLinks" t-as="item" t-key="item.title">
+                    <div class="o_qa_workspace_card">
+                        <div class="o_qa_workspace_icon"><i t-att-class="'fa ' + item.icon"/></div>
+                        <div><h3 t-esc="item.title"/><p t-esc="item.description"/></div>
+                        <span class="o_qa_arrow"><i class="fa fa-arrow-right"/></span>
+                    </div>
+                </t>
+            </div>
+
+            <div class="o_qa_bottom_grid">
+                <section class="o_qa_panel">
+                    <div class="o_qa_panel_header"><div><h2>Recent Activities</h2><p>Illustrative activity feed</p></div><span class="o_qa_live_dot">DEMO</span></div>
+                    <t t-foreach="activities" t-as="activity" t-key="activity.title">
+                        <div class="o_qa_activity">
+                            <div class="o_qa_activity_mark"/>
+                            <div class="o_qa_activity_body">
+                                <strong t-esc="activity.title"/>
+                                <small t-esc="activity.detail"/>
+                            </div>
+                            <span t-att-class="'o_qa_status o_qa_status_' + activity.tone" t-esc="activity.status"/>
+                            <small class="o_qa_activity_date" t-esc="activity.date"/>
+                        </div>
+                    </t>
+                </section>
+                <section class="o_qa_panel o_qa_compliance_panel">
+                    <div class="o_qa_panel_header"><div><h2>Quality Snapshot</h2><p>Illustrative indicators only</p></div></div>
+                    <div class="o_qa_snapshot">
+                        <div class="o_qa_snapshot_value">94<small>%</small></div>
+                        <div><strong>On-time closure</strong><p>Demo indicator, not connected to records</p></div>
+                    </div>
+                    <div class="o_qa_progress_label"><span>Corrective actions</span><strong>76%</strong></div>
+                    <div class="o_qa_progress"><span style="width: 76%"/></div>
+                    <div class="o_qa_progress_label"><span>Audit action completion</span><strong>82%</strong></div>
+                    <div class="o_qa_progress"><span style="width: 82%"/></div>
+                    <div class="o_qa_note"><i class="fa fa-info-circle"/> Dashboard values are static sample data for demonstration.</div>
+                </section>
+            </div>
+        </div>
+    </t>
+</templates>

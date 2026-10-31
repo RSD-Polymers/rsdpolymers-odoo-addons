@@ -1,0 +1,64 @@
+.o_qa_dashboard {
+    padding: 28px 32px 40px;
+    background: #f5f7fb;
+    min-height: 100%;
+    color: #202b3c;
+}
+.o_qa_dashboard_header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 26px;
+}
+.o_qa_eyebrow { color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: 1.6px; }
+.o_qa_dashboard_header h1 { font-size: 28px; font-weight: 750; margin: 5px 0; color: #17243a; }
+.o_qa_dashboard_header p, .o_qa_section_heading p, .o_qa_panel_header p { color: #7b8798; margin: 0; font-size: 13px; }
+.o_qa_header_tag { background: #e8efff; color: #3159a6; padding: 9px 14px; border-radius: 30px; font-size: 12px; font-weight: 700; }
+.o_qa_metric_grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 30px; }
+.o_qa_metric_card, .o_qa_panel, .o_qa_workspace_card { background: #fff; border: 1px solid #e8edf4; border-radius: 12px; box-shadow: 0 3px 12px rgba(25, 42, 70, .035); }
+.o_qa_metric_card { padding: 19px 20px; }
+.o_qa_metric_top { display: flex; align-items: center; justify-content: space-between; color: #65748a; font-size: 12px; font-weight: 650; }
+.o_qa_metric_icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: #f1f5f9; font-size: 15px; }
+.o_qa_metric_value { font-size: 30px; line-height: 1.2; font-weight: 750; color: #1e2b40; margin: 12px 0 6px; }
+.o_qa_metric_hint { color: #9aa5b4; font-size: 10px; }
+.o_qa_section_heading { margin-bottom: 14px; }
+.o_qa_section_heading h2, .o_qa_panel_header h2 { font-size: 16px; font-weight: 750; margin: 0 0 4px; color: #253249; }
+.o_qa_workspace_grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
+.o_qa_workspace_card { display: flex; align-items: center; gap: 13px; padding: 17px; }
+.o_qa_workspace_icon { flex: 0 0 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: #edf3ff; color: #4169b2; font-size: 17px; }
+.o_qa_workspace_card h3 { font-size: 13px; font-weight: 750; margin: 0 0 4px; color: #26344a; }
+.o_qa_workspace_card p { font-size: 11px; margin: 0; color: #8793a4; }
+.o_qa_arrow { margin-left: auto; color: #aab4c2; font-size: 12px; }
+.o_qa_bottom_grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+.o_qa_panel { padding: 20px; }
+.o_qa_panel_header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 15px; }
+.o_qa_live_dot { color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 5px; font-size: 9px; font-weight: 800; letter-spacing: .8px; }
+.o_qa_activity { display: flex; align-items: center; gap: 11px; padding: 13px 0; border-top: 1px solid #f0f2f6; }
+.o_qa_activity_mark { width: 8px; height: 8px; border-radius: 50%; background: #8ca5d7; flex: 0 0 8px; }
+.o_qa_activity_body { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.o_qa_activity_body strong { font-size: 12px; color: #344258; }
+.o_qa_activity_body small, .o_qa_activity_date { color: #98a2b1; font-size: 10px; }
+.o_qa_status { font-size: 9px; font-weight: 700; padding: 5px 8px; border-radius: 20px; white-space: nowrap; }
+.o_qa_status_warning { background: #fff5df; color: #a46b0b; }
+.o_qa_status_info { background: #eaf2ff; color: #426bb2; }
+.o_qa_status_danger { background: #fff0ed; color: #bd5948; }
+.o_qa_status_secondary { background: #f0f2f5; color: #667085; }
+.o_qa_activity_date { white-space: nowrap; }
+.o_qa_snapshot { display: flex; align-items: center; gap: 15px; padding: 10px 0 20px; }
+.o_qa_snapshot_value { font-size: 40px; line-height: 1; font-weight: 800; color: #315da8; }
+.o_qa_snapshot_value small { font-size: 17px; }
+.o_qa_snapshot strong { font-size: 12px; color: #344258; }
+.o_qa_snapshot p { font-size: 10px; color: #98a2b1; margin: 4px 0 0; }
+.o_qa_progress_label { display: flex; justify-content: space-between; font-size: 11px; color: #66748a; margin: 12px 0 7px; }
+.o_qa_progress_label strong { color: #344258; }
+.o_qa_progress { height: 7px; background: #edf1f6; border-radius: 10px; overflow: hidden; }
+.o_qa_progress span { display: block; height: 100%; background: #6689c6; border-radius: 10px; }
+.o_qa_note { margin-top: 18px; padding: 10px; background: #f7f9fc; color: #8290a3; border-radius: 7px; font-size: 10px; }
+@media (max-width: 1100px) {
+    .o_qa_metric_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .o_qa_workspace_grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+    .o_qa_dashboard { padding: 18px; }
+    .o_qa_dashboard_header { align-items: flex-start; gap: 12px; flex-direction: column; }
+    .o_qa_metric_grid, .o_qa_workspace_grid, .o_qa_bottom_grid { grid-template-columns: 1fr; }
+    .o_qa_activity { flex-wrap: wrap; }
+}
