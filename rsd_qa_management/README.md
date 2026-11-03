@@ -54,3 +54,11 @@
 - Additional reminder escalation rules and reminder reporting (if required).
 - Configurable multi-level approval if required.
 - Additional dashboard charts and date-range filters.
+
+### Evaluation task editing
+
+QA Officers can continue creating tasks with **Add a line** during Evaluation. For a more comfortable editing experience, use the **Open** action at the end of an existing task row to open its full task form. QA can maintain task details during Evaluation; assigned employees use the task form to enter completion comments and upload attachments before submission.
+
+
+### Automatic department assignment
+When QA selects an assigned employee on an evaluation task, the task's department is automatically populated from that employee's HR department. The department is read-only in the task views, and the model also derives it during create/write to keep the relationship consistent outside the form.

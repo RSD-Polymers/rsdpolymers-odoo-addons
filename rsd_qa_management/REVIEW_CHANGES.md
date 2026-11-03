@@ -25,3 +25,11 @@ This revision applies the agreed QA Officer / QA Manager permission structure.
 - All XML files parsed successfully.
 - Obsolete `qa_reviewer_id` and `ab_approver_id` field references were removed.
 - This is static validation only; the module has not been installed or functionally tested against the Odoo database.
+
+## Follow-up update 18.0.1.4.0
+
+- Made the Change Request write-field allowlist subtraction defensive by converting the allowed field collection to a set.
+- Kept inline `Add a line` task creation in the Evaluation Tasks tab.
+- Added an `Open` row action to open an existing evaluation task in its full form.
+- Expanded the task form so QA Officers/Managers can edit task definition fields during Evaluation; non-QA users see those definition fields read-only.
+- Task completion comments and attachments remain available on the full task form, subject to the existing server-side task permissions and workflow checks.

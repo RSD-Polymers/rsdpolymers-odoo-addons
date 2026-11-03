@@ -189,7 +189,7 @@ class QaChangeControl(models.Model):
 
             for rec in self:
                 allowed_fields = allowed_fields_by_state.get(rec.state, set())
-                restricted_fields = set(vals) - allowed_fields
+                restricted_fields = set(vals) - set(allowed_fields or {})
                 if restricted_fields:
                     raise AccessError(_(
                         'You cannot modify these fields in the current stage: %s'

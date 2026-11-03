@@ -59,6 +59,14 @@ class QaChangeControlTask(models.Model):
     ], default='assigned', required=True, tracking=True, index=True)
     submitted_on = fields.Datetime(readonly=True, tracking=True)
 
+    @api.onchange('assigned_employee_id')
+    def _onchange_assigned_employee_id(self):
+        """Automatically derive the task department from the selected employee."""
+        if self.assigned_employee_id:
+            self.department_id = self.assigned_employee_id.department_id
+        else:
+            self.department_id = False
+
     # ---------------------------------------------------------
     # VALIDATIONS
     # ---------------------------------------------------------
@@ -110,6 +118,10 @@ class QaChangeControlTask(models.Model):
         self._check_qa_user()
 
         for vals in vals_list:
+            if vals.get('assigned_employee_id'):
+                employee = self.env['hr.employee'].browse(vals['assigned_employee_id']).exists()
+                vals['department_id'] = employee.department_id.id if employee else False
+
             cr = self.env['qa.change.control'].browse(
                 vals.get('change_control_id')
             ).exists()
@@ -147,6 +159,10 @@ class QaChangeControlTask(models.Model):
 
     def write(self, vals):
         user = self.env.user
+
+        if 'assigned_employee_id' in vals:
+            employee = self.env['hr.employee'].browse(vals['assigned_employee_id']).exists()
+            vals = dict(vals, department_id=employee.department_id.id if employee else False)
 
         is_qa = (
             user.has_group('rsd_qa_management.group_qa_officer')
@@ -196,6 +212,17 @@ class QaChangeControlTask(models.Model):
                     ))
 
         return super().write(vals)
+
+    def action_open_form(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Evaluation Task'),
+            'res_model': 'qa.change.control.task',
+            'view_mode': 'form',
+            'res_id': self.id,
+            'target': 'current',
+        }
 
     # ---------------------------------------------------------
     # START TASK
