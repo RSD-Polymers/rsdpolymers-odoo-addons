@@ -12,3 +12,4 @@ access_qa_change_task_admin,qa.change.control.task administrator,model_qa_change
 access_qa_change_document_admin,qa.change.control.document administrator,model_qa_change_control_document,base.group_system,1,1,1,0
 access_qa_reject_wizard_admin,qa.change.control.reject.wizard administrator,model_qa_change_control_reject_wizard,base.group_system,1,1,1,1
 access_qa_change_approval_admin,qa.change.control.approval administrator,model_qa_change_control_approval,base.group_system,1,0,1,0
+access_qa_task_rework_wizard,qa.change.control.task.rework.wizard,model_qa_change_control_task_rework_wizard,rsd_qa_management.group_qa_officer,1,1,1,1

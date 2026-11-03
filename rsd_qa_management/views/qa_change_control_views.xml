@@ -116,7 +116,12 @@
                             <div class="text-muted">Managed by the QA Officer group. Final approval is handled by the QA Manager group.</div>
                         </group>
                     </group>
-                    <group><field name="description" placeholder="Describe the proposed change..." readonly="state != 'draft'"/></group>
+                    <group string="Request Description">
+                        <field name="description" string="Details" placeholder="Provide the background and details of the request..." readonly="state != 'draft'"/>
+                        <field name="proposed_change" placeholder="Describe what is proposed to be changed..." readonly="state != 'draft'"/>
+                        <field name="reason" placeholder="Explain why this change is required..." readonly="state != 'draft'"/>
+                        <field name="justification" placeholder="Provide supporting justification for the proposed change..." readonly="state != 'draft'"/>
+                    </group>
                     <group string="Rejection" invisible="state != 'rejected'"><field name="rejection_reason" readonly="1"/></group>
                     <notebook>
                         <page string="Evaluation Tasks" invisible="state in ('draft', 'open', 'registered', 'rejected')">
@@ -162,7 +167,7 @@
                         </page>
                         <page string="Data Review" invisible="state not in ('data_review', 'approval_pending', 'closing_report', 'completed')">
                             <group><field name="review_comments" readonly="state != 'data_review'"/></group>
-                            <field name="document_ids" readonly="state != 'data_review'">
+                            <field name="document_ids" groups="rsd_qa_management.group_qa_officer" readonly="state != 'data_review'">
                                 <list editable="bottom"><field name="name"/><field name="document_type"/><field name="attachment_ids" widget="many2many_binary"/><field name="uploaded_by_id"/></list>
                             </field>
                             <group><field name="approval_comment" readonly="1"/></group>
@@ -256,6 +261,7 @@
                     <group>
                         <field name="description" groups="rsd_qa_management.group_qa_officer" readonly="state == 'submitted' or change_control_id.state != 'evaluation'"/>
                         <field name="description" groups="!rsd_qa_management.group_qa_officer" readonly="1"/>
+                        <field name="rework_instructions" readonly="1" invisible="not rework_instructions"/>
                         <field name="completion_comments"/>
                         <field name="attachment_ids" widget="many2many_binary"/>
                     </group>
@@ -267,4 +273,20 @@
 
     <record id="view_qa_change_reject_wizard_form" model="ir.ui.view"><field name="name">qa.change.control.reject.wizard.form</field><field name="model">qa.change.control.reject.wizard</field><field name="arch" type="xml"><form string="Reject Change Request"><group><field name="change_control_id"/><field name="reason" placeholder="Enter rejection reason..."/></group><footer><button name="action_confirm" type="object" string="Confirm Rejection" class="btn-primary"/><button string="Cancel" special="cancel" class="btn-secondary"/></footer></form></field></record>
     <record id="view_qa_change_approval_wizard_form" model="ir.ui.view"><field name="name">qa.change.control.approval.wizard.form</field><field name="model">qa.change.control.approval.wizard</field><field name="arch" type="xml"><form string="Refuse Change Request"><group><field name="change_control_id"/><field name="reason" placeholder="Enter refusal reason and required changes..."/></group><footer><button name="action_confirm" type="object" string="Confirm Refusal" class="btn-primary"/><button string="Cancel" special="cancel" class="btn-secondary"/></footer></form></field></record>
+    <record id="view_qa_change_task_rework_wizard_form" model="ir.ui.view">
+        <field name="name">qa.change.control.task.rework.wizard.form</field>
+        <field name="model">qa.change.control.task.rework.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Request Task Rework">
+                <group>
+                    <field name="task_id"/>
+                    <field name="instructions" placeholder="Clearly describe what needs to be corrected, added or resubmitted..."/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Send Rework Request" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
 </odoo>

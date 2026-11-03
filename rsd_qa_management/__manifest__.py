@@ -1,6 +1,6 @@
 {
     "name": "Quality Assurance",
-    "version": "18.0.1.6.0",
+    "version": "18.0.1.9.0",
     "category": "Quality",
     "summary": "Quality Assurance workflows including Change Control",
     "description": "Quality Assurance application with Change Control workflow, department evaluation tasks, QA review, QA Manager approval and implementation closure.",

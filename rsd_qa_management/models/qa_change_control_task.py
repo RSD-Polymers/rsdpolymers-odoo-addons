@@ -47,6 +47,7 @@ class QaChangeControlTask(models.Model):
     )
     description = fields.Text(required=True)
     completion_comments = fields.Text(tracking=True)
+    rework_instructions = fields.Text(string='QA Rework Instructions', readonly=True, tracking=True)
     attachment_ids = fields.Many2many(
         'ir.attachment',
         string='Task Attachments'
@@ -304,41 +305,63 @@ class QaChangeControlTask(models.Model):
     # ---------------------------------------------------------
 
     def action_request_rework(self):
+        self.ensure_one()
         self._check_qa_user()
+        self._check_parent_active()
 
-        for rec in self:
-            rec._check_parent_active()
+        if self.change_control_id.state != 'data_review':
+            raise UserError(_(
+                'Task rework can only be requested during Data Review.'
+            ))
 
-            if rec.change_control_id.state != 'data_review':
-                raise UserError(_(
-                    'Task rework can only be requested during Data Review.'
-                ))
+        if self.state != 'submitted':
+            raise UserError(_(
+                'Only submitted tasks can be sent for rework.'
+            ))
 
-            if rec.state != 'submitted':
-                raise UserError(_(
-                    'Only submitted tasks can be sent for rework.'
-                ))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Request Task Rework'),
+            'res_model': 'qa.change.control.task.rework.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_task_id': self.id},
+        }
 
-            super(QaChangeControlTask, rec).write({
-                'state': 'rework',
-                'submitted_on': False
-            })
+    def _apply_rework_request(self, instructions):
+        self.ensure_one()
+        self._check_qa_user()
+        self._check_parent_active()
 
-            rec.change_control_id.message_post(
-                body=_('QA requested rework for task "%s".') % rec.name
+        if self.change_control_id.state != 'data_review' or self.state != 'submitted':
+            raise UserError(_(
+                'Only submitted tasks in Data Review can be sent for rework.'
+            ))
+        if not instructions or not instructions.strip():
+            raise UserError(_('Please enter the rework instructions.'))
+
+        # Apply the controlled workflow update, bypassing the normal task write guard.
+        super(QaChangeControlTask, self).write({
+            'state': 'rework',
+            'submitted_on': False,
+            'rework_instructions': instructions.strip(),
+        })
+
+        message = _(
+            'QA requested rework for task "%s". Instructions: %s'
+        ) % (self.name, instructions.strip())
+        self.change_control_id.message_post(body=message)
+        self.message_post(body=_('QA requested rework: %s') % instructions.strip())
+
+        if self.assigned_user_id:
+            self.activity_schedule(
+                'mail.mail_activity_data_todo',
+                user_id=self.assigned_user_id.id,
+                summary=_('Change Control task rework required'),
+                note=_(
+                    'QA has requested rework for task "%s".\n\nInstructions: %s\n\nPlease review the instructions and resubmit.'
+                ) % (self.name, instructions.strip())
             )
-
-            if rec.assigned_user_id:
-                rec.activity_schedule(
-                    'mail.mail_activity_data_todo',
-                    user_id=rec.assigned_user_id.id,
-                    summary=_('Change Control task rework required'),
-                    note=_(
-                        'QA has requested rework for task "%s". '
-                        'Please review and resubmit.'
-                    ) % rec.name
-                )
-
         return True
 
     # ---------------------------------------------------------

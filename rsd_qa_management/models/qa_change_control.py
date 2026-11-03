@@ -9,7 +9,10 @@ class QaChangeControl(models.Model):
     _order = 'create_date desc, id desc'
 
     name = fields.Char(string='CR Number', required=True, copy=False, readonly=True, default='New', tracking=True)
-    description = fields.Text(required=True, tracking=True)
+    description = fields.Text(string='Details', required=True, tracking=True)
+    proposed_change = fields.Text(string='Proposed Change', tracking=True)
+    reason = fields.Text(string='Reason', tracking=True)
+    justification = fields.Text(string='Justification', tracking=True)
     requested_by_id = fields.Many2one('hr.employee', string='Change Request By', required=True, default=lambda self: self._default_employee(), tracking=True)
     department_id = fields.Many2one('hr.department', string='Department', related='requested_by_id.department_id', store=True, readonly=True)
     request_date = fields.Date(string='Request Date', default=fields.Date.context_today, readonly=True)
@@ -74,6 +77,9 @@ class QaChangeControl(models.Model):
         allowed_create_fields = {
             'name',
             'description',
+            'proposed_change',
+            'reason',
+            'justification',
             'requested_by_id',
             'cr_type',
             'request_date',
@@ -155,7 +161,7 @@ class QaChangeControl(models.Model):
                         'Only QA can modify a submitted Change Request.'
                     ))
 
-                if set(vals) - {'cr_type', 'description'}:
+                if set(vals) - {'cr_type', 'description', 'proposed_change', 'reason', 'justification'}:
                     raise AccessError(_(
                         'In Draft, employees can edit only CR Type and Description.'
                     ))
@@ -165,6 +171,9 @@ class QaChangeControl(models.Model):
                     'requested_by_id',
                     'cr_type',
                     'description',
+                    'proposed_change',
+                    'reason',
+                    'justification',
                         },
                 'open': {
                     'rejection_reason',
@@ -177,7 +186,9 @@ class QaChangeControl(models.Model):
                     'task_ids',
                 },
                 'data_review': {
-                            'review_comments',
+                    'review_comments',
+                    # QA uploads/adds controlled documents during Data Review.
+                    'document_ids',
                 },
                 'approval_pending': set(),
                 'closing_report': {

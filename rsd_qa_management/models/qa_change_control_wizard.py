@@ -1,5 +1,5 @@
 from odoo import fields, models, _
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 
 class QaChangeControlRejectWizard(models.TransientModel):
@@ -66,4 +66,28 @@ class QaChangeControlApprovalWizard(models.TransientModel):
 
         cr._record_ab_refusal(self.reason.strip())
 
+        return {'type': 'ir.actions.act_window_close'}
+
+class QaChangeControlTaskReworkWizard(models.TransientModel):
+    _name = 'qa.change.control.task.rework.wizard'
+    _description = 'Request Change Control Task Rework'
+
+    task_id = fields.Many2one(
+        'qa.change.control.task', string='Evaluation Task', required=True, readonly=True
+    )
+    instructions = fields.Text(
+        string='Rework Instructions',
+        required=True,
+        help='Explain exactly what the assigned employee must correct, add or resubmit.'
+    )
+
+    def action_confirm(self):
+        self.ensure_one()
+        if not (
+            self.env.user.has_group('rsd_qa_management.group_qa_officer')
+            or self.env.user.has_group('rsd_qa_management.group_qa_manager')
+            or self.env.user.has_group('base.group_system')
+        ):
+            raise AccessError(_('Only QA can request task rework.'))
+        self.task_id._apply_rework_request(self.instructions)
         return {'type': 'ir.actions.act_window_close'}
