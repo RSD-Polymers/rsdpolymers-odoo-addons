@@ -172,7 +172,10 @@ class QaChangeControl(models.Model):
                 'registered': {
                         },
                 'evaluation': {
-                        },
+                    # One2many commands are written on the parent when QA
+                    # creates/updates evaluation tasks from the embedded form.
+                    'task_ids',
+                },
                 'data_review': {
                             'review_comments',
                 },

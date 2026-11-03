@@ -124,17 +124,40 @@
                                 <div><strong>Task progress:</strong> <field name="submitted_task_count" nolabel="1"/> / <field name="task_count" nolabel="1"/> submitted</div>
 
                             </div>
-                            <field name="task_ids" groups="rsd_qa_management.group_qa_officer" readonly="state != 'evaluation'">
-                                <list editable="bottom" create="1" delete="0">
+                            <field name="task_ids"
+                                   groups="rsd_qa_management.group_qa_officer"
+                                   readonly="state != 'evaluation'">
+                                <list create="1" delete="0">
                                     <field name="name" string="Task Title"/>
                                     <field name="department_id" readonly="1"/>
                                     <field name="assigned_employee_id"/>
                                     <field name="expected_date"/>
-                                    <field name="description" string="Description" optional="show"/>
                                     <field name="state" widget="badge" readonly="1"/>
                                     <field name="submitted_on" optional="hide"/>
-                                    <button name="action_open_form" type="object" string="Open" icon="fa-external-link" title="Open full task form"/>
                                 </list>
+                                <form string="Evaluation Task">
+                                    <group>
+                                        <group>
+                                            <field name="name" string="Task Title"/>
+                                            <field name="assigned_employee_id"
+                                                   domain="[('active', '=', True)]"
+                                                   options="{'no_create': True}"/>
+                                            <field name="department_id" readonly="1"/>
+                                            <field name="expected_date"/>
+                                        </group>
+                                        <group>
+                                            <field name="state" widget="badge" readonly="1"/>
+                                            <field name="submitted_on" readonly="1"/>
+                                        </group>
+                                    </group>
+                                    <group>
+                                        <field name="description"
+                                               placeholder="Describe the evaluation work, checks and expected outcome..."/>
+                                        <field name="completion_comments"
+                                               placeholder="Completion comments (if applicable)..."/>
+                                        <field name="attachment_ids" widget="many2many_binary"/>
+                                    </group>
+                                </form>
                             </field>
                         </page>
                         <page string="Data Review" invisible="state not in ('data_review', 'approval_pending', 'closing_report', 'completed')">
