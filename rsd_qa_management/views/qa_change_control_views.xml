@@ -53,7 +53,6 @@
         <field name="name">qa.change.control.kanban.admin.non.draggable</field>
         <field name="model">qa.change.control</field>
         <field name="inherit_id" ref="view_qa_change_control_kanban"/>
-        <field name="groups_id" eval="[(4, ref('base.group_system'))]"/>
         <field name="arch" type="xml">
             <xpath expr="/kanban" position="attributes">
                 <attribute name="records_draggable">false</attribute>
