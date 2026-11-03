@@ -6,67 +6,42 @@
                 <div>
                     <div class="o_qa_eyebrow">QUALITY MANAGEMENT</div>
                     <h1>Quality Assurance Dashboard</h1>
-                    <p>Monitor quality activities, compliance and operational follow-ups.</p>
+                    <p>Change Control overview and current workflow status.</p>
                 </div>
                 <div class="o_qa_header_tag"><i class="fa fa-shield"/> Quality • Overview</div>
             </div>
-
-            <div class="o_qa_metric_grid">
-                <t t-foreach="metrics" t-as="metric" t-key="metric.label">
+            <t t-if="state.loading"><div class="alert alert-info">Loading dashboard...</div></t>
+            <t t-elif="state.error"><div class="alert alert-warning">Dashboard data could not be loaded. Please check your access rights.</div></t>
+            <t t-else="">
+                <div class="o_qa_metric_grid">
+                    <button class="o_qa_metric_card" t-on-click="() => this.openRequests()">
+                        <div class="o_qa_metric_top"><span>Total Requested</span><span class="o_qa_metric_icon text-primary"><i class="fa fa-files-o"/></span></div>
+                        <div class="o_qa_metric_value" t-esc="state.data.total"/><div class="o_qa_metric_hint">All accessible Change Requests</div>
+                    </button>
+                    <button class="o_qa_metric_card" t-on-click="openCompleted">
+                        <div class="o_qa_metric_top"><span>Completed</span><span class="o_qa_metric_icon text-success"><i class="fa fa-check-circle"/></span></div>
+                        <div class="o_qa_metric_value" t-esc="state.data.completed"/><div class="o_qa_metric_hint">Successfully closed requests</div>
+                    </button>
+                    <button class="o_qa_metric_card" t-on-click="openPending">
+                        <div class="o_qa_metric_top"><span>Pending</span><span class="o_qa_metric_icon text-warning"><i class="fa fa-clock-o"/></span></div>
+                        <div class="o_qa_metric_value" t-esc="state.data.pending"/><div class="o_qa_metric_hint">Click to view pending requests</div>
+                    </button>
                     <div class="o_qa_metric_card">
-                        <div class="o_qa_metric_top">
-                            <span t-esc="metric.label"/>
-                            <span t-att-class="'o_qa_metric_icon text-' + metric.color">
-                                <i t-att-class="'fa ' + metric.icon"/>
-                            </span>
-                        </div>
-                        <div class="o_qa_metric_value" t-esc="metric.value"/>
-                        <div class="o_qa_metric_hint">Demo data <span>•</span> Configure workflow later</div>
+                        <div class="o_qa_metric_top"><span>Completion Rate</span><span class="o_qa_metric_icon text-info"><i class="fa fa-line-chart"/></span></div>
+                        <div class="o_qa_metric_value"><t t-esc="state.data.completion_rate"/>%</div><div class="o_qa_metric_hint">Completed / total requested</div>
                     </div>
-                </t>
-            </div>
-
-            <div class="o_qa_section_heading">
-                <div><h2>QA Workspaces</h2><p>Application areas planned for implementation</p></div>
-            </div>
-            <div class="o_qa_workspace_grid">
-                <t t-foreach="quickLinks" t-as="item" t-key="item.title">
-                    <div class="o_qa_workspace_card">
-                        <div class="o_qa_workspace_icon"><i t-att-class="'fa ' + item.icon"/></div>
-                        <div><h3 t-esc="item.title"/><p t-esc="item.description"/></div>
-                        <span class="o_qa_arrow"><i class="fa fa-arrow-right"/></span>
-                    </div>
-                </t>
-            </div>
-
-            <div class="o_qa_bottom_grid">
-                <section class="o_qa_panel">
-                    <div class="o_qa_panel_header"><div><h2>Recent Activities</h2><p>Illustrative activity feed</p></div><span class="o_qa_live_dot">DEMO</span></div>
-                    <t t-foreach="activities" t-as="activity" t-key="activity.title">
-                        <div class="o_qa_activity">
-                            <div class="o_qa_activity_mark"/>
-                            <div class="o_qa_activity_body">
-                                <strong t-esc="activity.title"/>
-                                <small t-esc="activity.detail"/>
-                            </div>
-                            <span t-att-class="'o_qa_status o_qa_status_' + activity.tone" t-esc="activity.status"/>
-                            <small class="o_qa_activity_date" t-esc="activity.date"/>
-                        </div>
+                </div>
+                <div class="o_qa_section_heading"><div><h2>Change Request Stages</h2><p>Live count of requests in each workflow stage</p></div></div>
+                <div class="o_qa_workspace_grid">
+                    <t t-foreach="state.data.stages" t-as="stage" t-key="stage.key">
+                        <button class="o_qa_workspace_card" t-on-click="() => this.openRequests([[&quot;state&quot;, &quot;=&quot;, stage.key]])">
+                            <div class="o_qa_workspace_icon"><i class="fa fa-tasks"/></div>
+                            <div><h3 t-esc="stage.label"/><p><strong t-esc="stage.count"/> Change Requests</p></div>
+                            <span class="o_qa_arrow"><i class="fa fa-arrow-right"/></span>
+                        </button>
                     </t>
-                </section>
-                <section class="o_qa_panel o_qa_compliance_panel">
-                    <div class="o_qa_panel_header"><div><h2>Quality Snapshot</h2><p>Illustrative indicators only</p></div></div>
-                    <div class="o_qa_snapshot">
-                        <div class="o_qa_snapshot_value">94<small>%</small></div>
-                        <div><strong>On-time closure</strong><p>Demo indicator, not connected to records</p></div>
-                    </div>
-                    <div class="o_qa_progress_label"><span>Corrective actions</span><strong>76%</strong></div>
-                    <div class="o_qa_progress"><span style="width: 76%"/></div>
-                    <div class="o_qa_progress_label"><span>Audit action completion</span><strong>82%</strong></div>
-                    <div class="o_qa_progress"><span style="width: 82%"/></div>
-                    <div class="o_qa_note"><i class="fa fa-info-circle"/> Dashboard values are static sample data for demonstration.</div>
-                </section>
-            </div>
+                </div>
+            </t>
         </div>
     </t>
 </templates>

@@ -1,32 +1,45 @@
 /** @odoo-module **/
 
 import { registry } from "@web/core/registry";
-import { Component } from "@odoo/owl";
+import { Component, onWillStart, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
 
 export class QaDashboard extends Component {
     static template = "rsd_qa_management.QaDashboard";
 
     setup() {
-        // Static sample values for the initial dashboard layout.
-        this.metrics = [
-            { label: "Change Requests", value: "08", icon: "fa-refresh", color: "primary" },
-            { label: "Complaints / NC", value: "05", icon: "fa-exclamation-circle", color: "danger" },
-            { label: "Audits", value: "03", icon: "fa-clipboard-check", color: "success" },
-            { label: "SOPs Under Review", value: "12", icon: "fa-file-text-o", color: "info" },
-        ];
-        this.quickLinks = [
-            { title: "Change Management", description: "Change Control and Document Change Request", icon: "fa-exchange" },
-            { title: "Complaints / Non-Compliance", description: "Customer Complaints and Product / Process Non-Conformity", icon: "fa-exclamation-triangle" },
-            { title: "Audits", description: "Internal Audits, MRM and MOM, Trend Analysis", icon: "fa-clipboard" },
-            { title: "Document Control (Revalidation)", description: "SOP, Forms and Formats, QSM", icon: "fa-folder-open" },
-            { title: "KPA/KRA", description: "Quality team performance areas and key results", icon: "fa-users" },
-        ];
-        this.activities = [
-            { title: "Change Control", detail: "Change Management • Sample dashboard activity", status: "In Progress", tone: "info", date: "Today" },
-            { title: "Customer Complaint", detail: "Complaints / Non-Compliance • Sample activity", status: "Open", tone: "danger", date: "Today" },
-            { title: "Internal Audit", detail: "Audits • Sample dashboard activity", status: "Scheduled", tone: "warning", date: "Yesterday" },
-            { title: "SOP Review", detail: "Document Control • Sample dashboard activity", status: "Under Review", tone: "secondary", date: "Yesterday" },
-        ];
+        this.orm = useService("orm");
+        this.action = useService("action");
+        this.state = useState({ loading: true, error: false, data: {
+            total: 0, completed: 0, pending: 0, completion_rate: 0, stages: [],
+        }});
+        onWillStart(async () => {
+            try {
+                this.state.data = await this.orm.call("qa.change.control", "get_dashboard_data", []);
+            } catch (error) {
+                this.state.error = true;
+            } finally {
+                this.state.loading = false;
+            }
+        });
+    }
+
+    openRequests(domain = []) {
+        return this.action.doAction({
+            type: "ir.actions.act_window",
+            name: "Change Control",
+            res_model: "qa.change.control",
+            views: [[false, "list"], [false, "kanban"], [false, "form"]],
+            domain,
+        });
+    }
+
+    openPending() {
+        return this.openRequests([["state", "not in", ["completed", "rejected"]]]);
+    }
+
+    openCompleted() {
+        return this.openRequests([["state", "=", "completed"]]);
     }
 }
 

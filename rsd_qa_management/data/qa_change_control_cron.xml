@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_qa_change_task_due_reminder" model="ir.cron">
+        <field name="name">QA Change Control: Task Due Tomorrow Reminder</field>
+        <field name="model_id" ref="model_qa_change_control_task"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_notify_tasks_due_tomorrow()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

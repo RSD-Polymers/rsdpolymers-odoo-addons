@@ -1,17 +1,18 @@
 {
     "name": "Quality Assurance",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Quality",
-    "summary": "Quality Assurance dashboard and application menu framework",
-    "description": """
-Quality Assurance application scaffold for Odoo 18 Enterprise.
-Includes a demo dashboard and navigation structure for future QA workflows.
-    """,
-    "author": "Custom Development",
+    "summary": "Quality Assurance workflows including Change Control",
+    "description": "Quality Assurance application with Change Control workflow, department evaluation tasks, QA review, AB approval and implementation closure.",
+    "author": "AP Enterprises",
     "license": "LGPL-3",
-    "depends": ["base", "web", "mail"],
+    "depends": ["base", "web", "mail", "hr"],
     "data": [
+        "security/security.xml",
         "security/ir.model.access.csv",
+        "data/qa_change_control_sequence.xml",
+        "data/qa_change_control_cron.xml",
+        "views/qa_change_control_views.xml",
         "views/qa_menus.xml",
     ],
     "assets": {

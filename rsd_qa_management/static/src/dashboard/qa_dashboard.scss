@@ -66,3 +66,26 @@
     .o_qa_metric_grid, .o_qa_workspace_grid, .o_qa_bottom_grid { grid-template-columns: 1fr; }
     .o_qa_activity { flex-wrap: wrap; }
 }
+
+.o_qa_dashboard {
+    .o_qa_metric_card,
+    .o_qa_workspace_card {
+        font: inherit;
+        color: inherit;
+        text-align: start;
+        width: 100%;
+        cursor: pointer;
+        border: 1px solid var(--border-color, #dee2e6);
+        background: var(--o-view-background-color, #fff);
+    }
+    .o_qa_metric_card:hover,
+    .o_qa_workspace_card:hover {
+        border-color: var(--o-brand-primary, #714b67);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+    }
+    .o_qa_metric_card:focus-visible,
+    .o_qa_workspace_card:focus-visible {
+        outline: 2px solid var(--o-brand-primary, #714b67);
+        outline-offset: 2px;
+    }
+}

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="seq_qa_change_control" model="ir.sequence">
+        <field name="name">QA Change Control</field>
+        <field name="code">qa.change.control</field>
+        <field name="prefix">CR/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="module_category_qa_management" model="ir.module.category">
+        <field name="name">Quality Assurance</field>
+        <field name="sequence">35</field>
+    </record>
+    <record id="group_qa_officer" model="res.groups">
+        <field name="name">QA Officer</field>
+        <field name="category_id" ref="module_category_qa_management"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+    <record id="group_qa_manager" model="res.groups">
+        <field name="name">QA Manager</field>
+        <field name="category_id" ref="module_category_qa_management"/>
+        <field name="implied_ids" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+    </record>
+
+    <!-- QA can access all Change Control records. -->
+    <record id="rule_qa_change_control_all" model="ir.rule">
+        <field name="name">QA: all Change Control records</field>
+        <field name="model_id" ref="model_qa_change_control"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <!-- Employees see requests they raised and records for which they are the AB approver. -->
+    <record id="rule_qa_change_control_employee" model="ir.rule">
+        <field name="name">Employees: own or assigned approval Change Requests</field>
+        <field name="model_id" ref="model_qa_change_control"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">
+            ['|', '|',
+                ('requested_by_id.user_id', '=', user.id),
+                ('ab_approver_id', '=', user.id),
+                ('task_ids', 'any', [('assigned_user_id', '=', user.id)])
+            ]
+        </field>
+    </record>
+    <record id="rule_qa_task_assignee" model="ir.rule">
+        <field name="name">Employees: assigned Change Control tasks</field>
+        <field name="model_id" ref="model_qa_change_control_task"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('assigned_user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_qa_task_all" model="ir.rule">
+        <field name="name">QA: all Change Control tasks</field>
+        <field name="model_id" ref="model_qa_change_control_task"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_qa_document_related" model="ir.rule">
+        <field name="name">Employees: related Change Control documents</field>
+        <field name="model_id" ref="model_qa_change_control_document"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">
+            ['|', '|',
+                ('change_control_id.requested_by_id.user_id', '=', user.id),
+                ('change_control_id.ab_approver_id', '=', user.id),
+                ('change_control_id.task_ids', 'any', [('assigned_user_id', '=', user.id)])
+            ]
+        </field>
+    </record>
+    <record id="rule_qa_approval_related" model="ir.rule">
+        <field name="name">Employees: related Change Control approval history</field>
+        <field name="model_id" ref="model_qa_change_control_approval"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('approver_id', '=', user.id), ('change_control_id.requested_by_id.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_qa_approval_all" model="ir.rule">
+        <field name="name">QA: all Change Control approval history</field>
+        <field name="model_id" ref="model_qa_change_control_approval"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_qa_document_all" model="ir.rule">
+        <field name="name">QA: all Change Control review documents</field>
+        <field name="model_id" ref="model_qa_change_control_document"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>
