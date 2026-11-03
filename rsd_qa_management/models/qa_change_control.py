@@ -25,7 +25,7 @@ class QaChangeControl(models.Model):
         ('registered', 'Registered'),
         ('evaluation', 'Evaluation'),
         ('data_review', 'Data Review'),
-        ('approval_pending', 'Awaiting AB Approval'),
+        ('approval_pending', 'Awaiting Approval'),
         ('closing_report', 'Closing Report'),
         ('completed', 'Completed'),
         ('rejected', 'Rejected'),
@@ -37,7 +37,7 @@ class QaChangeControl(models.Model):
     rejection_reason = fields.Text(readonly=True, tracking=True)
     qa_reviewer_id = fields.Many2one('res.users', string='QA Reviewer', default=lambda self: self._default_qa_reviewer(), tracking=True)
     approval_ids = fields.One2many('qa.change.control.approval', 'change_control_id', string='Approval History')
-    ab_approver_id = fields.Many2one('res.users', string='AB Approver', tracking=True, domain=[('share', '=', False)])
+    ab_approver_id = fields.Many2one('res.users', string='Approver', tracking=True, domain=[('share', '=', False)])
     approval_comment = fields.Text(readonly=True, tracking=True)
     document_ids = fields.One2many('qa.change.control.document', 'change_control_id', string='Review Documents')
     review_comments = fields.Text(string='QA Review Comments', tracking=True)
@@ -244,8 +244,8 @@ class QaChangeControl(models.Model):
             if rec.task_ids.filtered(lambda t: t.state != 'submitted'):
                 raise UserError(_('All evaluation tasks must be submitted before sending for approval.'))
             if not rec.ab_approver_id:
-                raise UserError(_('Please select the AB Approver before sending for approval.'))
-            rec._transition('approval_pending', _('QA sent the Change Request for AB approval.'))
+                raise UserError(_('Please select the Approver before sending for approval.'))
+            rec._transition('approval_pending', _('QA sent the Change Request for approval.'))
             rec.env['qa.change.control.approval'].create({
                 'change_control_id': rec.id,
                 'approver_id': rec.ab_approver_id.id,
@@ -283,7 +283,7 @@ class QaChangeControl(models.Model):
         self._check_ab_user()
 
         if self.state != 'approval_pending':
-            raise UserError(_('This request is not awaiting AB approval.'))
+            raise UserError(_('This request is not awaiting approval.'))
 
         pending_approval = self._get_pending_approval()
         pending_approval.sudo().write({
@@ -306,7 +306,7 @@ class QaChangeControl(models.Model):
         self._check_ab_user()
 
         if self.state != 'approval_pending':
-            raise UserError(_('This request is not awaiting AB approval.'))
+            raise UserError(_('This request is not awaiting approval.'))
 
         # Confirm the approval history is valid before opening the refusal wizard.
         self._get_pending_approval()
@@ -324,7 +324,7 @@ class QaChangeControl(models.Model):
         self._check_ab_user()
 
         if self.state != 'approval_pending':
-            raise UserError(_('This request is not awaiting AB approval.'))
+            raise UserError(_('This request is not awaiting approval.'))
         if not reason or not reason.strip():
             raise UserError(_('Please provide a reason for refusing the request.'))
 
@@ -339,10 +339,10 @@ class QaChangeControl(models.Model):
         })
         self._transition(
             'evaluation',
-            _('AB refused the Change Request. Returned to Evaluation. Reason: %s') % reason
+            _('Approver refused the Change Request. Returned to Evaluation. Reason: %s') % reason
         )
         self._notify_qa(_(
-            'AB refused %s. Please review and rework the evaluation.'
+            'Approver refused %s. Please review and rework the evaluation.'
         ) % self.name)
         return True
 
@@ -464,7 +464,7 @@ class QaChangeControlApproval(models.Model):
     _order = 'requested_on desc, id desc'
 
     change_control_id = fields.Many2one('qa.change.control', required=True, ondelete='cascade', index=True)
-    approver_id = fields.Many2one('res.users', string='AB Approver', required=True)
+    approver_id = fields.Many2one('res.users', string='Approver', required=True)
     requested_by_id = fields.Many2one('res.users', string='Sent By', required=True)
     requested_on = fields.Datetime(required=True)
     decision = fields.Selection([('pending', 'Pending'), ('approved', 'Approved'), ('refused', 'Refused')], required=True, default='pending')

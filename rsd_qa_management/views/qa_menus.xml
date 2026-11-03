@@ -1,26 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <menuitem id="menu_qa_root" name="Quality Assurance" sequence="35" web_icon="rsd_qa_management,static/description/icon.png" groups="base.group_user"/>
-    <record id="action_qa_dashboard" model="ir.actions.client"><field name="name">QA Dashboard</field><field name="tag">rsd_qa_management.dashboard</field></record>
-    <menuitem id="menu_qa_dashboard" name="Dashboard" parent="menu_qa_root" action="action_qa_dashboard" sequence="1"/>
+    <!-- The app shell remains available to internal users because requesters,
+         task assignees and individual Approvers need limited self-service menus. -->
+    <menuitem id="menu_qa_root" name="Quality Assurance" sequence="35"
+              web_icon="rsd_qa_management,static/description/icon.png"
+              groups="base.group_user"/>
 
-    <menuitem id="menu_qa_change_management" name="Change Management" parent="menu_qa_root" sequence="10"/>
-    <menuitem id="menu_qa_change_control" name="Change Control" parent="menu_qa_change_management" action="action_qa_change_control" sequence="10"/>
-    <menuitem id="menu_qa_document_change_request" name="Document Change Request" parent="menu_qa_change_management" sequence="20" groups="rsd_qa_management.group_qa_officer"/>
+    <record id="action_qa_dashboard" model="ir.actions.client">
+        <field name="name">QA Dashboard</field>
+        <field name="tag">rsd_qa_management.dashboard</field>
+    </record>
+    <menuitem id="menu_qa_dashboard" name="Dashboard" parent="menu_qa_root"
+              action="action_qa_dashboard" sequence="1"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
 
-    <menuitem id="menu_qa_complaints_non_compliance" name="Complaints / NC" parent="menu_qa_root" sequence="20"/>
-    <menuitem id="menu_qa_customer_complaints" name="Customer Complaints" parent="menu_qa_complaints_non_compliance" sequence="10"/>
-    <menuitem id="menu_qa_product_non_conformity" name="Product Non-Conformity (OOS)" parent="menu_qa_complaints_non_compliance" sequence="20"/>
-    <menuitem id="menu_qa_process_non_conformity" name="Process Non-Conformity (For all Dept.)" parent="menu_qa_complaints_non_compliance" sequence="30"/>
+    <menuitem id="menu_qa_change_management" name="Change Management"
+              parent="menu_qa_root" sequence="10"/>
+    <!-- Full workflow is visible only to QA. -->
+    <menuitem id="menu_qa_change_control" name="Change Control"
+              parent="menu_qa_change_management" action="action_qa_change_control"
+              sequence="10" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <!-- Requesters and task assignees retain access to only their own work. -->
+    <menuitem id="menu_qa_my_change_requests" name="My Change Requests"
+              parent="menu_qa_change_management" action="action_qa_my_change_requests"
+              sequence="20" groups="base.group_user"/>
+    <menuitem id="menu_qa_my_evaluation_tasks" name="My Evaluation Tasks"
+              parent="menu_qa_change_management" action="action_qa_my_evaluation_tasks"
+              sequence="30" groups="base.group_user"/>
+    <!-- Individual Approvers see only requests currently awaiting their decision. -->
+    <menuitem id="menu_qa_my_approvals" name="My Approvals"
+              parent="menu_qa_change_management" action="action_qa_my_approvals"
+              sequence="40" groups="base.group_user"/>
 
-    <menuitem id="menu_qa_audits" name="Audits" parent="menu_qa_root" sequence="30"/>
-    <menuitem id="menu_qa_internal_audits" name="Internal Audits" parent="menu_qa_audits" sequence="10"/>
-    <menuitem id="menu_qa_mrm_mom" name="MRM and MOM" parent="menu_qa_audits" sequence="20"/>
-    <menuitem id="menu_qa_trend_analysis" name="Trend Analysis" parent="menu_qa_audits" sequence="30"/>
+    <menuitem id="menu_qa_document_change_request" name="Document Change Request"
+              parent="menu_qa_change_management" sequence="50"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
 
-    <menuitem id="menu_qa_document_control" name="Document Control (Revalidation)" parent="menu_qa_root" sequence="40"/>
-    <menuitem id="menu_qa_sop" name="SOP" parent="menu_qa_document_control" sequence="10"/>
-    <menuitem id="menu_qa_forms_formats" name="Forms and Formats" parent="menu_qa_document_control" sequence="20"/>
-    <menuitem id="menu_qa_qsm" name="QSM" parent="menu_qa_document_control" sequence="30"/>
-    <menuitem id="menu_qa_kpa_kra" name="KPA/KRA" parent="menu_qa_root" sequence="50"/>
+    <!-- Other QA modules are not yet employee self-service workflows. -->
+    <menuitem id="menu_qa_complaints_non_compliance" name="Complaints / NC"
+              parent="menu_qa_root" sequence="20"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_customer_complaints" name="Customer Complaints"
+              parent="menu_qa_complaints_non_compliance" sequence="10"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_product_non_conformity" name="Product Non-Conformity (OOS)"
+              parent="menu_qa_complaints_non_compliance" sequence="20"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_process_non_conformity" name="Process Non-Conformity (For all Dept.)"
+              parent="menu_qa_complaints_non_compliance" sequence="30"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+
+    <menuitem id="menu_qa_audits" name="Audits" parent="menu_qa_root"
+              sequence="30" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_internal_audits" name="Internal Audits"
+              parent="menu_qa_audits" sequence="10"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_mrm_mom" name="MRM and MOM"
+              parent="menu_qa_audits" sequence="20"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_trend_analysis" name="Trend Analysis"
+              parent="menu_qa_audits" sequence="30"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+
+    <menuitem id="menu_qa_document_control" name="Document Control (Revalidation)"
+              parent="menu_qa_root" sequence="40"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_sop" name="SOP" parent="menu_qa_document_control"
+              sequence="10" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_forms_formats" name="Forms and Formats"
+              parent="menu_qa_document_control" sequence="20"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_qsm" name="QSM" parent="menu_qa_document_control"
+              sequence="30" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_kpa_kra" name="KPA/KRA" parent="menu_qa_root"
+              sequence="50" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
 </odoo>

@@ -35,3 +35,12 @@ This package is based on the uploaded `rsd_qa_management` module. Existing techn
 ## Installation caution
 
 Back up the current module folder and database before replacing files or upgrading the module. Test the package on a development/staging database first.
+
+- `security/security.xml` and `security/ir.model.access.csv`
+  - Restricts the full Change Control menu and QA dashboard to QA.
+  - Keeps requester, assigned-task and current-Approver access through separate self-service menus and record rules.
+  - Makes QA review documents QA-only.
+  - Removes task creation permission from ordinary internal users.
+- `views/qa_menus.xml` and `views/qa_change_control_views.xml`
+  - Adds My Change Requests, My Evaluation Tasks and My Approvals entry points.
+  - Renames user-facing Approver terminology without changing technical identifiers.

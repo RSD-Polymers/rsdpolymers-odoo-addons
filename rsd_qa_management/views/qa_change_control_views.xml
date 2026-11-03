@@ -172,6 +172,28 @@
         <field name="context">{'search_default_pending': 0}</field>
     </record>
 
+    <!-- Limited self-service entry points for non-QA participants. -->
+    <record id="action_qa_my_change_requests" model="ir.actions.act_window">
+        <field name="name">My Change Requests</field>
+        <field name="res_model">qa.change.control</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('requested_by_id.user_id', '=', uid)]</field>
+    </record>
+
+    <record id="action_qa_my_evaluation_tasks" model="ir.actions.act_window">
+        <field name="name">My Evaluation Tasks</field>
+        <field name="res_model">qa.change.control.task</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('assigned_user_id', '=', uid)]</field>
+    </record>
+
+    <record id="action_qa_my_approvals" model="ir.actions.act_window">
+        <field name="name">My Approvals</field>
+        <field name="res_model">qa.change.control</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('ab_approver_id', '=', uid), ('state', '=', 'approval_pending')]</field>
+    </record>
+
     <record id="view_qa_change_control_task_list" model="ir.ui.view">
         <field name="name">qa.change.control.task.list</field><field name="model">qa.change.control.task</field>
         <field name="arch" type="xml"><list string="Evaluation Tasks" decoration-success="state == 'submitted'" decoration-warning="state == 'rework'"><field name="name"/><field name="change_control_id"/><field name="department_id"/><field name="assigned_employee_id"/><field name="expected_date"/><field name="state" widget="badge"/></list></field>

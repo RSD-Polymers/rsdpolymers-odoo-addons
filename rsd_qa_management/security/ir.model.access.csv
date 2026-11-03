@@ -1,11 +1,14 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_qa_change_control_user,qa.change.control user,model_qa_change_control,base.group_user,1,1,1,0
 access_qa_change_control_qa,qa.change.control QA,model_qa_change_control,rsd_qa_management.group_qa_officer,1,1,1,0
-access_qa_change_task_user,qa.change.control.task user,model_qa_change_control_task,base.group_user,1,1,1,0
+access_qa_change_task_user,qa.change.control.task user,model_qa_change_control_task,base.group_user,1,1,0,0
 access_qa_change_task_qa,qa.change.control.task QA,model_qa_change_control_task,rsd_qa_management.group_qa_officer,1,1,1,0
-access_qa_change_document_user,qa.change.control.document user,model_qa_change_control_document,base.group_user,1,0,0,0
 access_qa_change_document_qa,qa.change.control.document QA,model_qa_change_control_document,rsd_qa_management.group_qa_officer,1,1,1,0
 access_qa_reject_wizard,qa.change.control.reject.wizard,model_qa_change_control_reject_wizard,rsd_qa_management.group_qa_officer,1,1,1,1
 access_qa_approval_wizard,qa.change.control.approval.wizard,model_qa_change_control_approval_wizard,base.group_user,1,1,1,1
 access_qa_change_approval_user,qa.change.control.approval user,model_qa_change_control_approval,base.group_user,1,0,0,0
 access_qa_change_approval_qa,qa.change.control.approval QA,model_qa_change_control_approval,rsd_qa_management.group_qa_officer,1,0,1,0
+access_qa_change_task_admin,qa.change.control.task administrator,model_qa_change_control_task,base.group_system,1,1,1,0
+access_qa_change_document_admin,qa.change.control.document administrator,model_qa_change_control_document,base.group_system,1,1,1,0
+access_qa_reject_wizard_admin,qa.change.control.reject.wizard administrator,model_qa_change_control_reject_wizard,base.group_system,1,1,1,1
+access_qa_change_approval_admin,qa.change.control.approval administrator,model_qa_change_control_approval,base.group_system,1,0,1,0

@@ -19,10 +19,10 @@
     <record id="rule_qa_change_control_all" model="ir.rule">
         <field name="name">QA: all Change Control records</field>
         <field name="model_id" ref="model_qa_change_control"/>
-        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
-    <!-- Employees see requests they raised and records for which they are the AB approver. -->
+    <!-- Non-QA users see only their own requests, requests currently awaiting their approval, or requests with tasks assigned to them. -->
     <record id="rule_qa_change_control_employee" model="ir.rule">
         <field name="name">Employees: own or assigned approval Change Requests</field>
         <field name="model_id" ref="model_qa_change_control"/>
@@ -30,7 +30,7 @@
         <field name="domain_force">
             ['|', '|',
                 ('requested_by_id.user_id', '=', user.id),
-                ('ab_approver_id', '=', user.id),
+                '&amp;', ('ab_approver_id', '=', user.id), ('state', '=', 'approval_pending'),
                 ('task_ids', 'any', [('assigned_user_id', '=', user.id)])
             ]
         </field>
@@ -44,21 +44,10 @@
     <record id="rule_qa_task_all" model="ir.rule">
         <field name="name">QA: all Change Control tasks</field>
         <field name="model_id" ref="model_qa_change_control_task"/>
-        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
-    <record id="rule_qa_document_related" model="ir.rule">
-        <field name="name">Employees: related Change Control documents</field>
-        <field name="model_id" ref="model_qa_change_control_document"/>
-        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-        <field name="domain_force">
-            ['|', '|',
-                ('change_control_id.requested_by_id.user_id', '=', user.id),
-                ('change_control_id.ab_approver_id', '=', user.id),
-                ('change_control_id.task_ids', 'any', [('assigned_user_id', '=', user.id)])
-            ]
-        </field>
-    </record>
+
     <record id="rule_qa_approval_related" model="ir.rule">
         <field name="name">Employees: related Change Control approval history</field>
         <field name="model_id" ref="model_qa_change_control_approval"/>
@@ -68,13 +57,13 @@
     <record id="rule_qa_approval_all" model="ir.rule">
         <field name="name">QA: all Change Control approval history</field>
         <field name="model_id" ref="model_qa_change_control_approval"/>
-        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
     <record id="rule_qa_document_all" model="ir.rule">
         <field name="name">QA: all Change Control review documents</field>
         <field name="model_id" ref="model_qa_change_control_document"/>
-        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer'))]"/>
+        <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
 </odoo>
