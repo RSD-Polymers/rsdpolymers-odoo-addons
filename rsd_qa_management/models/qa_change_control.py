@@ -76,9 +76,9 @@ class QaChangeControl(models.Model):
     def create(self, vals_list):
         user = self.env.user
         is_qa = (
-            user.has_group('rsd_qa_management.group_qa_officer')
-            or user.has_group('rsd_qa_management.group_qa_manager')
-            or user.has_group('base.group_system')
+                user.has_group('rsd_qa_management.group_qa_officer')
+                or user.has_group('rsd_qa_management.group_qa_manager')
+                or user.has_group('base.group_system')
         )
 
         allowed_create_fields = {
@@ -91,12 +91,34 @@ class QaChangeControl(models.Model):
             'state',
         }
 
+        restricted_create_fields = {
+            'closing_report_attachment_ids',
+            'final_comments',
+            'implementation_date',
+            'implementation_details',
+        }
+
         for vals in vals_list:
-            extra_fields = set(vals) - allowed_create_fields
+            # Reject fields that are not permitted during creation.
+            extra_fields = (
+                    set(vals) - allowed_create_fields - restricted_create_fields
+            )
             if extra_fields:
                 raise AccessError(_(
                     'These fields cannot be set when creating a Change Request: %s'
                 ) % ', '.join(sorted(extra_fields)))
+
+            # Allow closure fields only when they are empty/default.
+            populated_restricted_fields = {
+                field for field in restricted_create_fields
+                if vals.get(field)
+            }
+
+            if populated_restricted_fields:
+                raise AccessError(_(
+                    'Implementation and closure fields cannot be filled '
+                    'during Change Request creation: %s'
+                ) % ', '.join(sorted(populated_restricted_fields)))
 
             if not is_qa:
                 employee = self.env['hr.employee'].search(
@@ -106,8 +128,11 @@ class QaChangeControl(models.Model):
                     raise UserError(_(
                         'Your user is not linked to an employee. Please contact HR.'
                     ))
+
                 vals['requested_by_id'] = employee.id
                 vals.pop('qa_reviewer_id', None)
+
+            # Every newly created Change Request starts in Draft.
             vals['state'] = 'draft'
 
             if vals.get('name', 'New') == 'New':
