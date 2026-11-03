@@ -1,19 +1,20 @@
 # Quality Assurance - Odoo 18
 
-## Implemented in version 18.0.1.2.0
+## Implemented in version 18.0.1.3.0
 
 ### Change Control
 - Change Request model: `qa.change.control`
 - Evaluation Task model: `qa.change.control.task` (separate from `project.task`)
 - Review document model: `qa.change.control.document`
-- Approval history log and rejection / Approver refusal wizards
+- Approval history log and rejection / QA Manager refusal wizards
 - Draft -> Open -> Registered -> Evaluation -> Data Review -> Awaiting Approval -> Closing Report -> Completed workflow
 - QA rejection from Open closes the CR as Rejected and requires a reason
 - First submitted evaluation task automatically moves the CR to Data Review and notifies QA
 - Remaining evaluation tasks may still be submitted while the CR is in Data Review
-- QA can send for Approver approval only after all evaluation tasks are submitted
-- Approver is a selected internal Odoo user; only the assigned Approver can approve/refuse
-- Approver refusal returns the CR to Evaluation and requires a reason
+- QA Officer can add evaluation tasks inline on the Change Request during Evaluation; task creation is blocked outside that stage
+- QA can send for QA Manager approval only after all evaluation tasks are submitted
+- Any member of the QA Manager group can approve/refuse; the first decision completes the pending approval, and the deciding manager is recorded in approval history
+- QA Manager refusal returns the CR to Evaluation and requires a reason
 - QA-only review documents and closing report
 - Post-implementation report, implementation date and comments required for final completion
 - Mail chatter and activities for workflow notifications
@@ -31,11 +32,11 @@
 - QA Officer and QA Manager groups
 - Employees can create and view only their own Change Requests through the My Change Requests menu
 - Assigned task employees can access and update only their assigned tasks through My Evaluation Tasks
-- The selected Approver can access only requests currently awaiting their decision through My Approvals
+- QA Managers share the Pending Approvals queue; only QA Managers can approve or refuse
 - Workflow stage changes are protected in Python; direct state writes are blocked for all users
 - QA can manage all Change Control records and tasks; the full Change Control menu and QA Dashboard are QA-only
-- System Administrators can administer the QA workflow, but cannot approve or refuse unless they are the selected Approver
-- Other internal users see only their own requests, assigned tasks, or currently pending approvals
+- System Administrators can administer the QA workflow, but cannot approve or refuse unless they are also members of the QA Manager group
+- Other internal users see only their own requests or assigned tasks
 
 ## Installation / Upgrade
 1. Copy `rsd_qa_management` into a configured custom addons directory.
@@ -45,7 +46,7 @@
 5. Ensure employees and their Odoo users are linked in HR.
 
 ## Important configuration
-- Assign an Approver on the Change Request during Evaluation or Data Review before sending for approval.
+- Assign users to the QA Officer and QA Manager groups. QA Managers inherit QA Officer operational permissions.
 - Assigned employees must have an internal Odoo user linked to their HR employee record.
 - A daily scheduled action is configured to remind assigned employees and QA users one day before task deadlines.
 

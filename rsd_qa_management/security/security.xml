@@ -22,15 +22,14 @@
         <field name="groups" eval="[(4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
-    <!-- Non-QA users see only their own requests, requests currently awaiting their approval, or requests with tasks assigned to them. -->
+    <!-- Non-QA users see only their own requests or requests with tasks assigned to them. -->
     <record id="rule_qa_change_control_employee" model="ir.rule">
-        <field name="name">Employees: own or assigned approval Change Requests</field>
+        <field name="name">Employees: own or assigned Change Requests</field>
         <field name="model_id" ref="model_qa_change_control"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">
-            ['|', '|',
+            ['|',
                 ('requested_by_id.user_id', '=', user.id),
-                '&amp;', ('ab_approver_id', '=', user.id), ('state', '=', 'approval_pending'),
                 ('task_ids', 'any', [('assigned_user_id', '=', user.id)])
             ]
         </field>

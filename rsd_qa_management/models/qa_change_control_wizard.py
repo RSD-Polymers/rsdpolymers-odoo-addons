@@ -51,7 +51,7 @@ class QaChangeControlApprovalWizard(models.TransientModel):
         if not cr:
             raise UserError(_('The Change Request no longer exists.'))
 
-        # Only the selected Approver can refuse the approval.
+        # Only a QA Manager can refuse the approval.
         cr._check_ab_user()
 
         if cr.state != 'approval_pending':

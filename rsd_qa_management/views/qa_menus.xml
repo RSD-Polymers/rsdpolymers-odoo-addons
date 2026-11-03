@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!-- The app shell remains available to internal users because requesters,
-         task assignees and individual Approvers need limited self-service menus. -->
+    <!-- Internal users have limited self-service access to their own requests and assigned tasks. -->
     <menuitem id="menu_qa_root" name="Quality Assurance" sequence="35"
               web_icon="rsd_qa_management,static/description/icon.png"
               groups="base.group_user"/>
@@ -27,10 +26,10 @@
     <menuitem id="menu_qa_my_evaluation_tasks" name="My Evaluation Tasks"
               parent="menu_qa_change_management" action="action_qa_my_evaluation_tasks"
               sequence="30" groups="base.group_user"/>
-    <!-- Individual Approvers see only requests currently awaiting their decision. -->
-    <menuitem id="menu_qa_my_approvals" name="My Approvals"
+    <!-- QA Managers share the pending approval queue. -->
+    <menuitem id="menu_qa_my_approvals" name="Pending Approvals"
               parent="menu_qa_change_management" action="action_qa_my_approvals"
-              sequence="40" groups="base.group_user"/>
+              sequence="40" groups="rsd_qa_management.group_qa_manager"/>
 
     <menuitem id="menu_qa_document_change_request" name="Document Change Request"
               parent="menu_qa_change_management" sequence="50"

@@ -35,9 +35,7 @@ class QaChangeControl(models.Model):
     submitted_task_count = fields.Integer(compute='_compute_task_count')
     pending_task_count = fields.Integer(compute='_compute_task_count')
     rejection_reason = fields.Text(readonly=True, tracking=True)
-    qa_reviewer_id = fields.Many2one('res.users', string='QA Reviewer', default=lambda self: self._default_qa_reviewer(), tracking=True)
     approval_ids = fields.One2many('qa.change.control.approval', 'change_control_id', string='Approval History')
-    ab_approver_id = fields.Many2one('res.users', string='Approver', tracking=True, domain=[('share', '=', False)])
     approval_comment = fields.Text(readonly=True, tracking=True)
     document_ids = fields.One2many('qa.change.control.document', 'change_control_id', string='Review Documents')
     review_comments = fields.Text(string='QA Review Comments', tracking=True)
@@ -55,14 +53,6 @@ class QaChangeControl(models.Model):
     @api.model
     def _default_employee(self):
         return self.env['hr.employee'].search([('user_id', '=', self.env.uid)], limit=1)
-
-    @api.model
-    def _default_qa_reviewer(self):
-        if (self.env.user.has_group('rsd_qa_management.group_qa_officer') or
-                self.env.user.has_group('rsd_qa_management.group_qa_manager') or
-                self.env.user.has_group('base.group_system')):
-            return self.env.uid
-        return False
 
     @api.depends('task_ids', 'task_ids.state')
     def _compute_task_count(self):
@@ -86,7 +76,6 @@ class QaChangeControl(models.Model):
             'description',
             'requested_by_id',
             'cr_type',
-            'qa_reviewer_id',
             'request_date',
             'state',
         }
@@ -130,7 +119,6 @@ class QaChangeControl(models.Model):
                     ))
 
                 vals['requested_by_id'] = employee.id
-                vals.pop('qa_reviewer_id', None)
 
             # Every newly created Change Request starts in Draft.
             vals['state'] = 'draft'
@@ -177,23 +165,16 @@ class QaChangeControl(models.Model):
                     'requested_by_id',
                     'cr_type',
                     'description',
-                    'qa_reviewer_id',
-                },
+                        },
                 'open': {
                     'rejection_reason',
-                    'qa_reviewer_id',
-                },
+                        },
                 'registered': {
-                    'qa_reviewer_id',
-                },
+                        },
                 'evaluation': {
-                    'qa_reviewer_id',
-                    'ab_approver_id',
-                },
+                        },
                 'data_review': {
-                    'qa_reviewer_id',
-                    'ab_approver_id',
-                    'review_comments',
+                            'review_comments',
                 },
                 'approval_pending': set(),
                 'closing_report': {
@@ -268,50 +249,55 @@ class QaChangeControl(models.Model):
                 raise UserError(_('At least one evaluation task is required.'))
             if rec.task_ids.filtered(lambda t: t.state != 'submitted'):
                 raise UserError(_('All evaluation tasks must be submitted before sending for approval.'))
-            if not rec.ab_approver_id:
-                raise UserError(_('Please select the Approver before sending for approval.'))
-            rec._transition('approval_pending', _('QA sent the Change Request for approval.'))
+            rec._transition('approval_pending', _('QA sent the Change Request for QA Manager approval.'))
             rec.env['qa.change.control.approval'].create({
                 'change_control_id': rec.id,
-                'approver_id': rec.ab_approver_id.id,
                 'requested_by_id': self.env.user.id,
                 'requested_on': fields.Datetime.now(),
                 'decision': 'pending',
             })
-            rec.activity_schedule('mail.mail_activity_data_todo', user_id=rec.ab_approver_id.id,
-                                  summary=_('Change Request approval required'),
-                                  note=_('Please review and approve/refuse %s.') % rec.name)
-            rec.message_post(body=_('Approval requested from %s.') % rec.ab_approver_id.name)
+            manager_group = self.env.ref('rsd_qa_management.group_qa_manager')
+            for manager in manager_group.users:
+                rec.activity_schedule(
+                    'mail.mail_activity_data_todo', user_id=manager.id,
+                    summary=_('Change Request approval required'),
+                    note=_('Please review and approve/refuse %s.') % rec.name,
+                )
+            rec.message_post(body=_('Approval requested from the QA Manager group.'))
         return True
+
+    def _lock_pending_approval(self):
+        # Serialize manager decisions so only the first manager can decide.
+        self.ensure_one()
+        self.env.cr.execute(
+            'SELECT id FROM qa_change_control WHERE id = %s FOR UPDATE',
+            [self.id],
+        )
+        self.invalidate_recordset(['state', 'approval_ids'])
 
     def _get_pending_approval(self):
         self.ensure_one()
-        pending_approvals = self.approval_ids.filtered(
-            lambda approval: approval.decision == 'pending'
-        )
-
+        pending_approvals = self.env['qa.change.control.approval'].search([
+            ('change_control_id', '=', self.id),
+            ('decision', '=', 'pending'),
+        ], limit=2)
         if len(pending_approvals) != 1:
             raise UserError(_(
-                'Exactly one pending approval-history record is required before making a decision.'
+                'There is no single pending approval. Another QA Manager may already have decided this request.'
             ))
-
-        approval = pending_approvals[0]
-        if approval.approver_id != self.ab_approver_id:
-            raise UserError(_(
-                'The pending approval record does not match the selected Approver.'
-            ))
-
-        return approval
+        return pending_approvals[0]
 
     def action_ab_approve(self):
         self.ensure_one()
         self._check_ab_user()
+        self._lock_pending_approval()
 
         if self.state != 'approval_pending':
-            raise UserError(_('This request is not awaiting approval.'))
+            raise UserError(_('This request is not awaiting approval. Another QA Manager may already have decided it.'))
 
         pending_approval = self._get_pending_approval()
         pending_approval.sudo().write({
+            'approver_id': self.env.user.id,
             'decision': 'approved',
             'decision_date': fields.Datetime.now(),
             'comment': _('Approved by %s') % self.env.user.name,
@@ -347,9 +333,10 @@ class QaChangeControl(models.Model):
     def _record_ab_refusal(self, reason):
         self.ensure_one()
         self._check_ab_user()
+        self._lock_pending_approval()
 
         if self.state != 'approval_pending':
-            raise UserError(_('This request is not awaiting approval.'))
+            raise UserError(_('This request is not awaiting approval. Another QA Manager may already have decided it.'))
         if not reason or not reason.strip():
             raise UserError(_('Please provide a reason for refusing the request.'))
 
@@ -358,16 +345,17 @@ class QaChangeControl(models.Model):
 
         super(QaChangeControl, self).write({'approval_comment': reason})
         pending_approval.sudo().write({
+            'approver_id': self.env.user.id,
             'decision': 'refused',
             'decision_date': fields.Datetime.now(),
             'comment': reason,
         })
         self._transition(
             'evaluation',
-            _('Approver refused the Change Request. Returned to Evaluation. Reason: %s') % reason
+            _('QA Manager refused the Change Request. Returned to Evaluation. Reason: %s') % reason
         )
         self._notify_qa(_(
-            'Approver refused %s. Please review and rework the evaluation.'
+            'QA Manager refused %s. Please review and rework the evaluation.'
         ) % self.name)
         return True
 
@@ -401,11 +389,8 @@ class QaChangeControl(models.Model):
 
     def _check_ab_user(self):
         self.ensure_one()
-
-        if self.ab_approver_id != self.env.user:
-            raise UserError(
-                _('Only the assigned Approver can approve or refuse this request.')
-            )
+        if not self.env.user.has_group('rsd_qa_management.group_qa_manager'):
+            raise AccessError(_('Only members of the QA Manager group can approve or refuse Change Requests.'))
 
     def _notify_qa(self, message):
         group = self.env.ref('rsd_qa_management.group_qa_officer')
@@ -489,7 +474,7 @@ class QaChangeControlApproval(models.Model):
     _order = 'requested_on desc, id desc'
 
     change_control_id = fields.Many2one('qa.change.control', required=True, ondelete='cascade', index=True)
-    approver_id = fields.Many2one('res.users', string='Approver', required=True)
+    approver_id = fields.Many2one('res.users', string='Decision By', readonly=True)
     requested_by_id = fields.Many2one('res.users', string='Sent By', required=True)
     requested_on = fields.Datetime(required=True)
     decision = fields.Selection([('pending', 'Pending'), ('approved', 'Approved'), ('refused', 'Refused')], required=True, default='pending')
@@ -510,9 +495,9 @@ class QaChangeControlApproval(models.Model):
                 raise UserError(_(
                     'Approval history can only be created when the request is awaiting approval.'
                 ))
-            if vals.get('approver_id') != cr.ab_approver_id.id:
+            if vals.get('approver_id'):
                 raise ValidationError(_(
-                    'The approval-history Approver must match the selected Change Request Approver.'
+                    'The decision-maker is recorded only when a QA Manager approves or refuses.'
                 ))
             if vals.get('requested_by_id') != self.env.uid:
                 raise AccessError(_(

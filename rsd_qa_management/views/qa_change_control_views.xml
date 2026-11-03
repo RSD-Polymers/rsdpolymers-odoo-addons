@@ -10,8 +10,6 @@
                 <field name="requested_by_id"/>
                 <field name="department_id"/>
                 <field name="cr_type"/>
-                <field name="qa_reviewer_id" optional="hide"/>
-                <field name="ab_approver_id" optional="hide"/>
                 <field name="request_date"/>
                 <field name="state" widget="badge"/>
             </list>
@@ -66,7 +64,7 @@
         <field name="arch" type="xml">
             <search string="Search Change Requests">
                 <field name="name"/><field name="description"/><field name="requested_by_id"/>
-                <field name="department_id"/><field name="cr_type"/><field name="qa_reviewer_id"/><field name="ab_approver_id"/>
+                <field name="department_id"/><field name="cr_type"/>
                 <filter name="my_requests" string="My Requests" domain="[('requested_by_id.user_id', '=', uid)]"/>
                 <filter name="pending" string="Pending" domain="[('state', 'not in', ['completed', 'rejected'])]"/>
                 <filter name="completed" string="Completed" domain="[('state', '=', 'completed')]"/>
@@ -94,8 +92,8 @@
                     <button name="action_reject" type="object" string="Reject" class="btn-secondary" groups="rsd_qa_management.group_qa_officer" invisible="state != 'open'"/>
                     <button name="action_start_evaluation" type="object" string="Start Evaluation" class="btn-primary" groups="rsd_qa_management.group_qa_officer" invisible="state != 'registered'"/>
                     <button name="action_send_for_approval" type="object" string="Send for Approval" class="btn-primary" groups="rsd_qa_management.group_qa_officer" invisible="state != 'data_review'"/>
-                    <button name="action_ab_approve" type="object" string="Approve" class="btn-primary" invisible="state != 'approval_pending' or ab_approver_id != uid"/>
-                    <button name="action_ab_refuse" type="object" string="Refuse" class="btn-secondary" invisible="state != 'approval_pending' or ab_approver_id != uid"/>
+                    <button name="action_ab_approve" type="object" string="Approve" class="btn-primary" groups="rsd_qa_management.group_qa_manager" invisible="state != 'approval_pending'"/>
+                    <button name="action_ab_refuse" type="object" string="Refuse" class="btn-secondary" groups="rsd_qa_management.group_qa_manager" invisible="state != 'approval_pending'"/>
                     <button name="action_mark_done" type="object" string="Mark as Done" class="btn-primary" groups="rsd_qa_management.group_qa_officer" invisible="state != 'closing_report'"/>
                     <button name="action_view_tasks" type="object" string="Evaluation Tasks" class="btn-secondary" invisible="state not in ('evaluation', 'data_review', 'approval_pending', 'closing_report', 'completed')"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,open,registered,evaluation,data_review,approval_pending,closing_report,completed" readonly="1"/>
@@ -114,9 +112,8 @@
                             <field name="cr_type" readonly="state != 'draft'"/>
                             <field name="request_date"/>
                         </group>
-                        <group string="QA / Approval Assignment">
-                            <field name="qa_reviewer_id" groups="rsd_qa_management.group_qa_officer"/>
-                            <field name="ab_approver_id" readonly="state not in ('data_review', 'evaluation')"/>
+                        <group string="QA Review">
+                            <div class="text-muted">Managed by the QA Officer group. Final approval is handled by the QA Manager group.</div>
                         </group>
                     </group>
                     <group><field name="description" placeholder="Describe the proposed change..." readonly="state != 'draft'"/></group>
@@ -125,12 +122,17 @@
                         <page string="Evaluation Tasks" invisible="state in ('draft', 'open', 'registered', 'rejected')">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div><strong>Task progress:</strong> <field name="submitted_task_count" nolabel="1"/> / <field name="task_count" nolabel="1"/> submitted</div>
-                                <button name="action_view_tasks" type="object" string="Manage Tasks" class="btn-secondary" groups="rsd_qa_management.group_qa_officer" invisible="state not in ('evaluation', 'data_review')"/>
+
                             </div>
-                            <field name="task_ids" readonly="1">
-                                <list create="false" delete="false">
-                                    <field name="name"/><field name="department_id"/><field name="assigned_employee_id"/>
-                                    <field name="expected_date"/><field name="state" widget="badge"/><field name="submitted_on" optional="hide"/>
+                            <field name="task_ids" groups="rsd_qa_management.group_qa_officer" readonly="state != 'evaluation'">
+                                <list editable="bottom" create="1" delete="0">
+                                    <field name="name"/>
+                                    <field name="department_id"/>
+                                    <field name="assigned_employee_id" domain="[('department_id', '=', department_id)]"/>
+                                    <field name="expected_date"/>
+                                    <field name="description"/>
+                                    <field name="state" widget="badge" readonly="1"/>
+                                    <field name="submitted_on" optional="hide"/>
                                 </list>
                             </field>
                         </page>
@@ -144,7 +146,7 @@
                         <page string="Approval History" invisible="not approval_ids">
                             <field name="approval_ids" readonly="1">
                                 <list create="false" edit="false" delete="false">
-                                    <field name="approver_id"/><field name="requested_by_id"/><field name="requested_on"/>
+                                    <field name="approver_id" string="Decision By"/><field name="requested_by_id"/><field name="requested_on"/>
                                     <field name="decision" widget="badge"/><field name="decision_date"/><field name="comment"/>
                                 </list>
                             </field>
@@ -188,10 +190,10 @@
     </record>
 
     <record id="action_qa_my_approvals" model="ir.actions.act_window">
-        <field name="name">My Approvals</field>
+        <field name="name">Pending Approvals</field>
         <field name="res_model">qa.change.control</field>
         <field name="view_mode">list,form</field>
-        <field name="domain">[('ab_approver_id', '=', uid), ('state', '=', 'approval_pending')]</field>
+        <field name="domain">[('state', '=', 'approval_pending')]</field>
     </record>
 
     <record id="view_qa_change_control_task_list" model="ir.ui.view">
