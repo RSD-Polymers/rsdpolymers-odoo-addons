@@ -1,6 +1,6 @@
 {
     'name': 'R&D Project & Experiment Workflow',
-    'version': '18.0.2.1.2',
+    'version': '18.0.2.1.3',
     'category': 'Manufacturing/Quality',
     'summary': 'Sales & Marketing to R&D requirement, planning, batch/experiment execution, QC and performance review workflow.',
     'description': """

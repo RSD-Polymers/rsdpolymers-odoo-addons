@@ -1,3 +1,7 @@
+## 18.0.2.1.3
+- Corrected SOP parameter value normalization so hidden numeric fields from the web client are ignored for Dropdown/Text parameters and irrelevant flags are reset.
+- Restricted Minimum/Maximum entered flags to Numeric Range and Value entered flag to Number parameters.
+
 # Changelog
 
 ## 18.0.2.0.0

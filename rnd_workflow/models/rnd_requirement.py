@@ -382,15 +382,26 @@ class RndRequirementParameterLine(models.Model):
             else:
                 vals['option_value'] = False
 
-            # Preserve explicit zero values while distinguishing an empty field from zero.
-            for value_field, flag_field in (
-                ('min_value', 'min_value_set'),
-                ('max_value', 'max_value_set'),
-                ('numeric_value', 'numeric_value_set'),
+            # Keep fields belonging to other parameter types empty. The web client can
+            # include hidden Float fields in create vals; do not interpret those values
+            # as user input for an unrelated parameter type.
+            if parameter.specification_type != 'range':
+                vals.update(min_value=False, min_value_set=False,
+                            max_value=False, max_value_set=False)
+            if parameter.specification_type != 'number':
+                vals.update(numeric_value=False, numeric_value_set=False)
+            if parameter.specification_type != 'dropdown':
+                vals.update(option_id=False, option_value=False)
+
+            # Flags are derived server-side and only for fields relevant to this type.
+            for value_field, flag_field, applicable_type in (
+                ('min_value', 'min_value_set', 'range'),
+                ('max_value', 'max_value_set', 'range'),
+                ('numeric_value', 'numeric_value_set', 'number'),
             ):
-                # Flags are derived server-side; callers cannot mark an empty field as entered.
                 vals[flag_field] = (
-                    value_field in vals
+                    parameter.specification_type == applicable_type
+                    and value_field in vals
                     and vals[value_field] is not False
                     and vals[value_field] is not None
                 )
@@ -453,17 +464,26 @@ class RndRequirementParameterLine(models.Model):
             else:
                 vals['option_value'] = False
 
-        # Explicit numeric zero is valid; False/None means the input was cleared.
-        for value_field, flag_field in (
-            ('min_value', 'min_value_set'),
-            ('max_value', 'max_value_set'),
-            ('numeric_value', 'numeric_value_set'),
-        ):
-            if value_field in vals:
-                vals[flag_field] = vals[value_field] is not False and vals[value_field] is not None
-            else:
-                # Do not allow clients to forge the hidden entered-value flags.
-                vals.pop(flag_field, None)
+        # Derive flags only for the selected parameter type. Hidden Float fields can
+        # be sent by the web client even when they are not displayed in the list.
+        for line in self:
+            target_type = parameter.specification_type if parameter else line.specification_type
+            for value_field, flag_field, applicable_type in (
+                ('min_value', 'min_value_set', 'range'),
+                ('max_value', 'max_value_set', 'range'),
+                ('numeric_value', 'numeric_value_set', 'number'),
+            ):
+                if target_type != applicable_type:
+                    vals[value_field] = False
+                    vals[flag_field] = False
+                elif value_field in vals:
+                    vals[flag_field] = vals[value_field] is not False and vals[value_field] is not None
+                else:
+                    # Do not allow clients to forge hidden entered-value flags.
+                    vals.pop(flag_field, None)
+
+            if target_type != 'dropdown':
+                vals.update(option_id=False, option_value=False)
 
         return super().write(vals)
 
@@ -497,20 +517,26 @@ class RndRequirementParameterLine(models.Model):
     @api.onchange('min_value')
     def _onchange_min_value(self):
         for line in self:
-            # False/None means the input was cleared; numeric zero remains valid.
-            line.min_value_set = line.min_value is not False and line.min_value is not None
+            line.min_value_set = (
+                line.specification_type == 'range'
+                and line.min_value is not False and line.min_value is not None
+            )
 
     @api.onchange('max_value')
     def _onchange_max_value(self):
         for line in self:
-            # False/None means the input was cleared; numeric zero remains valid.
-            line.max_value_set = line.max_value is not False and line.max_value is not None
+            line.max_value_set = (
+                line.specification_type == 'range'
+                and line.max_value is not False and line.max_value is not None
+            )
 
     @api.onchange('numeric_value')
     def _onchange_numeric_value(self):
         for line in self:
-            # False/None means the input was cleared; numeric zero remains valid.
-            line.numeric_value_set = line.numeric_value is not False and line.numeric_value is not None
+            line.numeric_value_set = (
+                line.specification_type == 'number'
+                and line.numeric_value is not False and line.numeric_value is not None
+            )
 
     @api.onchange('option_id')
     def _onchange_option_id(self):
