@@ -1,6 +1,6 @@
 {
     'name': 'R&D Project & Experiment Workflow',
-    'version': '18.0.1.1.0',
+    'version': '18.0.2.1.1',
     'category': 'Manufacturing/Quality',
     'summary': 'Sales & Marketing to R&D requirement, planning, batch/experiment execution, QC and performance review workflow.',
     'description': """
@@ -8,7 +8,7 @@ R&D Project & Experiment Workflow
 ==================================
 Implements the full pipeline:
 
-Sales & Marketing -> R&D receives requirement -> R&D project owner reviews & accepts
+Sales & Marketing submits structured requirement -> R&D Manager reviews, accepts and creates project
 -> delivery date to S&M -> R&D project planning (Proposal / BMP / RM & Equipment Planning)
 -> Batch/Experiment planning -> Create experiment/batch (mandatory experiment no.)
 -> Assign to R&D user -> Experiment execution -> Submit for QC -> QC user accepts
@@ -25,9 +25,13 @@ Sales & Marketing -> R&D receives requirement -> R&D project owner reviews & acc
         'security/ir.model.access.csv',
         'data/ir_sequence_data.xml',
         'data/rnd_planning_type_data.xml',
+        'data/rnd_sop_parameter_data.xml',
+        'views/rnd_requirement_views.xml',
+        'views/rnd_sop_parameter_views.xml',
         'views/rnd_project_views.xml',
         'views/rnd_experiment_views.xml',
         'views/rnd_planning_type_views.xml',
+        'views/res_config_settings_views.xml',
         'views/menu_views.xml',
     ],
     'installable': True,

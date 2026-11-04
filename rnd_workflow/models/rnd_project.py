@@ -1,18 +1,17 @@
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
-GROUP_SM = 'rnd_workflow.group_rnd_sm'
 GROUP_OWNER = 'rnd_workflow.group_rnd_owner'
 
 
 class RndProject(models.Model):
     _name = 'rnd.project'
-    _description = 'R&D Project Requirement'
+    _description = 'R&D Project'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'create_date desc'
 
-    name = fields.Char(string='Requirement Title', required=True, tracking=True)
+    name = fields.Char(string='Project Name', required=True, tracking=True)
     code = fields.Char(string='Reference', readonly=True, copy=False, default='New')
 
     sm_user_id = fields.Many2one(
@@ -25,8 +24,11 @@ class RndProject(models.Model):
                 int(self.env['ir.config_parameter'].sudo().get_param(
                     'rnd_workflow.default_owner_id'))) or False)
 
-    description = fields.Text(string='Requirement Description')
-    delivery_date = fields.Date(string='Delivery Date to S&M', tracking=True)
+    description = fields.Text(string='Project Scope / Description')
+    delivery_date = fields.Date(string='Committed Completion Date', tracking=True)
+    deadline = fields.Date(string='Project Deadline', tracking=True, index=True)
+    requirement_id = fields.Many2one('rnd.requirement', string='Source Requirement',
+                                     readonly=True, copy=False, index=True)
 
     planning_type_ids = fields.Many2many(
         'rnd.planning.type', string='Planning Type(s)',
@@ -49,6 +51,18 @@ class RndProject(models.Model):
     active = fields.Boolean(default=True)
     color = fields.Integer(string='Color')
 
+    _sql_constraints = [
+        ('requirement_unique', 'unique(requirement_id)',
+         'An R&D requirement can be converted into only one project.'),
+    ]
+
+    @api.constrains('rnd_owner_id')
+    def _check_rnd_owner_group(self):
+        owner_group = self.env.ref(GROUP_OWNER)
+        for rec in self:
+            if rec.rnd_owner_id and owner_group not in rec.rnd_owner_id.groups_id:
+                raise ValidationError('The R&D Project Owner must belong to the R&D Manager group.')
+
     @api.depends('experiment_ids')
     def _compute_experiment_count(self):
         for rec in self:
@@ -56,17 +70,26 @@ class RndProject(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        if not (
-            self.env.user.has_group(GROUP_SM)
-            or self.env.user.has_group(GROUP_OWNER)
-        ):
-            raise UserError('Only Sales & Marketing or the R&D Project Owner / Manager can create requirements.')
-
+        if not self.env.user.has_group(GROUP_OWNER):
+            raise UserError('Only the R&D Manager can create R&D projects.')
         for vals in vals_list:
+            if not vals.get('requirement_id'):
+                raise UserError('Create R&D projects from an accepted R&D Requirement.')
+            requirement = self.env['rnd.requirement'].browse(vals['requirement_id']).exists()
+            if not requirement or requirement.state != 'accepted':
+                raise UserError('Projects can only be created from accepted R&D requirements.')
+            if requirement.project_id:
+                raise UserError('This requirement has already been converted into a project.')
+            if not requirement.rnd_owner_id or not requirement.expected_completion_date:
+                raise UserError('The accepted requirement must have an R&D owner and committed completion date.')
+            vals['name'] = requirement.name
+            vals['sm_user_id'] = requirement.requester_id.id
+            vals['rnd_owner_id'] = requirement.rnd_owner_id.id
+            vals['delivery_date'] = requirement.expected_completion_date
+            vals['deadline'] = requirement.expected_completion_date
+            vals['state'] = 'planning'
             if vals.get('code', 'New') == 'New':
                 vals['code'] = self.env['ir.sequence'].next_by_code('rnd.project') or 'New'
-            if not vals.get('sm_user_id'):
-                vals['sm_user_id'] = self.env.user.id
         return super().create(vals_list)
 
     def _check_group(self, group_xmlid, message):
@@ -87,84 +110,55 @@ class RndProject(models.Model):
                 note=note,
             )
 
+    def _workflow_write(self, vals):
+        """Internal write for workflow actions after their authorization checks."""
+        return super().write(vals)
+
     def write(self, vals):
         if not vals:
             return True
-        if self.env.context.get('rnd_workflow_action'):
-            return super().write(vals)
-
-        user = self.env.user
-        is_owner = user.has_group(GROUP_OWNER)
-        is_sm = user.has_group(GROUP_SM)
-
-        if 'state' in vals and not self.env.context.get('rnd_workflow_action'):
+        if not self.env.user.has_group(GROUP_OWNER):
+            raise UserError('Only the R&D Manager can modify R&D project records.')
+        if 'state' in vals:
             raise UserError('Project status can only be changed through the approved workflow actions.')
-        if any(field in vals for field in ('code', 'experiment_ids')) and not is_owner:
-            raise UserError('System/workflow relation fields can only be changed by the R&D Project Owner / Manager.')
-
-        if 'rnd_owner_id' in vals and not is_owner:
-            raise UserError('Only the R&D Project Owner / Manager can assign the R&D Project Owner.')
-
-        if 'planning_type_ids' in vals and not is_owner:
-            raise UserError('Only the R&D Project Owner / Manager can update planning types.')
-
-        if 'delivery_date' in vals and not is_owner:
-            raise UserError('Only the R&D Project Owner / Manager can set the delivery date.')
-
-        if 'final_review_notes' in vals and not is_owner:
-            raise UserError('Only the R&D Project Owner / Manager can update final review notes.')
-
-        if not is_owner and is_sm:
-            for rec in self:
-                if rec.state != 'draft' and any(
-                    field in vals for field in ('name', 'description', 'sm_user_id')
-                ):
-                    raise UserError('Sales & Marketing can edit the requirement only while it is New.')
-        elif not is_owner and not is_sm and any(
-            field in vals for field in ('name', 'description', 'sm_user_id')
-        ):
-            raise UserError('You are not allowed to edit Sales & Marketing requirement details.')
-
-        return super().write(vals)
+        if 'requirement_id' in vals or 'code' in vals or 'experiment_ids' in vals:
+            raise UserError('System/workflow relation fields cannot be changed manually.')
+        vals = dict(vals)
+        if 'deadline' in vals and 'delivery_date' in vals and vals['deadline'] != vals['delivery_date']:
+            raise UserError('Project Deadline and Committed Completion Date must match.')
+        if 'deadline' in vals and 'delivery_date' not in vals:
+            vals['delivery_date'] = vals['deadline']
+        elif 'delivery_date' in vals and 'deadline' not in vals:
+            vals['deadline'] = vals['delivery_date']
+        result = super().write(vals)
+        for rec in self.filtered('requirement_id'):
+            requirement_vals = {}
+            if 'deadline' in vals:
+                requirement_vals['expected_completion_date'] = rec.deadline
+            if 'rnd_owner_id' in vals:
+                requirement_vals['rnd_owner_id'] = rec.rnd_owner_id.id
+            if requirement_vals:
+                rec.requirement_id._workflow_write(requirement_vals)
+        return result
 
     # ---------------------------------------------------------------
     # Workflow actions
     # ---------------------------------------------------------------
-    def action_submit_to_rnd(self):
-        """Sales & Marketing submits the requirement to R&D."""
-        self._check_group(GROUP_SM, 'Only Sales & Marketing users can submit a new requirement to R&D.')
+    def action_migrate_legacy_to_planning(self):
+        """Move pre-upgrade requirement-style project records into the project workflow."""
+        self._check_group(GROUP_OWNER, 'Only the R&D Manager can migrate legacy project records.')
         for rec in self:
-            if rec.state != 'draft':
-                raise UserError('Only a new requirement can be submitted.')
-            if rec.sm_user_id != self.env.user:
-                raise UserError('Only the Sales & Marketing requester can submit this requirement.')
+            if rec.state not in ('draft', 'rnd_review'):
+                raise UserError('Only legacy New Requirement / R&D Review records can be migrated.')
             if not rec.rnd_owner_id:
-                raise UserError('Please assign an R&D Project Owner before submitting the requirement.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'rnd_review'})
-            rec.message_post(body='Requirement submitted to R&D.')
-            rec._schedule_activity(
-                rec.rnd_owner_id,
-                'Review & accept R&D requirement',
-                f'Please review requirement "{rec.name}" and provide a delivery date.',
-            )
-
-    def action_accept(self):
-        """R&D project owner reviews & accepts, delivery date must be set."""
-        self._check_group(GROUP_OWNER, 'Only the R&D Project Owner / Manager can accept a requirement.')
-        for rec in self:
-            if rec.state != 'rnd_review':
-                raise UserError('Requirement must be in R&D Review to accept.')
-            if not rec.rnd_owner_id:
-                raise UserError('Please assign an R&D Project Owner first.')
+                raise UserError('Assign an R&D Project Owner before migrating this legacy record.')
             if not rec.delivery_date:
-                raise UserError('Please provide a delivery date before accepting.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'planning'})
-            rec.message_post(body=f'Requirement accepted. Delivery date: {rec.delivery_date}.')
-            rec._schedule_activity(
-                rec.sm_user_id,
-                'Delivery date confirmed',
-                f'R&D has accepted the requirement. Delivery date: {rec.delivery_date}.',
-            )
+                raise UserError('Enter the committed delivery date before migrating this legacy record.')
+            rec._workflow_write({
+                'deadline': rec.delivery_date,
+                'state': 'planning',
+            })
+            rec.message_post(body='Legacy requirement record migrated into the R&D project workflow.')
 
     def action_start_execution(self):
         """Move from planning into batch/experiment execution."""
@@ -174,7 +168,7 @@ class RndProject(models.Model):
                 raise UserError('Project must be in Planning to start execution.')
             if not rec.planning_type_ids:
                 raise UserError('Please select at least one planning type (Proposal / BMP / RM & Equipment).')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'execution'})
+            rec._workflow_write({'state': 'execution'})
             rec.message_post(body='Project planning complete. Moved to batch/experiment execution.')
 
     def action_final_review(self):
@@ -188,7 +182,7 @@ class RndProject(models.Model):
             unfinished = rec.experiment_ids.filtered(lambda e: e.state != 'done')
             if unfinished:
                 raise UserError('All experiments/batches must be Done before final review.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'final_review'})
+            rec._workflow_write({'state': 'final_review'})
             rec.message_post(body='All experiments completed. Project moved to final review.')
 
     def action_close(self):
@@ -196,7 +190,7 @@ class RndProject(models.Model):
         for rec in self:
             if rec.state != 'final_review':
                 raise UserError('Project must be in Final Review to close.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'closed'})
+            rec._workflow_write({'state': 'closed'})
             rec.message_post(body='Project finalized and closed.')
 
     def action_reset_to_draft(self):
@@ -204,12 +198,12 @@ class RndProject(models.Model):
         for rec in self:
             if rec.state == 'closed':
                 raise UserError('A closed project cannot be reset to draft.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'draft'})
+            rec._workflow_write({'state': 'draft'})
 
     def unlink(self):
         self._check_group(GROUP_OWNER, 'Only the R&D Project Owner / Manager can delete requirements.')
         if any(rec.state != 'draft' for rec in self):
-            raise UserError('Only New Requirement records can be deleted. Submitted records must be retained for audit history.')
+            raise UserError('Only legacy Draft records can be deleted. Active projects must be retained for audit history.')
         return super().unlink()
 
     def action_view_experiments(self):

@@ -5,57 +5,57 @@
     </record>
 
     <record id="group_rnd_sm" model="res.groups">
-        <field name="name">Sales &amp; Marketing</field>
+        <field name="name">Sales &amp; Marketing User</field>
         <field name="category_id" ref="module_category_rnd_workflow"/>
+    </record>
+    <record id="group_rnd_sm_manager" model="res.groups">
+        <field name="name">Sales &amp; Marketing Manager</field>
+        <field name="category_id" ref="module_category_rnd_workflow"/>
+        <field name="implied_ids" eval="[(4, ref('group_rnd_sm'))]"/>
     </record>
 
     <record id="group_rnd_officer" model="res.groups">
-        <field name="name">R&amp;D Officer</field>
+        <field name="name">R&amp;D User</field>
         <field name="category_id" ref="module_category_rnd_workflow"/>
     </record>
-
     <record id="group_qc_officer" model="res.groups">
         <field name="name">QC Officer</field>
         <field name="category_id" ref="module_category_rnd_workflow"/>
     </record>
-
     <record id="group_performance_officer" model="res.groups">
         <field name="name">Performance Officer</field>
         <field name="category_id" ref="module_category_rnd_workflow"/>
     </record>
-
     <record id="group_rnd_owner" model="res.groups">
-        <field name="name">R&amp;D Project Owner / Manager</field>
+        <field name="name">R&amp;D Manager</field>
         <field name="category_id" ref="module_category_rnd_workflow"/>
         <field name="implied_ids" eval="[(4, ref('group_rnd_officer')), (4, ref('group_qc_officer')), (4, ref('group_performance_officer'))]"/>
     </record>
 
-    <!-- Project: Sales & Marketing can edit only their own New requirements. -->
-    <record id="rule_rnd_project_sm_write" model="ir.rule">
-        <field name="name">R&amp;D Project: Sales &amp; Marketing edit own new requirements</field>
-        <field name="model_id" ref="model_rnd_project"/>
-        <field name="domain_force">[('sm_user_id', '=', user.id), ('state', '=', 'draft')]</field>
-        <field name="groups" eval="[(4, ref('group_rnd_sm'))]"/>
-        <field name="perm_read">False</field>
-        <field name="perm_write">True</field>
-        <field name="perm_create">False</field>
-        <field name="perm_unlink">False</field>
-    </record>
-
+    <!-- Project records are not readable by R&D Users. Managers retain full access.
+         QC and Performance retain their existing project read access. -->
     <record id="rule_rnd_project_owner_full_access" model="ir.rule">
-        <field name="name">R&amp;D Project: Owner full access</field>
+        <field name="name">R&amp;D Project: Manager full access</field>
         <field name="model_id" ref="model_rnd_project"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="groups" eval="[(4, ref('group_rnd_owner'))]"/>
     </record>
 
-    <!-- Experiment write access is limited to the user responsible for the current
-         task, or the R&D owner. The Python workflow methods enforce the actual
-         transition and role rules. -->
-    <record id="rule_rnd_experiment_officer_write" model="ir.rule">
-        <field name="name">R&amp;D Experiment: assigned R&amp;D user can edit</field>
+    <!-- R&D Users see and update only experiments assigned to them. -->
+    <record id="rule_rnd_experiment_officer_read" model="ir.rule">
+        <field name="name">R&amp;D Experiment: R&amp;D User assigned read access</field>
         <field name="model_id" ref="model_rnd_experiment"/>
-        <field name="domain_force">['|', ('assigned_user_id', '=', user.id), ('rnd_owner_id', '=', user.id)]</field>
+        <field name="domain_force">[('assigned_user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_officer'))]"/>
+        <field name="perm_read">True</field>
+        <field name="perm_write">False</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+    </record>
+    <record id="rule_rnd_experiment_officer_write" model="ir.rule">
+        <field name="name">R&amp;D Experiment: R&amp;D User assigned write access</field>
+        <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">[('assigned_user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('group_rnd_officer'))]"/>
         <field name="perm_read">False</field>
         <field name="perm_write">True</field>
@@ -63,31 +63,88 @@
         <field name="perm_unlink">False</field>
     </record>
 
+    <record id="rule_rnd_experiment_qc_read" model="ir.rule">
+        <field name="name">R&amp;D Experiment: assigned QC user read access</field>
+        <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">[('qc_user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_qc_officer'))]"/>
+        <field name="perm_read">True</field>
+        <field name="perm_write">False</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+    </record>
     <record id="rule_rnd_experiment_qc_write" model="ir.rule">
         <field name="name">R&amp;D Experiment: assigned QC user can edit</field>
         <field name="model_id" ref="model_rnd_experiment"/>
-        <field name="domain_force">['|', ('qc_user_id', '=', user.id), ('rnd_owner_id', '=', user.id)]</field>
+        <field name="domain_force">[('qc_user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('group_qc_officer'))]"/>
         <field name="perm_read">False</field>
         <field name="perm_write">True</field>
         <field name="perm_create">False</field>
         <field name="perm_unlink">False</field>
     </record>
-
     <record id="rule_rnd_experiment_performance_write" model="ir.rule">
         <field name="name">R&amp;D Experiment: assigned Performance user can edit</field>
         <field name="model_id" ref="model_rnd_experiment"/>
-        <field name="domain_force">['|', ('performance_user_id', '=', user.id), ('rnd_owner_id', '=', user.id)]</field>
+        <field name="domain_force">[('performance_user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('group_performance_officer'))]"/>
         <field name="perm_read">False</field>
         <field name="perm_write">True</field>
         <field name="perm_create">False</field>
         <field name="perm_unlink">False</field>
     </record>
-
-    <record id="rule_rnd_experiment_owner_full_access" model="ir.rule">
-        <field name="name">R&amp;D Experiment: Owner full access</field>
+    <record id="rule_rnd_experiment_performance_read" model="ir.rule">
+        <field name="name">R&amp;D Experiment: assigned Performance user read access</field>
         <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">[('performance_user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_performance_officer'))]"/>
+        <field name="perm_read">True</field>
+        <field name="perm_write">False</field>
+        <field name="perm_create">False</field>
+        <field name="perm_unlink">False</field>
+    </record>
+    <record id="rule_rnd_experiment_owner_full_access" model="ir.rule">
+        <field name="name">R&amp;D Experiment: Manager full access</field>
+        <field name="model_id" ref="model_rnd_experiment"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_owner'))]"/>
+    </record>
+
+    <!-- Sales users see their own requirements; Sales Managers and R&D Managers see all. -->
+    <record id="rule_rnd_requirement_sm_own" model="ir.rule">
+        <field name="name">R&amp;D Requirement: Sales user own records</field>
+        <field name="model_id" ref="model_rnd_requirement"/>
+        <field name="domain_force">[('requester_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_sm'))]"/>
+    </record>
+    <record id="rule_rnd_requirement_sm_manager_all" model="ir.rule">
+        <field name="name">R&amp;D Requirement: Sales Manager all records</field>
+        <field name="model_id" ref="model_rnd_requirement"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_sm_manager'))]"/>
+    </record>
+    <record id="rule_rnd_requirement_rnd_manager_all" model="ir.rule">
+        <field name="name">R&amp;D Requirement: R&amp;D Manager all records</field>
+        <field name="model_id" ref="model_rnd_requirement"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_owner'))]"/>
+    </record>
+
+    <record id="rule_rnd_requirement_line_sm_own" model="ir.rule">
+        <field name="name">Requirement SOP Lines: Sales own requirements</field>
+        <field name="model_id" ref="model_rnd_requirement_parameter_line"/>
+        <field name="domain_force">[('requirement_id.requester_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_sm'))]"/>
+    </record>
+    <record id="rule_rnd_requirement_line_sm_manager_all" model="ir.rule">
+        <field name="name">Requirement SOP Lines: Sales Manager all</field>
+        <field name="model_id" ref="model_rnd_requirement_parameter_line"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_rnd_sm_manager'))]"/>
+    </record>
+    <record id="rule_rnd_requirement_line_rnd_manager_all" model="ir.rule">
+        <field name="name">Requirement SOP Lines: R&amp;D Manager all</field>
+        <field name="model_id" ref="model_rnd_requirement_parameter_line"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="groups" eval="[(4, ref('group_rnd_owner'))]"/>
     </record>

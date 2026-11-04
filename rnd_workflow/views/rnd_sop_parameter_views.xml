@@ -1,0 +1,73 @@
+<odoo>
+    <record id="view_rnd_sop_parameter_list" model="ir.ui.view">
+        <field name="name">rnd.sop.parameter.list</field>
+        <field name="model">rnd.sop.parameter</field>
+        <field name="arch" type="xml">
+            <list string="SOP Parameter Master">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="sop_number"/>
+                <field name="specification_type"/>
+                <field name="unit"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_rnd_sop_parameter_form" model="ir.ui.view">
+        <field name="name">rnd.sop.parameter.form</field>
+        <field name="model">rnd.sop.parameter</field>
+        <field name="arch" type="xml">
+            <form string="SOP Parameter">
+                <sheet>
+                    <div class="oe_title"><label for="name"/><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="sop_number"/>
+                            <field name="specification_type"/>
+                            <field name="unit"/>
+                        </group>
+                        <group>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                            <field name="default_specification"/>
+                            <field name="specification_hint"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Dropdown Options" invisible="specification_type != 'dropdown'">
+                            <field name="option_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Internal Notes"><field name="note"/></page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="view_rnd_sop_parameter_search" model="ir.ui.view">
+        <field name="name">rnd.sop.parameter.search</field>
+        <field name="model">rnd.sop.parameter</field>
+        <field name="arch" type="xml">
+            <search string="SOP Parameters">
+                <field name="name"/>
+                <field name="sop_number"/>
+                <filter name="active" string="Active" domain="[('active','=',True)]"/>
+                <filter name="inactive" string="Archived" domain="[('active','=',False)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="type" string="Specification Type" context="{'group_by':'specification_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="action_rnd_sop_parameter" model="ir.actions.act_window">
+        <field name="name">SOP Parameter Master</field>
+        <field name="res_model">rnd.sop.parameter</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_rnd_sop_parameter_search"/>
+    </record>
+</odoo>

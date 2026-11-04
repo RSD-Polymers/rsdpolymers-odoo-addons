@@ -6,49 +6,49 @@
         <field name="arch" type="xml">
             <form string="R&amp;D Project">
                 <header>
-                    <button name="action_submit_to_rnd" type="object" string="Submit to R&amp;D" groups="rnd_workflow.group_rnd_sm"
-                            class="oe_highlight" invisible="state != 'draft'"/>
-                    <button name="action_accept" type="object" string="Accept &amp; Confirm Delivery Date" groups="rnd_workflow.group_rnd_owner"
-                            class="oe_highlight" invisible="state != 'rnd_review'"/>
+                    <button name="action_migrate_legacy_to_planning" type="object"
+                            string="Migrate Legacy Record" groups="rnd_workflow.group_rnd_owner"
+                            invisible="state not in ('draft','rnd_review')"/>
                     <button name="action_start_execution" type="object" string="Start Execution" groups="rnd_workflow.group_rnd_owner"
                             class="oe_highlight" invisible="state != 'planning'"/>
                     <button name="action_final_review" type="object" string="Move to Final Review" groups="rnd_workflow.group_rnd_owner"
                             class="oe_highlight" invisible="state != 'execution'"/>
                     <button name="action_close" type="object" string="Close Project" groups="rnd_workflow.group_rnd_owner"
                             class="oe_highlight" invisible="state != 'final_review'"/>
-                    <button name="action_reset_to_draft" type="object" string="Reset to Draft" groups="rnd_workflow.group_rnd_owner"
-                            invisible="state == 'draft'"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,rnd_review,planning,execution,final_review,closed"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="action_view_experiments" type="object" class="oe_stat_button" icon="fa-flask">
+                        <button name="action_view_experiments" type="object" class="oe_stat_button" icon="fa-flask"
+                                groups="rnd_workflow.group_rnd_owner,rnd_workflow.group_qc_officer,rnd_workflow.group_performance_officer">
                             <field name="experiment_count" widget="statinfo" string="Experiments"/>
                         </button>
                     </div>
                     <div class="oe_title">
                         <label for="name"/>
-                        <h1><field name="name" placeholder="Requirement title..." readonly="state != 'draft'"/></h1>
+                        <h1><field name="name" placeholder="Project name..."/></h1>
                         <field name="code" readonly="1"/>
                     </div>
                     <group>
                         <group>
                             <field name="sm_user_id" readonly="state != 'draft'"/>
                             <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
-                            <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                            <field name="delivery_date"/>
+                            <field name="deadline"/>
+                            <field name="requirement_id" readonly="1"/>
                         </group>
                         <group>
                             <field name="planning_type_ids" widget="many2many_tags" readonly="state != 'planning'"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="Requirement">
-                            <field name="description" placeholder="Describe the requirement from Sales &amp; Marketing..." readonly="state != 'draft'"/>
+                        <page string="Source Requirement / Scope">
+                            <field name="description" placeholder="Project scope / description..."/>
                         </page>
                         <page string="Batches / Experiments">
-                            <field name="experiment_ids" readonly="state != 'execution'">
-                                <list>
+                            <field name="experiment_ids" readonly="1">
+                                <list create="0" edit="0" delete="0">
                                     <field name="name"/>
                                     <field name="assigned_user_id"/>
                                     <field name="qc_user_id"/>
@@ -71,12 +71,11 @@
         <field name="name">rnd.project.list</field>
         <field name="model">rnd.project</field>
         <field name="arch" type="xml">
-            <list string="R&amp;D Projects">
+            <list string="R&amp;D Projects" create="0">
                 <field name="code"/>
                 <field name="name"/>
-                <field name="sm_user_id" readonly="state != 'draft'"/>
-                <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
-                <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                <field name="rnd_owner_id"/>
+                <field name="deadline"/>
                 <field name="state" widget="badge"
                        decoration-info="state in ('draft','rnd_review')"
                        decoration-warning="state in ('planning','execution')"
@@ -89,11 +88,11 @@
         <field name="name">rnd.project.kanban</field>
         <field name="model">rnd.project</field>
         <field name="arch" type="xml">
-            <kanban default_group_by="state" class="o_kanban_small_column">
+            <kanban default_group_by="state" class="o_kanban_small_column" create="0">
                 <field name="name"/>
                 <field name="code"/>
                 <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
-                <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                <field name="deadline"/>
                 <field name="state"/>
                 <templates>
                     <t t-name="card">
@@ -103,8 +102,8 @@
                             <div t-if="record.rnd_owner_id.value">
                                 Owner: <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
                             </div>
-                            <div t-if="record.delivery_date.value">
-                                Delivery: <field name="delivery_date" readonly="state != 'rnd_review'"/>
+                            <div t-if="record.deadline.value">
+                                Deadline: <field name="deadline"/>
                             </div>
                         </div>
                     </t>
@@ -120,8 +119,8 @@
             <search string="R&amp;D Projects">
                 <field name="name"/>
                 <field name="code"/>
-                <field name="sm_user_id" readonly="state != 'draft'"/>
-                <field name="rnd_owner_id" readonly="state not in ('draft', 'rnd_review')"/>
+                <field name="rnd_owner_id"/>
+                <field name="deadline"/>
                 <filter string="My Projects" name="my_projects" domain="[('rnd_owner_id','=',uid)]"/>
                 <filter string="Open" name="open" domain="[('state','!=','closed')]"/>
                 <filter string="Closed" name="closed" domain="[('state','=','closed')]"/>

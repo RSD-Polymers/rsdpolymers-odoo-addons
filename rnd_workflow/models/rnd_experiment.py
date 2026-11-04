@@ -1,5 +1,5 @@
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 GROUP_OFFICER = 'rnd_workflow.group_rnd_officer'
@@ -22,6 +22,15 @@ class RndExperiment(models.Model):
         ondelete='cascade', tracking=True)
     rnd_owner_id = fields.Many2one(
         related='project_id.rnd_owner_id', string='R&D Project Owner', store=True)
+    project_display_name = fields.Char(
+        string='R&D Project', compute='_compute_project_display_name', store=True, compute_sudo=True)
+
+    @api.depends('project_id.name', 'project_id.code')
+    def _compute_project_display_name(self):
+        for rec in self:
+            rec.project_display_name = (
+                f'{rec.project_id.code} - {rec.project_id.name}' if rec.project_id else ''
+            )
 
     assigned_user_id = fields.Many2one('res.users', string='Assigned R&D User', tracking=True)
     execution_notes = fields.Text(string='Execution Notes')
@@ -53,11 +62,8 @@ class RndExperiment(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        if not (
-            self.env.user.has_group(GROUP_OFFICER)
-            or self.env.user.has_group(GROUP_OWNER)
-        ):
-            raise UserError('Only R&D Officers or the R&D Project Owner / Manager can create experiments.')
+        if not self.env.user.has_group(GROUP_OWNER):
+            raise UserError('Only the R&D Manager can create and assign experiments.')
 
         for vals in vals_list:
             project = self.env['rnd.project'].browse(vals.get('project_id')).exists()
@@ -65,9 +71,35 @@ class RndExperiment(models.Model):
                 raise UserError('Please select a valid R&D Project.')
             if project.state != 'execution':
                 raise UserError('Experiments can be created only after the project enters Batch / Experiment Execution.')
-            if vals.get('name', 'New') == 'New':
-                vals['name'] = self.env['ir.sequence'].next_by_code('rnd.experiment') or 'New'
+
+            # The experiment number and initial state are system-controlled.
+            vals['name'] = self.env['ir.sequence'].next_by_code('rnd.experiment') or 'New'
+            vals['state'] = 'draft'
+            vals['active'] = True
+            vals['execution_notes'] = False
+            vals['qc_report'] = False
+            vals['qc_date'] = False
+            vals['performance_report'] = False
+            vals['performance_date'] = False
         return super().create(vals_list)
+
+    @api.constrains('assigned_user_id', 'qc_user_id', 'performance_user_id')
+    def _check_assignee_groups(self):
+        group_by_field = {
+            'assigned_user_id': GROUP_OFFICER,
+            'qc_user_id': GROUP_QC,
+            'performance_user_id': GROUP_PERFORMANCE,
+        }
+        for rec in self:
+            for field_name, group_xmlid in group_by_field.items():
+                assigned_user = rec[field_name]
+                if assigned_user:
+                    required_group = self.env.ref(group_xmlid)
+                    if required_group not in assigned_user.groups_id:
+                        raise ValidationError(
+                            f'{assigned_user.display_name} must belong to the required '
+                            f'{required_group.display_name} group.'
+                        )
 
     def _check_group(self, group_xmlid, message):
         if not self.env.user.has_group(group_xmlid):
@@ -90,23 +122,23 @@ class RndExperiment(models.Model):
                 note=note,
             )
 
+    def _workflow_write(self, vals):
+        """Internal write for workflow actions after their authorization checks."""
+        return super().write(vals)
+
     def write(self, vals):
         if not vals:
             return True
-        if self.env.context.get('rnd_workflow_action'):
-            return super().write(vals)
 
         user = self.env.user
         is_owner = self._is_owner()
-        is_assigned = any(rec.assigned_user_id == user for rec in self)
-        is_qc = any(rec.qc_user_id == user for rec in self)
-        is_performance = any(rec.performance_user_id == user for rec in self)
-
         if 'state' in vals:
             raise UserError('Experiment status can only be changed through the approved workflow actions.')
 
-        if any(field in vals for field in ('name', 'project_id', 'rnd_owner_id', 'assigned_user_id',
-                                           'qc_user_id', 'performance_user_id', 'qc_date', 'performance_date')):
+        if any(field in vals for field in (
+            'name', 'project_id', 'rnd_owner_id', 'assigned_user_id',
+            'qc_user_id', 'performance_user_id', 'qc_date', 'performance_date', 'active',
+        )):
             if not is_owner:
                 raise UserError('Assignment, project, workflow and system fields can only be changed by the R&D Project Owner / Manager.')
 
@@ -143,7 +175,7 @@ class RndExperiment(models.Model):
                 raise UserError('Experiment must be in Draft to assign.')
             if not rec.assigned_user_id:
                 raise UserError('Please select an R&D user to assign.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'assigned'})
+            rec._workflow_write({'state': 'assigned'})
             rec._schedule_activity(
                 rec.assigned_user_id,
                 'Execute assigned experiment',
@@ -156,7 +188,7 @@ class RndExperiment(models.Model):
                 raise UserError('Experiment must be Assigned before execution.')
             if self.env.user != rec.assigned_user_id and not self._is_owner():
                 raise UserError('Only the assigned R&D user can start execution.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'execution'})
+            rec._workflow_write({'state': 'execution'})
 
     def action_submit_qc(self):
         for rec in self:
@@ -166,7 +198,7 @@ class RndExperiment(models.Model):
                 raise UserError('Only the assigned R&D user can submit the experiment for QC.')
             if not rec.qc_user_id:
                 raise UserError('Please assign a QC user before submitting for QC.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'qc_submitted'})
+            rec._workflow_write({'state': 'qc_submitted'})
             rec.message_post(body='Experiment submitted for QC.')
             rec._schedule_activity(
                 rec.qc_user_id,
@@ -182,7 +214,7 @@ class RndExperiment(models.Model):
                 raise UserError('Please assign a QC user before accepting.')
             if self.env.user != rec.qc_user_id and not self._is_owner():
                 raise UserError('Only the assigned QC user can accept the QC request.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'qc_accepted'})
+            rec._workflow_write({'state': 'qc_accepted'})
 
     def action_start_qc_analysis(self):
         for rec in self:
@@ -190,7 +222,7 @@ class RndExperiment(models.Model):
                 raise UserError('QC request must be accepted before analysis starts.')
             if self.env.user != rec.qc_user_id and not self._is_owner():
                 raise UserError('Only the assigned QC user can start QC analysis.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'qc_analysis'})
+            rec._workflow_write({'state': 'qc_analysis'})
 
     def action_submit_qc_report(self):
         for rec in self:
@@ -200,7 +232,7 @@ class RndExperiment(models.Model):
                 raise UserError('Only the assigned QC user can submit the QC report.')
             if not rec.qc_report:
                 raise UserError('Please fill in the QC report before submitting.')
-            rec.with_context(rnd_workflow_action=True).write({
+            rec._workflow_write({
                 'qc_date': fields.Date.context_today(rec),
                 'state': 'qc_report',
             })
@@ -218,7 +250,7 @@ class RndExperiment(models.Model):
                 raise UserError('QC report must be submitted before assigning performance check.')
             if not rec.performance_user_id:
                 raise UserError('Please select a performance user.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'performance_assigned'})
+            rec._workflow_write({'state': 'performance_assigned'})
             rec._schedule_activity(
                 rec.performance_user_id,
                 'Perform performance check',
@@ -231,7 +263,7 @@ class RndExperiment(models.Model):
                 raise UserError('Performance task must be assigned before checking.')
             if self.env.user != rec.performance_user_id and not self._is_owner():
                 raise UserError('Only the assigned Performance user can start the performance check.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'performance_check'})
+            rec._workflow_write({'state': 'performance_check'})
 
     def action_submit_performance_report(self):
         for rec in self:
@@ -241,7 +273,7 @@ class RndExperiment(models.Model):
                 raise UserError('Only the assigned Performance user can submit the performance report.')
             if not rec.performance_report:
                 raise UserError('Please fill in the performance report before submitting.')
-            rec.with_context(rnd_workflow_action=True).write({
+            rec._workflow_write({
                 'performance_date': fields.Date.context_today(rec),
                 'state': 'performance_report',
             })
@@ -257,7 +289,7 @@ class RndExperiment(models.Model):
         for rec in self:
             if rec.state != 'performance_report':
                 raise UserError('Performance report must be submitted before closing the experiment.')
-            rec.with_context(rnd_workflow_action=True).write({'state': 'done'})
+            rec._workflow_write({'state': 'done'})
             rec.message_post(body='Experiment finalized.')
 
     def action_reset_to_draft(self):
@@ -265,8 +297,11 @@ class RndExperiment(models.Model):
         for rec in self:
             if rec.state == 'done':
                 raise UserError('A completed experiment cannot be reset to draft. Create a new experiment if a rerun is required.')
-            rec.with_context(rnd_workflow_action=True).write({
+            rec._workflow_write({
                 'state': 'draft',
+                'execution_notes': False,
+                'qc_report': False,
                 'qc_date': False,
+                'performance_report': False,
                 'performance_date': False,
             })

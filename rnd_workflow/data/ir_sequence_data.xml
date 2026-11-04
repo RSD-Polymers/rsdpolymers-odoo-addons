@@ -14,4 +14,11 @@
         <field name="padding">5</field>
         <field name="company_id" eval="False"/>
     </record>
+    <record id="seq_rnd_requirement" model="ir.sequence">
+        <field name="name">R&amp;D Requirement</field>
+        <field name="code">rnd.requirement</field>
+        <field name="prefix">REQ/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
 </odoo>

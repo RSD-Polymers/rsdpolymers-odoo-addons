@@ -1,0 +1,184 @@
+<odoo>
+    <record id="view_rnd_requirement_list" model="ir.ui.view">
+        <field name="name">rnd.requirement.list</field>
+        <field name="model">rnd.requirement</field>
+        <field name="arch" type="xml">
+            <list string="R&amp;D Requirements">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="request_date"/>
+                <field name="requester_id"/>
+                <field name="rnd_owner_id" groups="rnd_workflow.group_rnd_owner"/>
+                <field name="expected_completion_date"/>
+                <field name="state" widget="badge"
+                       decoration-info="state in ('draft','submitted')"
+                       decoration-warning="state in ('under_review','information_required')"
+                       decoration-success="state in ('accepted','converted')"
+                       decoration-danger="state == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_rnd_requirement_form" model="ir.ui.view">
+        <field name="name">rnd.requirement.form</field>
+        <field name="model">rnd.requirement</field>
+        <field name="arch" type="xml">
+            <form string="R&amp;D Requirement">
+                <header>
+                    <button name="action_submit" type="object" string="Submit to R&amp;D"
+                            class="oe_highlight" groups="rnd_workflow.group_rnd_sm"
+                            invisible="state != 'draft'"/>
+                    <button name="action_resubmit" type="object" string="Resubmit to R&amp;D"
+                            class="oe_highlight" groups="rnd_workflow.group_rnd_sm"
+                            invisible="state != 'information_required'"/>
+                    <button name="action_start_review" type="object" string="Start Review"
+                            class="oe_highlight" groups="rnd_workflow.group_rnd_owner"
+                            invisible="state != 'submitted'"/>
+                    <button name="action_request_information" type="object" string="Request Information"
+                            groups="rnd_workflow.group_rnd_owner"
+                            invisible="state not in ('submitted','under_review')"/>
+                    <button name="action_accept" type="object" string="Accept Requirement"
+                            class="oe_highlight" groups="rnd_workflow.group_rnd_owner"
+                            invisible="state != 'under_review'"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            groups="rnd_workflow.group_rnd_owner"
+                            invisible="state not in ('submitted','under_review')"/>
+                    <button name="action_create_project" type="object" string="Create R&amp;D Project"
+                            class="oe_highlight" groups="rnd_workflow.group_rnd_owner"
+                            invisible="state != 'accepted' or project_id"/>
+                    <button name="action_view_project" type="object" string="Open R&amp;D Project"
+                            groups="rnd_workflow.group_rnd_owner"
+                            invisible="not project_id"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,submitted,under_review,information_required,accepted,converted"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_project" type="object" class="oe_stat_button"
+                                icon="fa-flask" groups="rnd_workflow.group_rnd_owner"
+                                invisible="not project_id">
+                            <field name="project_count" widget="statinfo" string="Project"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Product / Requirement Name"
+                                   readonly="state not in ('draft','information_required')"/></h1>
+                        <field name="code" readonly="1"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="request_date"/>
+                            <field name="requester_id"/>
+                            <field name="provided_by_id" groups="rnd_workflow.group_rnd_sm_manager"
+                                   readonly="state not in ('draft','information_required')"/>
+                            <field name="provided_by_id"
+                                   groups="rnd_workflow.group_rnd_sm,!rnd_workflow.group_rnd_sm_manager"
+                                   readonly="1"/>
+                            <field name="provided_by_id" groups="rnd_workflow.group_rnd_owner" readonly="1"/>
+                        </group>
+                        <group groups="rnd_workflow.group_rnd_owner">
+                            <field name="rnd_owner_id" readonly="state in ('converted','rejected')"/>
+                            <field name="expected_completion_date" readonly="state in ('converted','rejected')"/>
+                            <field name="project_id" readonly="1"/>
+                        </group>
+                        <group groups="rnd_workflow.group_rnd_sm">
+                            <field name="expected_completion_date" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Requirement Details">
+                            <group>
+                                <field name="purpose" readonly="state not in ('draft','information_required')"/>
+                                <field name="sample_provided_qty" readonly="state not in ('draft','information_required')"/>
+                                <field name="product_description" readonly="state not in ('draft','information_required')"/>
+                                <field name="chemical_composition" readonly="state not in ('draft','information_required')"/>
+                                <field name="implied_needs" readonly="state not in ('draft','information_required')"/>
+                                <field name="application_testing_needs" readonly="state not in ('draft','information_required')"/>
+                                <field name="stability_criteria" readonly="state not in ('draft','information_required')"/>
+                                <field name="production_experience" readonly="state not in ('draft','information_required')"/>
+                                <field name="production_experience_details" readonly="state not in ('draft','information_required')"/>
+                                <field name="statutory_requirements" readonly="state not in ('draft','information_required')"/>
+                                <field name="packing" readonly="state not in ('draft','information_required')"/>
+                                <field name="feasibility_statement" readonly="state not in ('draft','information_required')"/>
+                                <field name="feasibility_details" readonly="state not in ('draft','information_required')"/>
+                                <field name="sample_requirement" readonly="state not in ('draft','information_required')"/>
+                            </group>
+                        </page>
+                        <page string="Product Physical Specifications">
+                            <field name="parameter_line_ids" readonly="state not in ('draft','information_required')">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="parameter_id" domain="[('active','=',True)]"
+                                           invisible="parent.state not in ('draft','information_required')"/>
+                                    <field name="parameter_name" readonly="1"
+                                           invisible="parent.state in ('draft','information_required')"/>
+                                    <field name="sop_number" readonly="1"/>
+                                    <field name="specification_type" readonly="1" optional="hide"/>
+                                    <field name="option_id" domain="[('parameter_id','=',parameter_id),('active','=',True)]"
+                                           invisible="specification_type != 'dropdown' or parent.state not in ('draft','information_required')"/>
+                                    <field name="min_value" invisible="specification_type != 'range'"/>
+                                    <field name="max_value" invisible="specification_type != 'range'"/>
+                                    <field name="numeric_value" invisible="specification_type != 'number'"/>
+                                    <field name="specification_text" placeholder="Enter desired specification"
+                                           invisible="specification_type == 'dropdown'"/>
+                                    <field name="unit" optional="hide"/>
+                                    <field name="specification_hint"/>
+                                    <field name="min_value_set" column_invisible="True"/>
+                                    <field name="max_value_set" column_invisible="True"/>
+                                    <field name="numeric_value_set" column_invisible="True"/>
+                                    <field name="display_specification" string="Desired Specification" readonly="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Attachments">
+                            <field name="attachment_ids" widget="many2many_binary"
+                                   readonly="state not in ('draft','information_required')"/>
+                        </page>
+                        <page string="R&amp;D Review" groups="rnd_workflow.group_rnd_owner">
+                            <group>
+                                <field name="information_request" readonly="state not in ('submitted','under_review')"/>
+                                <field name="rejection_reason" readonly="state not in ('submitted','under_review')"/>
+                                <field name="rnd_comments"/>
+                                <field name="approved_by_id"/>
+                                <field name="received_by_id"/>
+                            </group>
+                        </page>
+                        <page string="Information Required" groups="rnd_workflow.group_rnd_sm">
+                            <field name="information_request" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_rnd_requirement_search" model="ir.ui.view">
+        <field name="name">rnd.requirement.search</field>
+        <field name="model">rnd.requirement</field>
+        <field name="arch" type="xml">
+            <search string="R&amp;D Requirements">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="requester_id"/>
+                <filter name="my_requirements" string="My Requirements" domain="[('requester_id','=',uid)]"/>
+                <filter name="draft" string="Draft" domain="[('state','=','draft')]"/>
+                <filter name="submitted" string="Submitted" domain="[('state','=','submitted')]"/>
+                <filter name="review" string="Under Review" domain="[('state','=','under_review')]"/>
+                <filter name="accepted" string="Accepted" domain="[('state','=','accepted')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="state" string="Status" context="{'group_by':'state'}"/>
+                    <filter name="requester" string="Requester" context="{'group_by':'requester_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_rnd_requirement" model="ir.actions.act_window">
+        <field name="name">R&amp;D Requirements</field>
+        <field name="res_model">rnd.requirement</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_rnd_requirement_search"/>
+    </record>
+</odoo>

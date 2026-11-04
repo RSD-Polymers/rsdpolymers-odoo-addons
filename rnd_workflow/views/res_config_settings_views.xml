@@ -1,0 +1,23 @@
+<odoo>
+    <record id="res_config_settings_view_form_rnd_workflow" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.rnd.workflow</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app name="rnd_workflow" string="R&amp;D Workflow" groups="base.group_system">
+                    <block title="Workflow Configuration">
+                        <setting id="rnd_notify_stage_change"
+                                 string="Notify users on experiment stage changes">
+                            <field name="rnd_notify_stage_change"/>
+                        </setting>
+                        <setting id="rnd_default_owner_id"
+                                 string="Default R&amp;D Project Owner">
+                            <field name="rnd_default_owner_id"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>
