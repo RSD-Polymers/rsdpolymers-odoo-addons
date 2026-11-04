@@ -497,17 +497,20 @@ class RndRequirementParameterLine(models.Model):
     @api.onchange('min_value')
     def _onchange_min_value(self):
         for line in self:
-            line.min_value_set = True
+            # False/None means the input was cleared; numeric zero remains valid.
+            line.min_value_set = line.min_value is not False and line.min_value is not None
 
     @api.onchange('max_value')
     def _onchange_max_value(self):
         for line in self:
-            line.max_value_set = True
+            # False/None means the input was cleared; numeric zero remains valid.
+            line.max_value_set = line.max_value is not False and line.max_value is not None
 
     @api.onchange('numeric_value')
     def _onchange_numeric_value(self):
         for line in self:
-            line.numeric_value_set = True
+            # False/None means the input was cleared; numeric zero remains valid.
+            line.numeric_value_set = line.numeric_value is not False and line.numeric_value is not None
 
     @api.onchange('option_id')
     def _onchange_option_id(self):

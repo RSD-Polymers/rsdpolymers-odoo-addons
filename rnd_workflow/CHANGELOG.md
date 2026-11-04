@@ -32,3 +32,7 @@
 - Tightened QC and Performance experiment write rules to their respective assignments.
 - Made the project experiment list read-only; create experiments through the dedicated Experiments action.
 - Added the missing system settings view and clarified notification setting scope.
+
+## 18.0.2.1.2
+- Fixed SOP specification onchange flags so clearing hidden numeric inputs does not trigger false validation errors.
+- Preserved valid numeric zero values and correctly cleared entered-value flags for minimum, maximum and numeric value fields.
