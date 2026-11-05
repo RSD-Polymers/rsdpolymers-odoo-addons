@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_qa_manufacturing_inspection_list" model="ir.ui.view">
+        <field name="name">qa.manufacturing.inspection.list</field>
+        <field name="model">qa.manufacturing.inspection</field>
+        <field name="arch" type="xml">
+            <list string="MO Inspection" decoration-success="state == 'verified'" decoration-danger="state == 'rejected'">
+                <field name="name"/><field name="production_id"/><field name="product_id"/>
+                <field name="lot_id"/><field name="inspection_date"/><field name="inspected_by_id"/><field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_qa_manufacturing_inspection_form" model="ir.ui.view">
+        <field name="name">qa.manufacturing.inspection.form</field>
+        <field name="model">qa.manufacturing.inspection</field>
+        <field name="arch" type="xml">
+            <form string="MO Inspection">
+                <header>
+                    <button name="action_start_review" type="object" string="Start Review" class="btn-primary" invisible="state not in ('pending', 'rework')"/>
+                    <button name="action_create_deviation" type="object" string="Create Deviation" class="btn-secondary" invisible="state == 'verified'"/>
+                    <button name="action_verify" type="object" string="QA Verify" class="btn-primary" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+                    <button name="action_request_rework" type="object" string="Request Rework" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+                    <button name="action_revoke_verification" type="object" string="Revoke Verification" invisible="state != 'verified'" groups="rsd_qa_management.group_qa_manager,base.group_system" confirm="This will remove the QA Verified tag from the Manufacturing Order. Continue?"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,under_review,verified"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_deviations" type="object" class="oe_stat_button" icon="fa-exclamation-triangle">
+                            <field name="deviation_count" widget="statinfo" string="Deviations"/>
+                        </button>
+                    </div>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Manufacturing Details">
+                            <field name="production_id" readonly="1"/><field name="product_id"/><field name="product_qty"/><field name="lot_id"/><field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Inspection Details">
+                            <field name="inspection_date"/><field name="inspected_by_id"/><field name="verified_by_id"/><field name="verified_on"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="QA Verification Checklist">
+                            <group>
+                                <field name="production_records_reviewed"/>
+                                <field name="chemist_approval_reviewed"/>
+                                <field name="qc_results_reviewed"/>
+                                <field name="sample_testing_reviewed"/>
+                            </group>
+                            <field name="qc_review_notes" placeholder="Summarise reviewed QC results and references..."/>
+                            <field name="sample_testing_reference"/>
+                            <field name="sample_testing_results" placeholder="Record sample testing results and observations..."/>
+                            <field name="review_notes" placeholder="Record overall QA review observations..."/>
+                            <field name="rejection_reason" placeholder="Required when rejecting or requesting rework..."/>
+                        </page>
+                        <page string="Deviations">
+                            <field name="deviation_ids" readonly="1">
+                                <list><field name="name"/><field name="deviation_type"/><field name="description"/><field name="state" widget="badge"/></list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="view_qa_deviation_list" model="ir.ui.view">
+        <field name="name">qa.deviation.list</field><field name="model">qa.deviation</field>
+        <field name="arch" type="xml">
+            <list string="Deviations" decoration-danger="state == 'rejected'" decoration-success="state in ('approved', 'closed')">
+                <field name="name"/><field name="deviation_type"/><field name="production_id"/><field name="product_id"/><field name="lot_id"/><field name="date_reported"/><field name="reported_by_id"/><field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_qa_deviation_form" model="ir.ui.view">
+        <field name="name">qa.deviation.form</field><field name="model">qa.deviation</field>
+        <field name="arch" type="xml">
+            <form string="QA Deviation">
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_start_investigation" type="object" string="Start Investigation" invisible="state != 'submitted'"/>
+                    <button name="action_request_action" type="object" string="Action Required" invisible="state != 'investigation'"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary" invisible="state not in ('investigation', 'action_required', 'submitted')" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+                    <button name="action_close" type="object" string="Close" invisible="state != 'approved'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state in ('approved', 'closed', 'rejected')" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,investigation,action_required,approved,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group><field name="deviation_type"/><field name="production_id"/><field name="inspection_id"/><field name="product_id"/><field name="lot_id"/></group>
+                        <group><field name="date_reported"/><field name="reported_by_id"/><field name="company_id" groups="base.group_multi_company"/><field name="approved_by_id"/><field name="approved_on"/><field name="closed_by_id"/><field name="closed_on"/></group>
+                    </group>
+                    <notebook>
+                        <page string="Deviation Details"><field name="description"/><field name="justification"/><field name="impact_assessment"/></page>
+                        <page string="Investigation and Actions"><field name="investigation"/><field name="corrective_action"/><field name="preventive_action"/><field name="qa_remarks"/></page>
+                    </notebook>
+                </sheet><chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_qa_mo_inspection" model="ir.actions.act_window"><field name="name">MO Inspection</field><field name="res_model">qa.manufacturing.inspection</field><field name="view_mode">list,form</field></record>
+    <record id="action_qa_planned_deviation" model="ir.actions.act_window"><field name="name">Planned Deviation</field><field name="res_model">qa.deviation</field><field name="view_mode">list,form</field><field name="domain">[('deviation_type','=','planned')]</field><field name="context">{'default_deviation_type':'planned'}</field></record>
+    <record id="action_qa_post_process_deviation" model="ir.actions.act_window"><field name="name">Post-Process Deviation</field><field name="res_model">qa.deviation</field><field name="view_mode">list,form</field><field name="domain">[('deviation_type','=','post_process')]</field><field name="context">{'default_deviation_type':'post_process'}</field></record>
+    <record id="action_qa_all_deviations" model="ir.actions.act_window"><field name="name">All Deviations</field><field name="res_model">qa.deviation</field><field name="view_mode">list,form</field></record>
+</odoo>

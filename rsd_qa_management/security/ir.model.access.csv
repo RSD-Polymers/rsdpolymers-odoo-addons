@@ -13,3 +13,10 @@ access_qa_change_document_admin,qa.change.control.document administrator,model_q
 access_qa_reject_wizard_admin,qa.change.control.reject.wizard administrator,model_qa_change_control_reject_wizard,base.group_system,1,1,1,1
 access_qa_change_approval_admin,qa.change.control.approval administrator,model_qa_change_control_approval,base.group_system,1,0,1,0
 access_qa_task_rework_wizard,qa.change.control.task.rework.wizard,model_qa_change_control_task_rework_wizard,rsd_qa_management.group_qa_officer,1,1,1,1
+
+access_qa_manufacturing_inspection_officer,qa.manufacturing.inspection QA,model_qa_manufacturing_inspection,rsd_qa_management.group_qa_officer,1,1,1,0
+access_qa_manufacturing_inspection_admin,qa.manufacturing.inspection Admin,model_qa_manufacturing_inspection,base.group_system,1,1,1,0
+access_qa_deviation_officer,qa.deviation QA,model_qa_deviation,rsd_qa_management.group_qa_officer,1,1,1,0
+access_qa_deviation_admin,qa.deviation Admin,model_qa_deviation,base.group_system,1,1,1,0
+access_qa_inspection_tag_user,qa.inspection.tag user,model_qa_inspection_tag,base.group_user,1,0,0,0
+access_qa_inspection_tag_admin,qa.inspection.tag Admin,model_qa_inspection_tag,base.group_system,1,1,1,1

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="seq_qa_manufacturing_inspection" model="ir.sequence">
+        <field name="name">QA Manufacturing Inspection</field><field name="code">qa.manufacturing.inspection</field><field name="prefix">QA/INS/%(year)s/</field><field name="padding">5</field><field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_qa_deviation" model="ir.sequence">
+        <field name="name">QA Deviation</field><field name="code">qa.deviation</field><field name="prefix">QA/DEV/%(year)s/</field><field name="padding">5</field><field name="company_id" eval="False"/>
+    </record>
+    <record id="qa_mo_tag_verified" model="qa.inspection.tag"><field name="name">QA Verified</field><field name="color">10</field></record>
+</odoo>

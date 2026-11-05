@@ -13,6 +13,23 @@
               action="action_qa_dashboard" sequence="1"
               groups="rsd_qa_management.group_qa_officer,base.group_system"/>
 
+
+    <!-- Unified Inspection menu: MO inspections and both deviation types. -->
+    <menuitem id="menu_qa_inspection" name="Inspection" parent="menu_qa_root" sequence="15"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_mo_inspection" name="MO Inspection" parent="menu_qa_inspection"
+              action="action_qa_mo_inspection" sequence="10"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_planned_deviation" name="Planned Deviation" parent="menu_qa_inspection"
+              action="action_qa_planned_deviation" sequence="20"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_post_process_deviation" name="Post-Process Deviation" parent="menu_qa_inspection"
+              action="action_qa_post_process_deviation" sequence="30"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="menu_qa_all_deviations" name="All Deviations" parent="menu_qa_inspection"
+              action="action_qa_all_deviations" sequence="40"
+              groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+
     <menuitem id="menu_qa_change_management" name="Change Management"
               parent="menu_qa_root" sequence="10"/>
     <!-- Full workflow is visible only to QA. -->
