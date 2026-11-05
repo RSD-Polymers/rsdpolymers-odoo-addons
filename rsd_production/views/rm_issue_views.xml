@@ -46,6 +46,13 @@
                             type="object"
                             class="btn-success"
                             invisible="not can_issue_material"/>
+                    <field name="can_acknowledge_production" invisible="1"/>
+                    <button name="action_acknowledge_production"
+                            string="Acknowledge RM Receipt"
+                            type="object"
+                            class="btn-primary"
+                            groups="mrp.group_mrp_user,base.group_system"
+                            invisible="not can_acknowledge_production"/>
                     <field name="can_submit_production_feedback" invisible="1"/>
                     <button name="action_submit_production_feedback"
                             string="Submit Production Feedback"
@@ -82,6 +89,9 @@
                         <group>
                             <field name="requested_by" readonly="1"/>
                             <field name="issued_by" readonly="1"/>
+                            <field name="production_acknowledged" readonly="1"/>
+                            <field name="production_acknowledged_by" readonly="1" invisible="not production_acknowledged"/>
+                            <field name="production_acknowledged_date" readonly="1" invisible="not production_acknowledged"/>
                             <field name="internal_transfer_ref"
                                    readonly="1"
                                    groups="base.group_user,!stock.group_stock_manager,!base.group_system"/>

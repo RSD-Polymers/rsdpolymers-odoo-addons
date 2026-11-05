@@ -185,6 +185,23 @@ class RmIssue(models.Model):
     requested_by = fields.Many2one('res.users')
     issued_by = fields.Many2one('res.users')
 
+
+    # Production confirms receipt of the materials issued by Store.
+    production_acknowledged = fields.Boolean(
+        string='Production Acknowledged', default=False, readonly=True,
+        copy=False, tracking=True,
+    )
+    production_acknowledged_by = fields.Many2one(
+        'res.users', string='Acknowledged By', readonly=True,
+        copy=False, tracking=True,
+    )
+    production_acknowledged_date = fields.Datetime(
+        string='Acknowledged On', readonly=True, copy=False, tracking=True,
+    )
+    can_acknowledge_production = fields.Boolean(
+        compute='_compute_can_acknowledge_production',
+    )
+
     # Production feedback about the Store's material issue transaction.
     production_feedback_intime = fields.Selection(
         [('yes', 'Yes'), ('no', 'No')], string='Material Issued Intime',
@@ -241,73 +258,122 @@ class RmIssue(models.Model):
             )
         return {'type': 'ir.actions.client', 'tag': 'reload'}
 
-        def write(self, vals):
-            # Protect manual Internal Transfer linking.
-            if (
-                    'internal_transfer_ref' in vals
-                    and not self.env.context.get('skip_internal_transfer_link_check')
+    @api.depends('state', 'production_acknowledged')
+    @api.depends_context('uid')
+    def _compute_can_acknowledge_production(self):
+        is_production_user = (
+            self.env.user.has_group('mrp.group_mrp_user')
+            or self.env.user.has_group('base.group_system')
+        )
+        for rm in self:
+            rm.can_acknowledge_production = bool(
+                rm.state == 'issued'
+                and not rm.production_acknowledged
+                and is_production_user
+            )
+
+    def action_acknowledge_production(self):
+        if not (
+            self.env.user.has_group('mrp.group_mrp_user')
+            or self.env.user.has_group('base.group_system')
+        ):
+            raise UserError(_('Only Production users can acknowledge receipt of raw materials.'))
+
+        for rm in self:
+            # Lock the row so two simultaneous clicks cannot acknowledge twice.
+            self.env.cr.execute(
+                'SELECT id FROM rm_issue WHERE id = %s FOR UPDATE', (rm.id,)
+            )
+            rm.invalidate_recordset(['state', 'production_acknowledged'])
+
+            if rm.state != 'issued':
+                raise UserError(_('Raw materials can be acknowledged only after they are issued.'))
+            if rm.production_acknowledged:
+                raise UserError(_('This RM Issue has already been acknowledged.'))
+
+            # Bypass write() only for this controlled acknowledgement action.
+            super(RmIssue, rm).write({
+                'production_acknowledged': True,
+                'production_acknowledged_by': self.env.user.id,
+                'production_acknowledged_date': fields.Datetime.now(),
+            })
+            rm.message_post(
+                body=_('Production acknowledged receipt of raw materials for RM Issue <b>%s</b>.') % rm.name,
+                subtype_xmlid='mail.mt_comment',
+            )
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
+
+    def write(self, vals):
+        # Acknowledgement audit fields can only be set by the button action.
+        acknowledgement_fields = {
+            'production_acknowledged',
+            'production_acknowledged_by',
+            'production_acknowledged_date',
+        }
+        if acknowledgement_fields.intersection(vals):
+            raise UserError(_('Production acknowledgement can only be recorded using the Acknowledge RM Receipt button.'))
+
+        # Keep Production Feedback independent; all other RM Issue changes are
+        # blocked after Production confirms receipt.
+        feedback_fields = {
+            'production_feedback_intime',
+            'production_feedback_correct',
+            'production_feedback_submitted',
+            'production_feedback_by',
+            'production_feedback_date',
+        }
+        for rm in self:
+            if rm.production_acknowledged:
+                raise UserError(
+                    _('This RM Issue has been acknowledged and is locked.')
+                )
+        # Preserve the existing protection for manual Internal Transfer linking.
+        if (
+            'internal_transfer_ref' in vals
+            and not self.env.context.get('skip_internal_transfer_link_check')
+        ):
+            new_transfer_id = vals.get('internal_transfer_ref') or False
+            if new_transfer_id:
+                self._check_internal_transfer_link(new_transfer_id)
+            changing_transfer = any(
+                rm.internal_transfer_ref.id != new_transfer_id for rm in self
+            )
+            if changing_transfer and not (
+                self.env.user.has_group('base.group_system')
+                or self.env.user.has_group('stock.group_stock_manager')
             ):
-                new_transfer_id = vals.get('internal_transfer_ref') or False
+                raise UserError(_(
+                    'Only a Store Admin can manually link or change '
+                    'the Internal Transfer.'
+                ))
 
-                if new_transfer_id:
-                    self._check_internal_transfer_link(new_transfer_id)
-
-                changing_transfer = any(
-                    rm.internal_transfer_ref.id != new_transfer_id
-                    for rm in self
-                )
-
-                if changing_transfer and not (
-                        self.env.user.has_group('base.group_system')
-                        or self.env.user.has_group('stock.group_stock_manager')
-                ):
-                    raise UserError(_(
-                        'Only a Store Admin can manually link or change '
-                        'the Internal Transfer.'
-                    ))
-
-            # Protect Production feedback fields.
-            feedback_fields = {
-                'production_feedback_intime',
-                'production_feedback_correct',
-                'production_feedback_submitted',
-                'production_feedback_by',
-                'production_feedback_date',
-            }
-
-            if feedback_fields.intersection(vals):
-                is_production_user = (
-                        self.env.user.has_group('mrp.group_mrp_user')
-                        or self.env.user.has_group('base.group_system')
-                )
-
-                if not is_production_user:
-                    raise UserError(_(
-                        'Only Production users can change Production feedback.'
-                    ))
-
-                if any(rm.production_feedback_submitted for rm in self):
-                    if not self.env.user.has_group('base.group_system'):
-                        raise UserError(_(
-                            'Submitted Production feedback is locked '
-                            'and cannot be changed.'
-                        ))
-
-            return super().write(vals)
-
+        # Preserve the existing Production Feedback permissions and lock.
         if feedback_fields.intersection(vals):
-            if not (
+            is_production_user = (
                 self.env.user.has_group('mrp.group_mrp_user')
                 or self.env.user.has_group('base.group_system')
-            ):
+            )
+            if not is_production_user:
                 raise UserError(_('Only Production users can change Production feedback.'))
-            if any(rm.production_feedback_submitted for rm in self) and not self.env.user.has_group('base.group_system'):
-                raise UserError(_('Submitted Production feedback is locked and cannot be changed.'))
+            if any(rm.production_feedback_submitted for rm in self):
+                if not self.env.user.has_group('base.group_system'):
+                    raise UserError(_(
+                        'Submitted Production feedback is locked '
+                        'and cannot be changed.'
+                    ))
+
         return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
+        acknowledgement_fields = {
+            'production_acknowledged',
+            'production_acknowledged_by',
+            'production_acknowledged_date',
+        }
         for vals in vals_list:
+            if acknowledgement_fields.intersection(vals):
+                raise UserError(_('Production acknowledgement can only be recorded after issuing the RM.'))
             if vals.get('name', 'New') == 'New':
                 vals['name'] = self.env['ir.sequence'].next_by_code('rm.issue') or 'New'
         return super().create(vals_list)
