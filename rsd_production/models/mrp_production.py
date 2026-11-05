@@ -160,7 +160,15 @@ class MrpProduction(models.Model):
             is_production = user.employee_id.department_id.name.strip().lower() == "production"
 
         for rec in self:
-            rec.show_request_rm_button = (is_admin or is_production) and not rec._is_unpack_only_components()
+            has_active_rm_issue = bool(self.env['rm.issue'].sudo().search_count([
+                ('mo_id', '=', rec.id),
+                ('state', '!=', 'cancelled'),
+            ]))
+            rec.show_request_rm_button = (
+                (is_admin or is_production)
+                and not rec._is_unpack_only_components()
+                and not has_active_rm_issue
+            )
 
     def _compute_show_rm_issue_smart_button(self):
         user = self.env.user
@@ -203,10 +211,20 @@ class MrpProduction(models.Model):
         self._check_rm_function_state()
         if self._is_unpack_only_components():
             raise UserError(_('RM Issue is not required because all components of this Manufacturing Order are Finished Goods (Un-Pack).'))
-        # Keep one editable draft per MO, but allow repeated requests after submission.
-        draft = self.env['rm.issue'].search([('mo_id', '=', self.id), ('state', '=', 'draft')], limit=1)
-        if draft:
-            return {'type': 'ir.actions.act_window', 'name': _('RM Issue'), 'res_model': 'rm.issue', 'view_mode': 'form', 'res_id': draft.id, 'target': 'current'}
+
+        # Serialize requests for this MO so concurrent clicks cannot create duplicates.
+        self.env.cr.execute(
+            'SELECT id FROM mrp_production WHERE id = %s FOR UPDATE', (self.id,)
+        )
+        active_rm_issue = self.env['rm.issue'].sudo().search([
+            ('mo_id', '=', self.id),
+            ('state', '!=', 'cancelled'),
+        ], limit=1)
+        if active_rm_issue:
+            raise UserError(_(
+                'An active RM Issue (%s) already exists for this Manufacturing Order. '
+                'Cancel it before creating another RM Issue.'
+            ) % active_rm_issue.name)
 
         rm_issue = self.env['rm.issue'].create({
             'mo_id': self.id,
