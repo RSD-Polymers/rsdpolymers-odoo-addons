@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="seq_quality_unloading_request" model="ir.sequence">
+        <field name="name">Quality Unloading Request</field>
+        <field name="code">rsd.quality.unloading.request</field>
+        <field name="prefix">ULR/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

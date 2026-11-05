@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="quality_unloading_request_view_list" model="ir.ui.view">
+        <field name="name">rsd.quality.unloading.request.list</field>
+        <field name="model">rsd.quality.unloading.request</field>
+        <field name="arch" type="xml">
+            <list string="Unloading Requests"
+                  decoration-success="state == 'accepted'"
+                  decoration-danger="state == 'rejected'"
+                  decoration-info="state == 'submitted'">
+                <field name="name"/>
+                <field name="production_id"/>
+                <field name="product_id"/>
+                <field name="product_qty"/>
+                <field name="requested_by"/>
+                <field name="request_date"/>
+                <field name="planned_unloading_datetime"/>
+                <field name="reviewed_by"/>
+                <field name="state" widget="badge"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="quality_unloading_request_view_search" model="ir.ui.view">
+        <field name="name">rsd.quality.unloading.request.search</field>
+        <field name="model">rsd.quality.unloading.request</field>
+        <field name="arch" type="xml">
+            <search string="Unloading Requests">
+                <field name="name"/>
+                <field name="production_id"/>
+                <field name="product_id"/>
+                <field name="requested_by"/>
+                <filter name="waiting_chemist" string="Waiting for Chemist" domain="[('state', '=', 'submitted')]"/>
+                <filter name="accepted" string="Accepted" domain="[('state', '=', 'accepted')]"/>
+                <filter name="rejected" string="Rejected" domain="[('state', '=', 'rejected')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_product" string="Product" context="{'group_by': 'product_id'}"/>
+                    <filter name="group_requester" string="Requested By" context="{'group_by': 'requested_by'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="quality_unloading_request_view_form" model="ir.ui.view">
+        <field name="name">rsd.quality.unloading.request.form</field>
+        <field name="model">rsd.quality.unloading.request</field>
+        <field name="arch" type="xml">
+            <form string="Unloading Request">
+                <header>
+                    <field name="can_submit" invisible="1"/>
+                    <field name="can_review" invisible="1"/>
+                    <button name="action_submit" type="object" string="Submit to Chemist"
+                            class="btn-primary" invisible="state != 'draft' or not can_submit"/>
+                    <button name="action_accept" type="object" string="Accept"
+                            class="btn-primary" invisible="state != 'submitted' or not can_review"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            class="btn-secondary" invisible="state != 'submitted' or not can_review"/>
+                    <button name="action_reset_to_draft" type="object" string="Reset to Draft"
+                            invisible="state != 'rejected' or not can_submit"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state not in ('draft', 'submitted', 'rejected') or not can_submit"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,submitted,accepted,rejected,cancelled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Manufacturing Details">
+                            <field name="production_id" readonly="state != 'draft'"/>
+                            <field name="product_id"/>
+                            <field name="product_qty"/>
+                            <field name="product_uom_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Request Details">
+                            <field name="requested_by"/>
+                            <field name="request_date"/>
+                            <field name="reviewed_by" invisible="not reviewed_by"/>
+                            <field name="reviewed_on" invisible="not reviewed_on"/>
+                        </group>
+                    </group>
+                    <group string="Chemist Review">
+                        <field name="planned_unloading_datetime"
+                               readonly="state != 'submitted' or not can_review"/>
+                        <field name="rejection_reason"
+                               readonly="state != 'submitted' or not can_review"
+                               invisible="state != 'submitted' and not rejection_reason"/>
+                    </group>
+                    <group string="Remarks">
+                        <field name="remarks" readonly="state != 'draft' or not can_submit" nolabel="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="quality_unloading_request_action" model="ir.actions.act_window">
+        <field name="name">Unloading Requests</field>
+        <field name="res_model">rsd.quality.unloading.request</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="quality_unloading_request_view_search"/>
+        <field name="context">{'search_default_waiting_chemist': 1}</field>
+    </record>
+
+    <!-- Odoo Quality application > Quality Control. -->
+    <menuitem id="quality_unloading_request_menu"
+              name="Unloading Requests"
+              parent="quality_control.menu_quality_control"
+              action="quality_unloading_request_action"
+              sequence="40"
+              groups="rsd_quality.group_unloading_request_supervisor,rsd_quality.group_unloading_request_chemist,base.group_system"/>
+</odoo>

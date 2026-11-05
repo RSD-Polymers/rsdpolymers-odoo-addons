@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_quality_unloading_request_supervisor,quality.unloading.request supervisor,model_rsd_quality_unloading_request,rsd_quality.group_unloading_request_supervisor,1,1,1,0
+access_quality_unloading_request_chemist,quality.unloading.request chemist,model_rsd_quality_unloading_request,rsd_quality.group_unloading_request_chemist,1,1,0,0
+access_quality_unloading_request_system,quality.unloading.request system,model_rsd_quality_unloading_request,base.group_system,1,1,1,1
+access_sample_test_user,sample test user,model_rsd_quality_sample_test,rsd_quality.group_quality_test_user,1,1,1,0
+access_sample_test_qa,sample test QA,model_rsd_quality_sample_test,rsd_qa_management.group_qa_officer,1,0,1,0
+access_application_test_user,application test user,model_rsd_quality_application_test,rsd_quality.group_quality_test_user,1,1,1,0
+access_application_test_qa,application test QA,model_rsd_quality_application_test,rsd_qa_management.group_qa_officer,1,0,1,0
+access_quality_test_line_user,quality test line user,model_rsd_quality_test_line,rsd_quality.group_quality_test_user,1,1,1,0
+access_quality_test_line_qa,quality test line QA,model_rsd_quality_test_line,rsd_qa_management.group_qa_officer,1,0,0,0
+access_sample_test_admin,sample test administrator,model_rsd_quality_sample_test,base.group_system,1,1,1,1
+access_application_test_admin,application test administrator,model_rsd_quality_application_test,base.group_system,1,1,1,1
+access_quality_test_line_admin,quality test line administrator,model_rsd_quality_test_line,base.group_system,1,1,1,1
