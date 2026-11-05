@@ -580,8 +580,12 @@ class MrpProduction(models.Model):
 
     @api.depends('qa_inspection_ids')
     def _compute_qa_inspection_count(self):
+        inspection_model = self.env['qa.manufacturing.inspection'].sudo()
+
         for mo in self:
-            mo.qa_inspection_count = len(mo.qa_inspection_ids)
+            mo.qa_inspection_count = inspection_model.search_count([
+                ('production_id', '=', mo.id)
+            ])
 
     def _check_qa_planned_deviations_before_start(self):
         """Block the first MO start while any Planned Deviation is unresolved."""

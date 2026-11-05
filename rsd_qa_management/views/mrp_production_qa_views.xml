@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_view_qa_inspections" type="object" class="oe_stat_button" icon="fa-shield">
+                <button name="action_view_qa_inspections" type="object" class="oe_stat_button" icon="fa-shield" groups="rsd_qa_management.group_qa_officer,base.group_system">
                     <field name="qa_inspection_count" widget="statinfo" string="QA Inspection"/>
                 </button>
             </xpath>
