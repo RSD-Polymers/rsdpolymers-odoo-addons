@@ -16,6 +16,15 @@
                         invisible="state in ('draft', 'cancel', 'done')"/>
             </xpath>
 
+            <!-- Application Test button -->
+            <xpath expr="//header" position="inside">
+                <button name="action_create_application_test"
+                        type="object"
+                        string="Create Application Test"
+                        class="btn-primary"
+                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system"/>
+            </xpath>
+
             <!-- Request Unloading button -->
             <xpath expr="//header" position="inside">
                 <button name="action_create_unloading_request"
@@ -36,6 +45,19 @@
                     <field name="inprocess_test_count"
                            widget="statinfo"
                            string="In-Process Tests"/>
+                </button>
+            </xpath>
+
+            <!-- Application Tests smart button -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_application_tests"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-flask"
+                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system">
+                    <field name="application_test_count"
+                           widget="statinfo"
+                           string="Application Tests"/>
                 </button>
             </xpath>
 

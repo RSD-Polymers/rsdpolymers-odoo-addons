@@ -69,6 +69,45 @@ class MrpProduction(models.Model):
             "context": {"default_production_id": self.id},
         }
 
+    application_test_count = fields.Integer(
+        string="Application Tests",
+        compute="_compute_application_test_count",
+    )
+
+    def _compute_application_test_count(self):
+        test_model = self.env["rsd.quality.application.test"].sudo()
+        for production in self:
+            production.application_test_count = test_model.search_count([
+                ("production_id", "=", production.id),
+            ])
+
+    def action_create_application_test(self):
+        self.ensure_one()
+        # Application Tests may be created from an MO in any state.
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("New Application Test"),
+            "res_model": "rsd.quality.application.test",
+            "view_mode": "form",
+            "views": [(
+                self.env.ref("rsd_quality.application_test_view_form").id,
+                "form",
+            )],
+            "target": "current",
+            "context": {"default_production_id": self.id},
+        }
+
+    def action_view_application_tests(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Application Tests"),
+            "res_model": "rsd.quality.application.test",
+            "view_mode": "list,form",
+            "domain": [("production_id", "=", self.id)],
+            "context": {"default_production_id": self.id},
+        }
+
     def action_create_unloading_request(self):
         self.ensure_one()
 
