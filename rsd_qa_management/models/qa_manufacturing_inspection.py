@@ -189,8 +189,7 @@ class QAManufacturingInspection(models.Model):
         }
 
     def action_verify(self):
-        if not self.env.user.has_group('rsd_qa_management.group_qa_manager'):
-            raise UserError(_('Only a QA Manager can verify an MO Inspection.'))
+        self._check_qa_officer()
         tag = self.env.ref('rsd_qa_management.qa_mo_tag_verified')
         for rec in self:
             if rec.state != 'under_review':

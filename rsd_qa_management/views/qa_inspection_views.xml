@@ -18,7 +18,7 @@
                 <header>
                     <button name="action_start_review" type="object" string="Start Review" class="btn-primary" invisible="state not in ('pending', 'rework')"/>
                     <button name="action_create_deviation" type="object" string="Create Deviation" class="btn-secondary" invisible="state == 'verified'"/>
-                    <button name="action_verify" type="object" string="QA Verify" class="btn-primary" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_manager"/>
+                    <button name="action_verify" type="object" string="QA Verify" class="btn-primary" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer"/>
                     <button name="action_reject" type="object" string="Reject" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
                     <button name="action_request_rework" type="object" string="Request Rework" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
                     <field name="state" widget="statusbar" statusbar_visible="pending,under_review,verified"/>
