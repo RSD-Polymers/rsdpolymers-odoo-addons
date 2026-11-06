@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="mrp_production_form_unloading_request" model="ir.ui.view">
+        <field name="name">mrp.production.form.unloading.request</field>
+        <field name="model">mrp.production</field>
+        <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Request Unloading button -->
+            <xpath expr="//header" position="inside">
+                <button name="action_create_unloading_request"
+                        type="object"
+                        string="Request Unloading"
+                        class="btn-primary"
+                        groups="rsd_quality.group_unloading_request_supervisor,base.group_system"
+                        invisible="state in ('draft', 'cancel', 'done')"/>
+            </xpath>
+
+            <!-- Unloading Requests smart button -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_unloading_requests"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-truck"
+                        groups="rsd_quality.group_unloading_request_supervisor,rsd_quality.group_unloading_request_chemist,base.group_system">
+                    <field name="unloading_request_count"
+                           widget="statinfo"
+                           string="Unloading Requests"/>
+                </button>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

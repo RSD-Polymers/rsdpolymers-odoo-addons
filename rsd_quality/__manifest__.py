@@ -19,6 +19,7 @@
         'views/quality_check_views.xml',
         'views/unloading_request_views.xml',
         'views/testing_views.xml',
+        'views/mrp_production_unloading_views.xml',
     ],
     'installable': True,
     'application': False,
