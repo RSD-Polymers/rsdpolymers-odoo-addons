@@ -633,11 +633,13 @@ class MrpProduction(models.Model):
 
     @api.depends('qa_inspection_ids.state')
     def _compute_qa_is_verified(self):
+        inspection_model = self.env['qa.manufacturing.inspection'].sudo()
+
         for mo in self:
-            mo.qa_is_verified = any(
-                inspection.state == 'verified'
-                for inspection in mo.qa_inspection_ids
-            )
+            mo.qa_is_verified = bool(inspection_model.search_count([
+                ('production_id', '=', mo.id),
+                ('state', '=', 'verified'),
+            ]))
 
     @api.depends('qa_inspection_ids')
     def _compute_qa_inspection_count(self):
