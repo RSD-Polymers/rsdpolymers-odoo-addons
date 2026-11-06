@@ -189,7 +189,8 @@ class QAManufacturingInspection(models.Model):
         }
 
     def action_verify(self):
-        self._check_qa_officer()
+        if not self.env.user.has_group('rsd_qa_management.group_qa_manager'):
+            raise UserError(_('Only a QA Manager can verify an MO Inspection.'))
         tag = self.env.ref('rsd_qa_management.qa_mo_tag_verified')
         for rec in self:
             if rec.state != 'under_review':
@@ -622,10 +623,21 @@ class MrpProduction(models.Model):
         string='QA Inspections', readonly=True,
     )
     qa_inspection_count = fields.Integer(compute='_compute_qa_inspection_count')
+    qa_is_verified = fields.Boolean(
+        string='QA Verified', compute='_compute_qa_is_verified',
+    )
     qa_inspection_tag_ids = fields.Many2many(
         'qa.inspection.tag', 'qa_mo_inspection_tag_rel',
         'production_id', 'tag_id', string='QA Tags', copy=False,
     )
+
+    @api.depends('qa_inspection_ids.state')
+    def _compute_qa_is_verified(self):
+        for mo in self:
+            mo.qa_is_verified = any(
+                inspection.state == 'verified'
+                for inspection in mo.qa_inspection_ids
+            )
 
     @api.depends('qa_inspection_ids')
     def _compute_qa_inspection_count(self):

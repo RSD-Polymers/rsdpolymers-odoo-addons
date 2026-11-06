@@ -11,7 +11,12 @@
                 </button>
             </xpath>
             <xpath expr="//sheet//group" position="inside">
-                <field name="qa_inspection_tag_ids" widget="many2many_tags" options="{'color_field': 'color', 'no_create': True}" readonly="1" string="QA Tags"/>
+                <field name="qa_is_verified" invisible="1"/>
+                <div class="text-end" invisible="not qa_is_verified">
+                    <img src="/rsd_qa_management/static/description/icon.png"
+                         alt="Quality Assurance Verified"
+                         style="width: 120px; max-width: 100%; height: auto;"/>
+                </div>
             </xpath>
         </field>
     </record>
