@@ -6,6 +6,16 @@
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
 
+            <!-- In-Process Test button -->
+            <xpath expr="//header" position="inside">
+                <button name="action_create_inprocess_test"
+                        type="object"
+                        string="Create In-Process Test"
+                        class="btn-primary"
+                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system"
+                        invisible="state in ('draft', 'cancel', 'done')"/>
+            </xpath>
+
             <!-- Request Unloading button -->
             <xpath expr="//header" position="inside">
                 <button name="action_create_unloading_request"
@@ -14,6 +24,19 @@
                         class="btn-primary"
                         groups="rsd_quality.group_unloading_request_supervisor,base.group_system"
                         invisible="state in ('draft', 'cancel', 'done')"/>
+            </xpath>
+
+            <!-- In-Process Tests smart button -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_inprocess_tests"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-flask"
+                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system">
+                    <field name="inprocess_test_count"
+                           widget="statinfo"
+                           string="In-Process Tests"/>
+                </button>
             </xpath>
 
             <!-- Unloading Requests smart button -->
