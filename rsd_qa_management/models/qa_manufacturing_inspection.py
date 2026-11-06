@@ -5,6 +5,7 @@ from odoo.exceptions import UserError, ValidationError
 # Object identity cannot be reproduced by an RPC client through a JSON context.
 _QA_INSPECTION_TRANSITION_TOKEN = object()
 _QA_DEVIATION_TRANSITION_TOKEN = object()
+_QA_MO_VERIFICATION_TOKEN = object()
 
 
 class QAManufacturingInspection(models.Model):
@@ -112,6 +113,9 @@ class QAManufacturingInspection(models.Model):
         if protected_audit_fields.intersection(vals) and not internal_transition:
             raise UserError(_('Verification details can only be changed by the QA workflow.'))
 
+        if not internal_transition and self.filtered(lambda rec: rec.state == 'verified') and vals:
+            raise UserError(_('This MO Inspection is QA Verified and permanently locked. No inspection fields can be changed.'))
+
         # Once verified, the checklist and review evidence are frozen. A QA
         # Manager must revoke verification before any review data is changed.
         review_fields = {
@@ -185,7 +189,8 @@ class QAManufacturingInspection(models.Model):
         }
 
     def action_verify(self):
-        self._check_qa_officer()
+        if not self.env.user.has_group('rsd_qa_management.group_qa_manager'):
+            raise UserError(_('Only a QA Manager can verify an MO Inspection.'))
         tag = self.env.ref('rsd_qa_management.qa_mo_tag_verified')
         for rec in self:
             if rec.state != 'under_review':
@@ -224,9 +229,9 @@ class QAManufacturingInspection(models.Model):
                 'verified_by_id': self.env.user.id,
                 'verified_on': fields.Datetime.now(),
             })
-            rec.production_id.sudo().write({
-                'qa_inspection_tag_ids': [(4, tag.id)],
-            })
+            rec.production_id.sudo().with_context(
+                _qa_mo_verification_token=_QA_MO_VERIFICATION_TOKEN
+            ).write({'qa_inspection_tag_ids': [(4, tag.id)]})
         return True
 
     def action_reject(self):
@@ -251,28 +256,8 @@ class QAManufacturingInspection(models.Model):
         return True
 
     def action_revoke_verification(self):
-        tag = self.env.ref('rsd_qa_management.qa_mo_tag_verified')
-        if not (
-            self.env.user.has_group('rsd_qa_management.group_qa_manager')
-            or self.env.user.has_group('base.group_system')
-        ):
-            raise UserError(_('Only a QA Manager can revoke QA verification.'))
+        raise UserError(_('QA verification is final. A verified MO Inspection cannot be reopened or revoked.'))
 
-        for rec in self:
-            if rec.state != 'verified':
-                continue
-            rec.production_id.sudo().write({
-                'qa_inspection_tag_ids': [(3, tag.id)],
-            })
-            rec._write_inspection_transition({
-                'state': 'under_review',
-                'verified_by_id': False,
-                'verified_on': False,
-            })
-            rec.message_post(body=_(
-                'QA verification was revoked by %s.'
-            ) % self.env.user.display_name)
-        return True
 
 
 class QAManufacturingDeviation(models.Model):
@@ -565,6 +550,71 @@ class QAManufacturingDeviation(models.Model):
         return True
 
 
+class QualityCheck(models.Model):
+    _inherit = 'quality.check'
+
+    def _qa_verified_productions(self):
+        production_ids = self.mapped('production_id').ids if 'production_id' in self._fields else []
+        if not production_ids:
+            return self.env['qa.manufacturing.inspection']
+        return self.env['qa.manufacturing.inspection'].sudo().search([
+            ('production_id', 'in', production_ids), ('state', '=', 'verified')
+        ])
+
+    def write(self, vals):
+        locked = self._qa_verified_productions()
+        if locked:
+            raise UserError(_('Quality Checks linked to a QA Verified MO are locked.'))
+        return super().write(vals)
+
+    def unlink(self):
+        if self._qa_verified_productions():
+            raise UserError(_('Quality Checks linked to a QA Verified MO cannot be deleted.'))
+        return super().unlink()
+
+
+class IrAttachment(models.Model):
+    _inherit = 'ir.attachment'
+
+    def _qa_verified_link(self):
+        inspections = self.env['qa.manufacturing.inspection'].sudo().search([('state', '=', 'verified')])
+        verified_mo_ids = inspections.mapped('production_id').ids
+        for attachment in self:
+            if attachment.res_model == 'qa.manufacturing.inspection' and attachment.res_id in inspections.ids:
+                return True
+            if attachment.res_model == 'mrp.production' and attachment.res_id in verified_mo_ids:
+                return True
+            if attachment.res_model == 'quality.check':
+                check = self.env['quality.check'].sudo().browse(attachment.res_id).exists()
+                if check and 'production_id' in check._fields and check.production_id.id in verified_mo_ids:
+                    return True
+        return False
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            model, res_id = vals.get('res_model'), vals.get('res_id')
+            if model == 'mrp.production' and self.env['qa.manufacturing.inspection'].sudo().search_count([('production_id', '=', res_id), ('state', '=', 'verified')]):
+                raise UserError(_('You cannot add attachments to a QA Verified Manufacturing Order.'))
+            if model == 'qa.manufacturing.inspection' and self.env['qa.manufacturing.inspection'].sudo().browse(res_id).state == 'verified':
+                raise UserError(_('You cannot add attachments to a QA Verified MO Inspection.'))
+            if model == 'quality.check':
+                check = self.env['quality.check'].sudo().browse(res_id).exists()
+                if check and 'production_id' in check._fields and self.env['qa.manufacturing.inspection'].sudo().search_count([('production_id', '=', check.production_id.id), ('state', '=', 'verified')]):
+                    raise UserError(_('You cannot add attachments to a Quality Check linked to a QA Verified MO.'))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if self._qa_verified_link():
+            raise UserError(_('Attachments linked to a QA Verified MO are locked and cannot be changed.'))
+        return super().write(vals)
+
+    def unlink(self):
+        if self._qa_verified_link():
+            raise UserError(_('Attachments linked to a QA Verified MO cannot be deleted.'))
+        return super().unlink()
+
+
 class MrpProduction(models.Model):
     _inherit = 'mrp.production'
 
@@ -608,6 +658,13 @@ class MrpProduction(models.Model):
         return super().action_start()
 
     def write(self, vals):
+        verification_write = (self.env.context.get('_qa_mo_verification_token') is _QA_MO_VERIFICATION_TOKEN)
+        if not verification_write:
+            locked = self.env['qa.manufacturing.inspection'].sudo().search([
+                ('production_id', 'in', self.ids), ('state', '=', 'verified')
+            ])
+            if locked:
+                raise UserError(_('This Manufacturing Order is locked because its MO Inspection has been QA Verified: %s') % ', '.join(locked.mapped('production_id.display_name')))
         if vals.get('state') == 'progress':
             self._check_qa_planned_deviations_before_start()
         return super().write(vals)
@@ -669,6 +726,13 @@ class MrpWorkorder(models.Model):
         return super().start_employee(employee_id)
 
     def write(self, vals):
+        verification_write = (self.env.context.get('_qa_mo_verification_token') is _QA_MO_VERIFICATION_TOKEN)
+        if not verification_write:
+            locked = self.env['qa.manufacturing.inspection'].sudo().search([
+                ('production_id', 'in', self.ids), ('state', '=', 'verified')
+            ])
+            if locked:
+                raise UserError(_('This Manufacturing Order is locked because its MO Inspection has been QA Verified: %s') % ', '.join(locked.mapped('production_id.display_name')))
         if vals.get('state') == 'progress':
             self._check_qa_planned_deviations_before_start()
         return super().write(vals)

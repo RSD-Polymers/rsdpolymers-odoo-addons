@@ -6,7 +6,7 @@
         <field name="arch" type="xml">
             <list string="MO Inspection" decoration-success="state == 'verified'" decoration-danger="state == 'rejected'">
                 <field name="name"/><field name="production_id"/><field name="product_id"/>
-                <field name="lot_id"/><field name="inspection_date"/><field name="inspected_by_id"/><field name="state" widget="badge"/>
+                <field name="lot_id"/><field name="inspection_date" readonly="state == 'verified'"/><field name="inspected_by_id" readonly="state == 'verified'"/><field name="state" widget="badge"/>
             </list>
         </field>
     </record>
@@ -18,10 +18,9 @@
                 <header>
                     <button name="action_start_review" type="object" string="Start Review" class="btn-primary" invisible="state not in ('pending', 'rework')"/>
                     <button name="action_create_deviation" type="object" string="Create Deviation" class="btn-secondary" invisible="state == 'verified'"/>
-                    <button name="action_verify" type="object" string="QA Verify" class="btn-primary" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
+                    <button name="action_verify" type="object" string="QA Verify" class="btn-primary" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_manager"/>
                     <button name="action_reject" type="object" string="Reject" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
                     <button name="action_request_rework" type="object" string="Request Rework" invisible="state != 'under_review'" groups="rsd_qa_management.group_qa_officer,base.group_system"/>
-                    <button name="action_revoke_verification" type="object" string="Revoke Verification" invisible="state != 'verified'" groups="rsd_qa_management.group_qa_manager,base.group_system" confirm="This will remove the QA Verified tag from the Manufacturing Order. Continue?"/>
                     <field name="state" widget="statusbar" statusbar_visible="pending,under_review,verified"/>
                 </header>
                 <sheet>
@@ -30,28 +29,33 @@
                             <field name="deviation_count" widget="statinfo" string="Deviations"/>
                         </button>
                     </div>
-                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <div class="row" style="align-items:center;">
+                        <div class="col-9 oe_title"><h1><field name="name"/></h1></div>
+                        <div class="col-3 text-end" invisible="state != 'verified'">
+                            <img src="/rsd_qa_management/static/description/icon.png" alt="Quality Assurance Verified" style="width: 150px; max-width: 100%; height: auto;"/>
+                        </div>
+                    </div>
                     <group>
                         <group string="Manufacturing Details">
                             <field name="production_id" readonly="1"/><field name="product_id"/><field name="product_qty"/><field name="lot_id"/><field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group string="Inspection Details">
-                            <field name="inspection_date"/><field name="inspected_by_id"/><field name="verified_by_id"/><field name="verified_on"/>
+                            <field name="inspection_date" readonly="state == 'verified'"/><field name="inspected_by_id" readonly="state == 'verified'"/><field name="verified_by_id"/><field name="verified_on"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="QA Verification Checklist">
                             <group>
-                                <field name="production_records_reviewed"/>
-                                <field name="chemist_approval_reviewed"/>
-                                <field name="qc_results_reviewed"/>
-                                <field name="sample_testing_reviewed"/>
+                                <field name="production_records_reviewed" readonly="state == 'verified'"/>
+                                <field name="chemist_approval_reviewed" readonly="state == 'verified'"/>
+                                <field name="qc_results_reviewed" readonly="state == 'verified'"/>
+                                <field name="sample_testing_reviewed" readonly="state == 'verified'"/>
                             </group>
-                            <field name="qc_review_notes" placeholder="Summarise reviewed QC results and references..."/>
-                            <field name="sample_testing_reference"/>
-                            <field name="sample_testing_results" placeholder="Record sample testing results and observations..."/>
-                            <field name="review_notes" placeholder="Record overall QA review observations..."/>
-                            <field name="rejection_reason" placeholder="Required when rejecting or requesting rework..."/>
+                            <field name="qc_review_notes" readonly="state == 'verified'" placeholder="Summarise reviewed QC results and references..."/>
+                            <field name="sample_testing_reference" readonly="state == 'verified'"/>
+                            <field name="sample_testing_results" readonly="state == 'verified'" placeholder="Record sample testing results and observations..."/>
+                            <field name="review_notes" readonly="state == 'verified'" placeholder="Record overall QA review observations..."/>
+                            <field name="rejection_reason" readonly="state == 'verified'" placeholder="Required when rejecting or requesting rework..."/>
                         </page>
                         <page string="Deviations">
                             <field name="deviation_ids" readonly="1">
@@ -86,7 +90,12 @@
                     <field name="state" widget="statusbar" statusbar_visible="draft,submitted,investigation,action_required,approved,closed"/>
                 </header>
                 <sheet>
-                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <div class="row" style="align-items:center;">
+                        <div class="col-9 oe_title"><h1><field name="name"/></h1></div>
+                        <div class="col-3 text-end" invisible="state != 'verified'">
+                            <img src="/rsd_qa_management/static/description/icon.png" alt="Quality Assurance Verified" style="width: 150px; max-width: 100%; height: auto;"/>
+                        </div>
+                    </div>
                     <group>
                         <group><field name="deviation_type"/><field name="production_id"/><field name="inspection_id"/><field name="product_id"/><field name="lot_id"/></group>
                         <group><field name="date_reported"/><field name="reported_by_id"/><field name="company_id" groups="base.group_multi_company"/><field name="approved_by_id"/><field name="approved_on"/><field name="closed_by_id"/><field name="closed_on"/></group>

@@ -1,6 +1,6 @@
 {
     "name": "Quality Assurance",
-    "version": "18.0.2.0.0",
+    "version": "18.0.3.0.0",
     "category": "Quality",
     "summary": "Quality Assurance workflows including Change Control",
     "description": "Quality Assurance application with Change Control, post-manufacturing MO inspection and deviation management workflows.",
@@ -13,6 +13,7 @@
         "hr",
         "mrp",
         "mrp_workorder",
+        "quality",
     ],
     "data": [
         "data/qa_inspection_sequence.xml",
