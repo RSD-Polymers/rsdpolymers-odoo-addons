@@ -1,0 +1,26 @@
+// QA verification seal as a non-interactive watermark on verified Manufacturing Orders.
+.o_form_view .o_form_sheet.qa-mo-watermark {
+    position: relative;
+    isolation: isolate;
+
+    > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    > .qa-mo-watermark-overlay {
+        position: absolute !important;
+        inset: 0;
+        z-index: 0 !important;
+        display: block;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        pointer-events: none;
+        background-image: url('/rsd_qa_management/static/description/icon.png');
+        background-repeat: no-repeat;
+        background-position: right 1.5rem top 1.5rem;
+        background-size: 190px 190px;
+        opacity: 0.16;
+    }
+}

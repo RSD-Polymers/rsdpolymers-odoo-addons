@@ -59,3 +59,11 @@ The QA Verified tag is an identification marker. This implementation does not it
 **Integration limitation requiring confirmation:** this source package does not identify an RM Issue model or a relationship from MO Inspection to RM Issue records. The package therefore does not guess a model name or lock stock moves/pickings broadly. RM Issue locking and any Documents app (`documents.document`) integration must be added after confirming the exact RM Issue model and document linkage used in the target database. Also, the source does not define a Closing Report stage for MO Inspection; this change preserves its current MO Inspection workflow and does not invent one.
 
 Static validation only; test on a staging database before production use.
+
+
+## v18.0.6.0.0 - MO background watermark
+
+- Replaced the normal-flow stamp image on the Manufacturing Order form with a CSS background watermark.
+- The original Quality Assurance artwork is reused; it is positioned in the upper-right of the MO sheet at low opacity.
+- The watermark is displayed only when `qa_is_verified` is true, does not reserve layout space, and does not intercept pointer events.
+- This is a custom Odoo backend asset/view enhancement; no Odoo core files are modified.

@@ -10,15 +10,15 @@
                     <field name="qa_inspection_count" widget="statinfo" string="QA Inspection"/>
                 </button>
             </xpath>
+            <xpath expr="//sheet" position="attributes">
+                <attribute name="class" add="qa-mo-watermark" separator=" "/>
+            </xpath>
             <xpath expr="//sheet" position="inside">
                 <field name="qa_is_verified" invisible="1"/>
-                <div class="d-flex justify-content-end align-items-start mb-2"
-                     invisible="not qa_is_verified">
-                    <img src="/rsd_qa_management/static/description/icon.png"
-                         alt="Quality Assurance Verified"
-                         title="Quality Assurance Verified"
-                         style="width: 120px; height: 120px; object-fit: contain;"/>
-                </div>
+                <div class="qa-mo-watermark-overlay"
+                     invisible="not qa_is_verified"
+                     title="Quality Assurance Verified"
+                     aria-label="Quality Assurance Verified"/>
             </xpath>
         </field>
     </record>

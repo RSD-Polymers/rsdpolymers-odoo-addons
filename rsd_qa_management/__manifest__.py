@@ -1,6 +1,6 @@
 {
     "name": "Quality Assurance",
-    "version": "18.0.5.0.0",
+    "version": "18.0.6.0.0",
     "category": "Quality",
     "summary": "Quality Assurance workflows including Change Control",
     "description": "Quality Assurance application with Change Control, post-manufacturing MO inspection and deviation management workflows.",
@@ -31,6 +31,7 @@
             "rsd_qa_management/static/src/dashboard/qa_dashboard.js",
             "rsd_qa_management/static/src/dashboard/qa_dashboard.xml",
             "rsd_qa_management/static/src/dashboard/qa_dashboard.scss",
+            "rsd_qa_management/static/src/mrp/qa_mo_watermark.scss",
         ],
     },
     "application": True,
