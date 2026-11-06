@@ -17,10 +17,14 @@ class MrpProduction(models.Model):
     )
 
     def _compute_unloading_request_count(self):
+        request_model = self.env[
+            "rsd.quality.unloading.request"
+        ].sudo()
+
         for production in self:
-            production.unloading_request_count = len(
-                production.unloading_request_ids
-            )
+            production.unloading_request_count = request_model.search_count([
+                ("production_id", "=", production.id)
+            ])
 
     def action_create_unloading_request(self):
         self.ensure_one()
