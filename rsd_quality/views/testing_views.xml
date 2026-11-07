@@ -73,7 +73,7 @@
         <field name="res_model">rsd.quality.sample.test</field>
         <field name="view_mode">list,form</field>
     </record>
-    <menuitem id="sample_test_menu" name="Sample Tests" parent="quality_control.menu_quality_control" action="sample_test_action" sequence="50" groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="sample_test_menu" name="Sample Tests" parent="quality_control.menu_quality_control" action="sample_test_action" sequence="50" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"/>
 
     <!-- Application Test -->
     <record id="application_test_view_list" model="ir.ui.view">
@@ -149,7 +149,7 @@
         <field name="res_model">rsd.quality.application.test</field>
         <field name="view_mode">list,form</field>
     </record>
-    <menuitem id="application_test_menu" name="Application Tests" parent="quality_control.menu_quality_control" action="application_test_action" sequence="60" groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="application_test_menu" name="Application Tests" parent="quality_control.menu_quality_control" action="application_test_action" sequence="60" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"/>
 
     <!-- In-Process Test -->
     <record id="inprocess_test_view_list" model="ir.ui.view">
@@ -224,5 +224,5 @@
         <field name="res_model">rsd.quality.inprocess.test</field>
         <field name="view_mode">list,form</field>
     </record>
-    <menuitem id="inprocess_test_menu" name="In-Process Tests" parent="quality_control.menu_quality_control" action="inprocess_test_action" sequence="55" groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system"/>
+    <menuitem id="inprocess_test_menu" name="In-Process Tests" parent="quality_control.menu_quality_control" action="inprocess_test_action" sequence="55" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"/>
 </odoo>

@@ -2,7 +2,7 @@
 <odoo>
     <!-- Dedicated roles for the QC-owned unloading request workflow. -->
     <record id="group_unloading_request_supervisor" model="res.groups">
-        <field name="name">Production Supervisor (Unloading Requests)</field>
+        <field name="name">Production Supervisor (Test Requests)</field>
         <field name="category_id" ref="base.module_category_manufacturing"/>
         <field name="implied_ids" eval="[(4, ref('quality.group_quality_user'))]"/>
     </record>
@@ -29,28 +29,28 @@
     <record id="rule_rsd_quality_sample_test_company" model="ir.rule">
         <field name="name">Sample Tests: allowed companies</field>
         <field name="model_id" ref="model_rsd_quality_sample_test"/>
-        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
+        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('group_unloading_request_supervisor')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
     <record id="rule_rsd_quality_application_test_company" model="ir.rule">
         <field name="name">Application Tests: allowed companies</field>
         <field name="model_id" ref="model_rsd_quality_application_test"/>
-        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
+        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('group_unloading_request_supervisor')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
     <record id="rule_rsd_quality_inprocess_test_company" model="ir.rule">
         <field name="name">In-Process Tests: allowed companies</field>
         <field name="model_id" ref="model_rsd_quality_inprocess_test"/>
-        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
+        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('group_unloading_request_supervisor')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
     <record id="rule_rsd_quality_test_line_company" model="ir.rule">
         <field name="name">Quality Test Lines: allowed companies</field>
         <field name="model_id" ref="model_rsd_quality_test_line"/>
-        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
+        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('group_unloading_request_supervisor')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
         <field name="domain_force">['|', '|', ('sample_test_id.company_id', 'in', company_ids), ('application_test_id.company_id', 'in', company_ids), ('in_process_test_id.company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

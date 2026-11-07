@@ -14,3 +14,7 @@ access_quality_test_line_admin,quality test line administrator,model_rsd_quality
 access_inprocess_test_user,in-process test user,model_rsd_quality_inprocess_test,rsd_quality.group_quality_test_user,1,1,1,0
 access_inprocess_test_qa,in-process test QA,model_rsd_quality_inprocess_test,rsd_qa_management.group_qa_officer,1,0,1,0
 access_inprocess_test_admin,in-process test administrator,model_rsd_quality_inprocess_test,base.group_system,1,1,1,1
+access_sample_test_supervisor,sample test production supervisor,model_rsd_quality_sample_test,rsd_quality.group_unloading_request_supervisor,1,1,1,0
+access_application_test_supervisor,application test production supervisor,model_rsd_quality_application_test,rsd_quality.group_unloading_request_supervisor,1,1,1,0
+access_inprocess_test_supervisor,in-process test production supervisor,model_rsd_quality_inprocess_test,rsd_quality.group_unloading_request_supervisor,1,1,1,0
+access_quality_test_line_supervisor,quality test line production supervisor,model_rsd_quality_test_line,rsd_quality.group_unloading_request_supervisor,1,1,1,0

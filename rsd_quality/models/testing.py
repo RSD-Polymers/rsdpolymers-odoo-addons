@@ -54,6 +54,7 @@ class RSDQualityTestMixin(models.AbstractModel):
     def _check_test_user(self):
         if not (
             self.env.user.has_group('rsd_quality.group_quality_test_user')
+            or self.env.user.has_group('rsd_quality.group_unloading_request_supervisor')
             or self.env.user.has_group('rsd_qa_management.group_qa_officer')
             or self.env.user.has_group('base.group_system')
         ):
@@ -214,6 +215,7 @@ class RSDQualityTestMixin(models.AbstractModel):
     def _check_test_editor(self):
         if not (
             self.env.user.has_group('rsd_quality.group_quality_test_user')
+            or self.env.user.has_group('rsd_quality.group_unloading_request_supervisor')
             or self.env.user.has_group('base.group_system')
         ):
             raise UserError(_('You are not allowed to edit quality test details.'))
@@ -268,6 +270,7 @@ class RSDQualityTestLine(models.Model):
     def _check_line_editor(self):
         if not (
             self.env.user.has_group('rsd_quality.group_quality_test_user')
+            or self.env.user.has_group('rsd_quality.group_unloading_request_supervisor')
             or self.env.user.has_group('base.group_system')
         ):
             raise UserError(_('Only Quality Test Users can maintain test parameters.'))

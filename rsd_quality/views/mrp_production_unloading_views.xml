@@ -12,7 +12,7 @@
                         type="object"
                         string="Create In-Process Test"
                         class="btn-primary"
-                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system"
+                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"
                         invisible="state in ('draft', 'cancel', 'done')"/>
             </xpath>
 
@@ -22,7 +22,7 @@
                         type="object"
                         string="Create Application Test"
                         class="btn-primary"
-                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system"/>
+                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"/>
             </xpath>
 
             <!-- Request Unloading button -->
@@ -41,7 +41,7 @@
                         type="object"
                         class="oe_stat_button"
                         icon="fa-flask"
-                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system">
+                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system">
                     <field name="inprocess_test_count"
                            widget="statinfo"
                            string="In-Process Tests"/>
@@ -54,7 +54,7 @@
                         type="object"
                         class="oe_stat_button"
                         icon="fa-flask"
-                        groups="rsd_quality.group_quality_test_user,rsd_qa_management.group_qa_officer,base.group_system">
+                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system">
                     <field name="application_test_count"
                            widget="statinfo"
                            string="Application Tests"/>
