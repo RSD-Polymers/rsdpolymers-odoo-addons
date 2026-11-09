@@ -7,6 +7,8 @@
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//header" position="inside">
+                <button name="action_request_optional_performance_test" type="object" string="Request Performance Test" class="btn-primary" groups="rsd_quality.group_unloading_request_supervisor,base.group_system" invisible="qc_performance_policy != 'optional' or qc_performance_decision != 'pending' or not qc_unloading_approved"/>
+                <button name="action_skip_optional_performance_test" type="object" string="Skip Performance Test" groups="rsd_quality.group_unloading_request_supervisor,base.group_system" invisible="qc_performance_policy != 'optional' or qc_performance_decision != 'pending' or not qc_unloading_approved"/>
                 <button name="action_create_unloading_request"
                         type="object"
                         string="Request Unloading"
@@ -23,6 +25,16 @@
                         invisible="unloading_request_count == 0">
                     <field name="unloading_request_count" widget="statinfo" string="Unloading Request"/>
                 </button>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group string="QC Batch Eligibility" name="qc_batch_eligibility">
+                    <field name="qc_performance_policy" invisible="1"/>
+                    <field name="qc_unloading_approved" invisible="1"/>
+                    <field name="qc_performance_state" readonly="1"/>
+                    <field name="qc_internal_coa_state" readonly="1"/>
+                    <field name="qc_batch_eligible" readonly="1"/>
+                    <field name="qc_performance_decision" readonly="1" invisible="qc_performance_policy != 'optional'"/>
+                </group>
             </xpath>
         </field>
     </record>

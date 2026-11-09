@@ -68,6 +68,15 @@ class RSDQualityStageTest(models.Model):
     line_ids = fields.One2many('rsd.quality.stage.test.line', 'test_id', copy=True)
     result_summary = fields.Text()
 
+    @api.constrains('assigned_user_id')
+    def _check_assigned_user_group(self):
+        for rec in self:
+            if rec.assigned_user_id and not (
+                rec.assigned_user_id.has_group('rsd_quality.group_application_test_user')
+                or rec.assigned_user_id.has_group('base.group_system')
+            ):
+                raise ValidationError(_('The assigned user must belong to the Application Test User group.'))
+
     @api.onchange('template_id')
     def _onchange_template_id(self):
         for rec in self:
@@ -76,22 +85,39 @@ class RSDQualityStageTest(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if not (self.env.user.has_group('rsd_quality.group_application_test_user') or self.env.user.has_group('base.group_system')):
+            raise AccessError(_('Only an Application Test User or System Administrator can create a Performance Test.'))
         for vals in vals_list:
             if vals.get('test_kind') not in ('performance', 'internal_coa'):
                 raise ValidationError(_('Invalid QC test type.'))
             prod = self.env['mrp.production'].browse(vals.get('production_id')).exists()
             if not prod:
                 raise ValidationError(_('Select a valid Manufacturing Order.'))
+            if vals.get('test_kind') == 'internal_coa':
+                raise ValidationError(_('Internal COA is managed through the existing Odoo Quality Check workflow.'))
+            assigned_id = vals.get('assigned_user_id')
+            if assigned_id:
+                assigned = self.env['res.users'].browse(assigned_id)
+                if not assigned.has_group('rsd_quality.group_application_test_user') and not assigned.has_group('base.group_system'):
+                    raise ValidationError(_('The assigned user must belong to the Application Test User group.'))
             vals['name'] = self.env['ir.sequence'].next_by_code('rsd.quality.stage.test') or _('New')
             vals.setdefault('lot_id', prod.lot_producing_id.id)
         return super().create(vals_list)
 
     def _check_qc_user(self):
-        if not (self.env.user.has_group('rsd_quality.group_quality_test_user') or self.env.user.has_group('rsd_quality.group_unloading_request_chemist') or self.env.user.has_group('base.group_system')):
-            raise AccessError(_('Only authorised QC users can process QC tests.'))
+        if not (self.env.user.has_group('rsd_quality.group_application_test_user') or self.env.user.has_group('rsd_quality.group_quality_test_user') or self.env.user.has_group('rsd_quality.group_unloading_request_chemist') or self.env.user.has_group('base.group_system')):
+            raise AccessError(_('Only authorised Application Test Users or System Administrators can process Performance Tests.'))
+
+    def _check_assigned_application_user(self):
+        for rec in self:
+            if rec.test_kind == 'performance' and not self.env.user.has_group('base.group_system'):
+                if not self.env.user.has_group('rsd_quality.group_application_test_user'):
+                    raise AccessError(_('Only an Application Test User can process a Performance Test.'))
+                if rec.assigned_user_id and rec.assigned_user_id != self.env.user:
+                    raise AccessError(_('This Performance Test is assigned to another Application Test User.'))
 
     def action_acknowledge(self):
-        self._check_qc_user()
+        self._check_assigned_application_user()
         for rec in self:
             if rec.test_kind != 'performance' or rec.state != 'draft':
                 raise UserError(_('Only a draft Performance Test can be acknowledged.'))
@@ -101,7 +127,7 @@ class RSDQualityStageTest(models.Model):
         return True
 
     def action_start(self):
-        self._check_qc_user()
+        self._check_assigned_application_user()
         for rec in self:
             if rec.state not in ('draft', 'acknowledged'):
                 raise UserError(_('Only a draft or acknowledged test can be started.'))
@@ -109,7 +135,7 @@ class RSDQualityStageTest(models.Model):
         return True
 
     def action_evaluate(self):
-        self._check_qc_user()
+        self._check_assigned_application_user()
         for rec in self:
             if rec.state not in ('in_progress', 'acknowledged', 'draft'):
                 raise UserError(_('This test has already been evaluated.'))
@@ -125,12 +151,7 @@ class RSDQualityStageTest(models.Model):
         return True
 
     def action_mark_not_required(self):
-        self._check_qc_user()
-        for rec in self:
-            if rec.test_kind != 'performance' or rec.state != 'draft':
-                raise UserError(_('Only a draft Performance Test can be marked Not Required.'))
-            rec.write({'state': 'not_required', 'result_date': fields.Datetime.now()})
-        return True
+        raise UserError(_('Performance Test necessity is decided by the Production Supervisor on the Manufacturing Order.'))
 
 
 class RSDQualityStageTestLine(models.Model):
@@ -165,31 +186,141 @@ class RSDQualityStageTestLine(models.Model):
                 rec.is_pass = value.casefold() == (rec.expected_text or '').strip().casefold()
 
 
+class ProductProductQCTestPolicy(models.Model):
+    _inherit = 'product.product'
+
+    performance_test_policy = fields.Selection([
+        ('mandatory', 'Mandatory'),
+        ('optional', 'Optional'),
+    ], string='Performance Test Policy', default='optional', required=True,
+    help='Mandatory: a Performance Test is automatically created after unloading approval. Optional: the Production Supervisor decides whether to request it.')
+
+
 class MrpProductionQCGate(models.Model):
     _inherit = 'mrp.production'
 
-    qc_performance_required = fields.Boolean(string='Performance Test Required', default=True, copy=False)
+    qc_performance_required = fields.Boolean(string='Performance Test Required', compute='_compute_qc_gate')
+    qc_performance_policy = fields.Selection(related='product_id.performance_test_policy', string='Performance Test Policy', readonly=True)
+    qc_performance_decision = fields.Selection([
+        ('pending', 'Supervisor Decision Pending'),
+        ('required', 'Required'),
+        ('not_required', 'Not Required'),
+    ], string='Optional Performance Test Decision', default='pending', copy=False, tracking=True)
     qc_performance_test_ids = fields.One2many('rsd.quality.stage.test', 'production_id', domain=[('test_kind', '=', 'performance')])
-    qc_internal_coa_test_ids = fields.One2many('rsd.quality.stage.test', 'production_id', domain=[('test_kind', '=', 'internal_coa')])
-    qc_performance_state = fields.Selection([('pending', 'Pending'), ('passed', 'Passed'), ('failed', 'Failed'), ('not_required', 'Not Required')], compute='_compute_qc_gate')
+    qc_quality_check_ids = fields.One2many('quality.check', 'production_id', string='Quality Checks')
     qc_internal_coa_state = fields.Selection([('pending', 'Pending'), ('passed', 'Passed'), ('failed', 'Failed')], compute='_compute_qc_gate')
+    qc_performance_state = fields.Selection([('pending', 'Pending'), ('passed', 'Passed'), ('failed', 'Failed'), ('not_required', 'Not Required')], compute='_compute_qc_gate')
     qc_batch_eligible = fields.Boolean(compute='_compute_qc_gate', string='Eligible for Output', store=False)
+    qc_unloading_approved = fields.Boolean(compute='_compute_qc_gate', string='Unloading Approved')
 
-    @api.depends('qc_performance_test_ids.state', 'qc_internal_coa_test_ids.state', 'unloading_request_ids.state')
+    def _internal_coa_checks(self):
+        self.ensure_one()
+        return self.qc_quality_check_ids.sudo().filtered(
+            lambda check: check.product_id == self.product_id
+            and check.point_id and 'internal qc' in (check.point_id.title or '').casefold()
+        )
+
+    @api.depends('product_id.performance_test_policy', 'qc_performance_decision',
+                 'qc_performance_test_ids.state', 'unloading_request_ids.state',
+                 'qc_quality_check_ids.quality_state', 'qc_quality_check_ids.point_id.title',
+                 'qc_quality_check_ids.product_id')
     def _compute_qc_gate(self):
         for mo in self:
-            perf = mo.qc_performance_test_ids.sorted('id')[-1:] if mo.qc_performance_test_ids else self.env['rsd.quality.stage.test']
-            coa = mo.qc_internal_coa_test_ids.sorted('id')[-1:] if mo.qc_internal_coa_test_ids else self.env['rsd.quality.stage.test']
-            pstate = perf.state if perf else ('not_required' if not mo.qc_performance_required else 'pending')
-            cstate = coa.state if coa else 'pending'
+            perf = mo.qc_performance_test_ids.filtered(lambda t: t.test_kind == 'performance').sorted('id')[-1:]
+            policy = mo.product_id.performance_test_policy or 'optional'
+            if perf:
+                pstate = perf.state
+            elif policy == 'mandatory':
+                pstate = 'pending'
+            elif mo.qc_performance_decision == 'not_required':
+                pstate = 'not_required'
+            elif mo.qc_performance_decision == 'required':
+                pstate = 'pending'
+            else:
+                pstate = 'pending'
+            mo.qc_performance_required = policy == 'mandatory' or mo.qc_performance_decision == 'required'
             mo.qc_performance_state = pstate if pstate in ('passed', 'failed', 'not_required') else 'pending'
-            mo.qc_internal_coa_state = cstate if cstate in ('passed', 'failed') else 'pending'
-            unloading_ok = any(r.state == 'accepted' for r in mo.unloading_request_ids)
+
+            internal_points = self.env['quality.point'].sudo().search([
+                ('product_ids', 'in', [mo.product_id.id]),
+                ('title', 'ilike', 'Internal QC'),
+            ])
+            if not internal_points:
+                cstate = 'pending'
+            else:
+                point_states = []
+                for point in internal_points:
+                    point_checks = mo._internal_coa_checks().filtered(lambda check: check.point_id == point)
+                    latest_check = point_checks.sorted('id')[-1:] if point_checks else self.env['quality.check']
+                    point_states.append(latest_check.quality_state if latest_check else 'none')
+                if any(state == 'fail' for state in point_states):
+                    cstate = 'failed'
+                elif all(state == 'pass' for state in point_states):
+                    cstate = 'passed'
+                else:
+                    cstate = 'pending'
+            mo.qc_internal_coa_state = cstate
+            latest_unloading = mo.unloading_request_ids.sorted(lambda r: (r.request_date, r.id))[-1:]
+            unloading_ok = bool(latest_unloading and latest_unloading.state == 'accepted')
+            mo.qc_unloading_approved = unloading_ok
             mo.qc_batch_eligible = unloading_ok and pstate in ('passed', 'not_required') and cstate == 'passed'
+
+    def _create_mandatory_performance_test(self):
+        for mo in self:
+            if mo.product_id.performance_test_policy != 'mandatory':
+                continue
+            existing = mo.qc_performance_test_ids.filtered(lambda t: t.state != 'cancelled')
+            if existing:
+                continue
+            template = self.env['rsd.quality.spec.template'].search([
+                ('product_id', '=', mo.product_id.id), ('test_kind', '=', 'performance'),
+                ('active', '=', True), ('company_id', 'in', [False, mo.company_id.id]),
+            ], limit=1)
+            self.env['rsd.quality.stage.test'].sudo().create({
+                'production_id': mo.id,
+                'test_kind': 'performance',
+                'template_id': template.id if template else False,
+            })
+
+    def action_request_optional_performance_test(self):
+        self.ensure_one()
+        if not (self.env.user.has_group('rsd_quality.group_unloading_request_supervisor') or self.env.user.has_group('base.group_system')):
+            raise AccessError(_('Only the Production Supervisor or System Administrator can decide whether an optional Performance Test is required.'))
+        if self.product_id.performance_test_policy != 'optional':
+            raise UserError(_('This product has a Mandatory Performance Test policy.'))
+        if not self.qc_unloading_approved:
+            raise UserError(_('Unloading must be approved before deciding on an optional Performance Test.'))
+        if self.qc_performance_decision != 'pending':
+            raise UserError(_('The optional Performance Test decision has already been made.'))
+        self.write({'qc_performance_decision': 'required'})
+        self.env['rsd.quality.stage.test'].sudo().create({
+            'production_id': self.id,
+            'test_kind': 'performance',
+            'template_id': self.env['rsd.quality.spec.template'].search([
+                ('product_id', '=', self.product_id.id), ('test_kind', '=', 'performance'),
+                ('active', '=', True), ('company_id', 'in', [False, self.company_id.id]),
+            ], limit=1).id,
+        })
+        return True
+
+    def action_skip_optional_performance_test(self):
+        self.ensure_one()
+        if not (self.env.user.has_group('rsd_quality.group_unloading_request_supervisor') or self.env.user.has_group('base.group_system')):
+            raise AccessError(_('Only the Production Supervisor or System Administrator can decide whether an optional Performance Test is required.'))
+        if self.product_id.performance_test_policy != 'optional':
+            raise UserError(_('A Mandatory Performance Test cannot be skipped.'))
+        if not self.qc_unloading_approved:
+            raise UserError(_('Unloading must be approved before deciding on an optional Performance Test.'))
+        if self.qc_performance_decision != 'pending':
+            raise UserError(_('The optional Performance Test decision has already been made.'))
+        self.write({'qc_performance_decision': 'not_required'})
+        return True
 
     def action_create_qc_stage_test(self):
         self.ensure_one()
         kind = self.env.context.get('qc_test_kind')
-        if kind not in ('performance', 'internal_coa'):
-            raise UserError(_('Select a valid QC test type.'))
-        return {'type': 'ir.actions.act_window', 'name': _('New %s') % dict([('performance', 'Performance Test'), ('internal_coa', 'Internal COA')])[kind], 'res_model': 'rsd.quality.stage.test', 'view_mode': 'form', 'target': 'current', 'context': {'default_production_id': self.id, 'default_test_kind': kind}}
+        if kind != 'performance':
+            raise UserError(_('Internal COA is handled by the existing Odoo Quality Check; only Performance Tests can be created here.'))
+        if not (self.env.user.has_group('rsd_quality.group_application_test_user') or self.env.user.has_group('rsd_quality.group_quality_test_user') or self.env.user.has_group('base.group_system')):
+            raise AccessError(_('Only an Application Test User or System Administrator can create a Performance Test.'))
+        return {'type': 'ir.actions.act_window', 'name': _('New Performance Test'), 'res_model': 'rsd.quality.stage.test', 'view_mode': 'form', 'target': 'current', 'context': {'default_production_id': self.id, 'default_test_kind': kind}}

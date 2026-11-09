@@ -244,6 +244,7 @@ class QualityUnloadingRequest(models.Model):
             })
             request.message_post(body=_("Unloading request accepted. Planned unloading: %s") %
                                  fields.Datetime.to_string(request.planned_unloading_datetime))
+            request.production_id._create_mandatory_performance_test()
         return True
 
     def action_reject(self):

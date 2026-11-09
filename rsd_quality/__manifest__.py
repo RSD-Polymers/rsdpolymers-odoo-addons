@@ -1,13 +1,13 @@
 {
     'name': 'RSD Quality Customizations',
     'icon': '/rsd_quality/static/description/icon.png',
-    'version': '18.0.1.3.2',
+    'version': '18.0.1.4.0',
     'category': 'Quality/Quality',
     'summary': 'Production unloading requests, Performance Testing and Internal COA',
     'description': """
         - Restricts Quality Checks (Pass/Fail) strictly to the Quality Department.
         - Provides the Production Supervisor to Production Chemist unloading request workflow.
-        - Provides product-wise QC specification templates and automatic Performance Test / Internal COA evaluation.
+        - Provides product-wise Performance Test policy, Performance Test workflow and Internal COA eligibility through standard Quality Checks.
         - Uses the QC Performance Test workflow for application/performance testing.
         - Provides administrator-wide unloading workflow access, Production Supervisor read access at every stage, and controlled physical-modification completion with audit details.
     """,
