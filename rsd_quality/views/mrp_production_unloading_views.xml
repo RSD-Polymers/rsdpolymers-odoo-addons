@@ -1,97 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="mrp_production_form_unloading_request" model="ir.ui.view">
-        <field name="name">mrp.production.form.unloading.request</field>
+    <record id="view_mrp_production_form_rsd_unloading" model="ir.ui.view">
+        <field name="name">mrp.production.form.rsd.unloading.request</field>
         <field name="model">mrp.production</field>
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
-
-            <!-- In-Process Test button -->
-            <xpath expr="//header" position="inside">
-                <button name="action_create_inprocess_test"
-                        type="object"
-                        string="Create In-Process Test"
-                        class="btn-primary"
-                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"
-                        invisible="state in ('draft', 'cancel', 'done')"/>
-            </xpath>
-
-            <!-- Application Test button -->
-            <xpath expr="//header" position="inside">
-                <button name="action_create_application_test"
-                        type="object"
-                        string="Create Application Test"
-                        class="btn-primary"
-                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"/>
-            </xpath>
-
-            <!-- Performance Test and Internal COA are QC-owned stage tests. -->
-            <xpath expr="//header" position="inside">
-                <button name="action_create_qc_stage_test" type="object" string="Performance Test"
-                        context="{'qc_test_kind': 'performance'}" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_chemist,base.group_system"
-                        invisible="state in ('draft', 'cancel', 'done')"/>
-                <button name="action_create_qc_stage_test" type="object" string="Internal COA"
-                        context="{'qc_test_kind': 'internal_coa'}" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_chemist,base.group_system"
-                        invisible="state in ('draft', 'cancel', 'done')"/>
-            </xpath>
-            <xpath expr="//sheet" position="inside">
-                <group string="QC Batch Eligibility" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_chemist,base.group_system">
-                    <field name="qc_performance_required"/>
-                    <field name="qc_performance_state"/>
-                    <field name="qc_internal_coa_state"/>
-                    <field name="qc_batch_eligible" widget="boolean_toggle" readonly="1"/>
-                </group>
-            </xpath>
-
-            <!-- Request Unloading button -->
             <xpath expr="//header" position="inside">
                 <button name="action_create_unloading_request"
                         type="object"
                         string="Request Unloading"
                         class="btn-primary"
-                        groups="rsd_quality.group_unloading_request_supervisor,base.group_system"
+                        groups="rsd_quality.group_unloading_request_supervisor"
                         invisible="state in ('draft', 'cancel', 'done')"/>
             </xpath>
-
-            <!-- In-Process Tests smart button -->
-            <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_view_inprocess_tests"
-                        type="object"
-                        class="oe_stat_button"
-                        icon="fa-flask"
-                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system">
-                    <field name="inprocess_test_count"
-                           widget="statinfo"
-                           string="In-Process Tests"/>
-                </button>
-            </xpath>
-
-            <!-- Application Tests smart button -->
-            <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_view_application_tests"
-                        type="object"
-                        class="oe_stat_button"
-                        icon="fa-flask"
-                        groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system">
-                    <field name="application_test_count"
-                           widget="statinfo"
-                           string="Application Tests"/>
-                </button>
-            </xpath>
-
-            <!-- Unloading Requests smart button -->
-            <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_view_unloading_requests"
-                        type="object"
-                        class="oe_stat_button"
-                        icon="fa-truck"
-                        groups="rsd_quality.group_unloading_request_supervisor,rsd_quality.group_unloading_request_chemist,base.group_system">
-                    <field name="unloading_request_count"
-                           widget="statinfo"
-                           string="Unloading Requests"/>
-                </button>
-            </xpath>
-
         </field>
     </record>
 </odoo>

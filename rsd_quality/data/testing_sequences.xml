@@ -12,10 +12,4 @@
         <field name="prefix">AT/%(year)s/</field>
         <field name="padding">5</field>
     </record>
-    <record id="seq_rsd_quality_inprocess_test" model="ir.sequence">
-        <field name="name">In-Process Test</field>
-        <field name="code">rsd.quality.inprocess.test</field>
-        <field name="prefix">IPT/%(year)s/</field>
-        <field name="padding">5</field>
-    </record>
 </odoo>

@@ -1,14 +1,15 @@
 {
     'name': 'RSD Quality Customizations',
     'icon': '/rsd_quality/static/description/icon.png',
-    'version': '18.0.1.3.0',
+    'version': '18.0.1.3.1',
     'category': 'Quality/Quality',
-    'summary': 'Production unloading requests, sample, in-process and application testing',
+    'summary': 'Production unloading requests, Performance Testing and Internal COA',
     'description': """
         - Restricts Quality Checks (Pass/Fail) strictly to the Quality Department.
         - Provides the Production Supervisor to Production Chemist unloading request workflow.
         - Provides product-wise QC specification templates and automatic Performance Test / Internal COA evaluation.
-        - Allows In-Process Tests to be created directly from a Manufacturing Order; Work Order / Operation integration is deferred.
+        - Uses the QC Performance Test workflow for application/performance testing.
+        - Shows only the Request Unloading action on Manufacturing Orders, restricted to Production Supervisors.
     """,
     'author': 'RSD Polymers',
     'depends': ['quality_control', 'hr', 'mrp', 'mail', 'rsd_qa_management'],

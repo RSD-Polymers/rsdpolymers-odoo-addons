@@ -40,17 +40,11 @@
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
-    <record id="rule_rsd_quality_inprocess_test_company" model="ir.rule">
-        <field name="name">In-Process Tests: allowed companies</field>
-        <field name="model_id" ref="model_rsd_quality_inprocess_test"/>
-        <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('group_unloading_request_supervisor')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
-        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
-    </record>
 
     <record id="rule_rsd_quality_test_line_company" model="ir.rule">
         <field name="name">Quality Test Lines: allowed companies</field>
         <field name="model_id" ref="model_rsd_quality_test_line"/>
         <field name="groups" eval="[(4, ref('group_quality_test_user')), (4, ref('group_unloading_request_supervisor')), (4, ref('rsd_qa_management.group_qa_officer')), (4, ref('base.group_system'))]"/>
-        <field name="domain_force">['|', '|', ('sample_test_id.company_id', 'in', company_ids), ('application_test_id.company_id', 'in', company_ids), ('in_process_test_id.company_id', 'in', company_ids)]</field>
+        <field name="domain_force">['|', ('sample_test_id.company_id', 'in', company_ids), ('application_test_id.company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

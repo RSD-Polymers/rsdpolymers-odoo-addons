@@ -42,13 +42,9 @@ class RSDQualityTestMixin(models.AbstractModel):
     application_line_ids = fields.One2many(
         'rsd.quality.test.line', 'application_test_id', string='Test Parameters',
     )
-    in_process_line_ids = fields.One2many(
-        'rsd.quality.test.line', 'in_process_test_id', string='Test Parameters',
-    )
     test_type = fields.Selection([
         ('sample', 'Sample'),
         ('application', 'Application'),
-        ('in_process', 'In-Process'),
     ], required=True, default='sample')
 
     def _check_test_user(self):
@@ -66,7 +62,6 @@ class RSDQualityTestMixin(models.AbstractModel):
         sequence_codes = {
             'rsd.quality.sample.test': 'rsd.quality.sample.test',
             'rsd.quality.application.test': 'rsd.quality.application.test',
-            'rsd.quality.inprocess.test': 'rsd.quality.inprocess.test',
         }
         for vals in vals_list:
             if vals.get('state', 'draft') != 'draft':
@@ -115,7 +110,7 @@ class RSDQualityTestMixin(models.AbstractModel):
             return self.sample_line_ids
         if self._name == 'rsd.quality.application.test':
             return self.application_line_ids
-        return self.in_process_line_ids
+        return self.application_line_ids
 
     def action_start(self):
         self._check_test_user()
@@ -242,16 +237,6 @@ class RSDQualityApplicationTest(models.Model):
     test_method = fields.Text(string='Application Test Method')
 
 
-class RSDQualityInProcessTest(models.Model):
-    _name = 'rsd.quality.inprocess.test'
-    _description = 'In-Process Test'
-    _inherit = 'rsd.quality.test.mixin'
-    _order = 'test_date desc, id desc'
-
-    test_type = fields.Selection(default='in_process', required=True)
-    process_stage = fields.Char(string='Process Stage / Checkpoint', tracking=True)
-
-
 class RSDQualityTestLine(models.Model):
     _name = 'rsd.quality.test.line'
     _description = 'Quality Test Parameter Result'
@@ -260,7 +245,6 @@ class RSDQualityTestLine(models.Model):
     sequence = fields.Integer(default=10)
     sample_test_id = fields.Many2one('rsd.quality.sample.test', ondelete='cascade', index=True)
     application_test_id = fields.Many2one('rsd.quality.application.test', ondelete='cascade', index=True)
-    in_process_test_id = fields.Many2one('rsd.quality.inprocess.test', ondelete='cascade', index=True)
     parameter = fields.Char(required=True)
     specification = fields.Char(string='Acceptance Criteria')
     result_value = fields.Char(string='Observed Result', required=True)
@@ -277,14 +261,13 @@ class RSDQualityTestLine(models.Model):
 
     def _get_parent(self, vals=None):
         vals = vals or {}
-        parent_fields = ('sample_test_id', 'application_test_id', 'in_process_test_id')
+        parent_fields = ('sample_test_id', 'application_test_id')
         selected = [(field_name, vals.get(field_name)) for field_name in parent_fields if vals.get(field_name)]
         if len(selected) != 1:
-            raise ValidationError(_('A result line must belong to exactly one Sample, Application or In-Process Test.'))
+            raise ValidationError(_('A result line must belong to exactly one Sample or Application Test.'))
         model_by_field = {
             'sample_test_id': 'rsd.quality.sample.test',
             'application_test_id': 'rsd.quality.application.test',
-            'in_process_test_id': 'rsd.quality.inprocess.test',
         }
         field_name, record_id = selected[0]
         return self.env[model_by_field[field_name]].browse(record_id).exists()
@@ -300,10 +283,10 @@ class RSDQualityTestLine(models.Model):
 
     def write(self, vals):
         self._check_line_editor()
-        if {'sample_test_id', 'application_test_id', 'in_process_test_id'}.intersection(vals):
+        if {'sample_test_id', 'application_test_id'}.intersection(vals):
             raise UserError(_('A result line cannot be moved between tests.'))
         for line in self:
-            parent = line.sample_test_id or line.application_test_id or line.in_process_test_id
+            parent = line.sample_test_id or line.application_test_id
             if parent.state not in ('draft', 'in_progress'):
                 raise UserError(_('Test parameters cannot be changed after submission.'))
         return super().write(vals)
@@ -311,16 +294,16 @@ class RSDQualityTestLine(models.Model):
     def unlink(self):
         self._check_line_editor()
         for line in self:
-            parent = line.sample_test_id or line.application_test_id or line.in_process_test_id
+            parent = line.sample_test_id or line.application_test_id
             if parent.state not in ('draft', 'in_progress'):
                 raise UserError(_('Test parameters cannot be deleted after submission.'))
         return super().unlink()
 
-    @api.constrains('sample_test_id', 'application_test_id', 'in_process_test_id')
+    @api.constrains('sample_test_id', 'application_test_id')
     def _check_single_parent(self):
         for line in self:
             parent_count = sum(bool(line[field_name]) for field_name in (
-                'sample_test_id', 'application_test_id', 'in_process_test_id',
+                'sample_test_id', 'application_test_id',
             ))
             if parent_count != 1:
-                raise ValidationError(_('A result line must belong to exactly one Sample, Application or In-Process Test.'))
+                raise ValidationError(_('A result line must belong to exactly one Sample or Application Test.'))
