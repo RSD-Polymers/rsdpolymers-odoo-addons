@@ -14,12 +14,16 @@ class MrpProduction(models.Model):
     def action_create_unloading_request(self):
         self.ensure_one()
 
-        # Only Production Supervisors can request unloading.
-        if not self.env.user.has_group(
-            "rsd_quality.group_unloading_request_supervisor"
+        # Allow Production Supervisors and System Administrators.
+        if not (
+                self.env.user.has_group("rsd_quality.group_unloading_request_supervisor")
+                or self.env.user.has_group("base.group_system")
         ):
             raise AccessError(
-                _("Only a Production Supervisor can request unloading.")
+                _(
+                    "Only a Production Supervisor or System Administrator "
+                    "can request unloading."
+                )
             )
 
         # Prevent requests for draft, cancelled or completed MOs.

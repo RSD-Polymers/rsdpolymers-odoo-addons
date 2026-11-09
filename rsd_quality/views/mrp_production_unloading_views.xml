@@ -11,7 +11,7 @@
                         type="object"
                         string="Request Unloading"
                         class="btn-primary"
-                        groups="rsd_quality.group_unloading_request_supervisor"
+                        groups="rsd_quality.group_unloading_request_supervisor,base.group_system"
                         invisible="state in ('draft', 'cancel', 'done')"/>
             </xpath>
 
