@@ -43,6 +43,7 @@ class QualityUnloadingRequest(models.Model):
         ("draft", "Draft"),
         ("submitted", "Waiting for Chemist"),
         ("accepted", "Accepted"),
+        ("modification_required", "Modification Required"),
         ("rejected", "Rejected"),
         ("cancelled", "Cancelled"),
     ], string="Status", default="draft", required=True, tracking=True, index=True)
@@ -55,8 +56,20 @@ class QualityUnloadingRequest(models.Model):
     reviewed_on = fields.Datetime(string="Reviewed On", readonly=True, tracking=True)
     rejection_reason = fields.Text(string="Rejection Reason", tracking=True)
     remarks = fields.Text(string="Remarks")
+    analysis_template_id = fields.Many2one("rsd.quality.spec.template", string="Unloading Analysis Format", domain="[('product_id', '=', product_id), ('test_kind', '=', 'unloading'), ('active', '=', True)]", tracking=True)
+    analysis_cycle_ids = fields.One2many("rsd.quality.unloading.analysis", "request_id", string="Analysis History", copy=False)
+    current_analysis_id = fields.Many2one("rsd.quality.unloading.analysis", compute="_compute_current_analysis", string="Current Analysis")
+    modification_description = fields.Text(string="Modification Required")
+    modification_done_by = fields.Many2one("res.users", string="Modification Completed By", readonly=True)
+    modification_done_on = fields.Datetime(string="Modification Completed On", readonly=True)
     can_submit = fields.Boolean(compute="_compute_permissions")
     can_review = fields.Boolean(compute="_compute_permissions")
+
+    @api.depends("analysis_cycle_ids", "analysis_cycle_ids.cycle_no")
+    def _compute_current_analysis(self):
+        for request in self:
+            cycles = request.analysis_cycle_ids.sorted(lambda c: (c.cycle_no, c.id))
+            request.current_analysis_id = cycles[-1] if cycles else False
 
     @api.depends_context("uid")
     def _compute_permissions(self):
@@ -100,7 +113,7 @@ class QualityUnloadingRequest(models.Model):
                     ))
                 duplicate = self.search([
                     ("production_id", "=", production.id),
-                    ("state", "in", ("draft", "submitted", "accepted")),
+                    ("state", "in", ("draft", "submitted", "accepted", "modification_required")),
                 ], limit=1)
                 if duplicate:
                     raise ValidationError(_(
@@ -110,7 +123,7 @@ class QualityUnloadingRequest(models.Model):
 
     def write(self, vals):
         protected = {"name", "production_id", "requested_by", "request_date", "state",
-                     "reviewed_by", "reviewed_on"}
+                     "reviewed_by", "reviewed_on", "analysis_cycle_ids", "modification_done_by", "modification_done_on"}
         if protected.intersection(vals):
             raise UserError(_("Use the workflow buttons to update request status and review details."))
         review_fields = {"planned_unloading_datetime", "rejection_reason"}.intersection(vals)
@@ -140,13 +153,48 @@ class QualityUnloadingRequest(models.Model):
             request.message_post(body=_("Unloading request submitted for Production Chemist review."))
         return True
 
+    def action_start_analysis(self):
+        self.ensure_one()
+        self._check_chemist()
+        if self.state != "submitted":
+            raise UserError(_("Only submitted requests can be analysed."))
+        template = self.analysis_template_id or self.env["rsd.quality.spec.template"].search([
+            ("product_id", "=", self.product_id.id), ("test_kind", "=", "unloading"),
+            ("company_id", "in", [self.company_id.id, False]), ("active", "=", True),
+        ], limit=1)
+        if not template:
+            raise ValidationError(_("Configure an Unloading Analysis template for this product first."))
+        if not self.analysis_template_id:
+            self.analysis_template_id = template
+        pending_cycle = self.analysis_cycle_ids.filtered(lambda cycle: cycle.result == "pending").sorted("cycle_no")[-1:]
+        if pending_cycle:
+            return {"type": "ir.actions.act_window", "name": _("Unloading Analysis"), "res_model": "rsd.quality.unloading.analysis", "view_mode": "form", "res_id": pending_cycle.id, "target": "current"}
+        cycle_no = max(self.analysis_cycle_ids.mapped("cycle_no") or [0]) + 1
+        cycle = self.env["rsd.quality.unloading.analysis"].create({
+            "request_id": self.id, "cycle_no": cycle_no, "template_id": template.id,
+            "analysed_by": self.env.user.id,
+            "line_ids": [(0, 0, {"template_line_id": line.id, "sequence": line.sequence}) for line in template.line_ids],
+        })
+        self.message_post(body=_("Unloading analysis cycle %s started.") % cycle_no)
+        return {"type": "ir.actions.act_window", "name": _("Unloading Analysis"), "res_model": "rsd.quality.unloading.analysis", "view_mode": "form", "res_id": cycle.id, "target": "current"}
+
+    def action_complete_modification(self):
+        for request in self:
+            request._check_supervisor()
+            if request.state != "modification_required":
+                raise UserError(_("No modification is pending for this request."))
+            request._workflow_write({"state": "submitted", "modification_done_by": self.env.user.id, "modification_done_on": fields.Datetime.now()})
+            request.message_post(body=_("Physical modification completed by Production. Request resubmitted to QC for a new analysis cycle."))
+        return True
+
     def action_accept(self):
         for request in self:
             request._check_chemist()
             if request.state != "submitted":
                 raise UserError(_("Only submitted requests can be accepted."))
-            if not request.planned_unloading_datetime:
-                raise ValidationError(_("Enter the planned unloading date and time before accepting."))
+            current = request.current_analysis_id
+            if not current or current.result != "pass":
+                raise ValidationError(_("A passing unloading analysis is required before approval."))
             request._workflow_write({
                 "state": "accepted",
                 "reviewed_by": self.env.user.id,
@@ -202,3 +250,84 @@ class QualityUnloadingRequest(models.Model):
         if not (self.env.user.has_group("base.group_system") or
                 self.env.user.has_group("rsd_quality.group_unloading_request_chemist")):
             raise AccessError(_("This action is restricted to Production Chemists."))
+
+
+class RSDQualityUnloadingAnalysis(models.Model):
+    _name = "rsd.quality.unloading.analysis"
+    _description = "Unloading Analysis Cycle"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _order = "cycle_no desc, id desc"
+
+    name = fields.Char(compute="_compute_name", store=True)
+    request_id = fields.Many2one("rsd.quality.unloading.request", required=True, ondelete="cascade", index=True)
+    cycle_no = fields.Integer(required=True, default=1)
+    template_id = fields.Many2one("rsd.quality.spec.template", required=True, ondelete="restrict")
+    analysed_by = fields.Many2one("res.users", default=lambda self: self.env.user, readonly=True)
+    analysed_on = fields.Datetime(default=fields.Datetime.now, readonly=True)
+    line_ids = fields.One2many("rsd.quality.unloading.analysis.line", "analysis_id", copy=True)
+    result = fields.Selection([("pending", "Pending"), ("pass", "Pass"), ("fail", "Fail")], default="pending", readonly=True, tracking=True)
+    modification_description = fields.Text()
+    evaluated_by = fields.Many2one("res.users", readonly=True)
+    evaluated_on = fields.Datetime(readonly=True)
+
+    @api.depends("request_id.name", "cycle_no")
+    def _compute_name(self):
+        for rec in self:
+            rec.name = "%s / %s" % (rec.request_id.name or "", rec.cycle_no)
+
+    def action_evaluate(self):
+        self.ensure_one()
+        self.request_id._check_chemist()
+        if self.result != "pending":
+            raise UserError(_("This analysis cycle has already been evaluated."))
+        if not self.line_ids:
+            raise ValidationError(_("The analysis has no parameters."))
+        for line in self.line_ids:
+            if line.required and not (line.result_value or "").strip():
+                raise ValidationError(_("Enter a result for required parameter: %s") % line.name)
+        failed = self.line_ids.filtered(lambda line: (line.result_value or "").strip() and not line.is_pass)
+        if failed:
+            if not (self.modification_description or "").strip():
+                raise ValidationError(_("Describe the physical modification required before submitting a failed analysis."))
+            self.write({"result": "fail", "evaluated_by": self.env.user.id, "evaluated_on": fields.Datetime.now()})
+            self.request_id._workflow_write({"state": "modification_required", "modification_description": self.modification_description, "reviewed_by": self.env.user.id, "reviewed_on": fields.Datetime.now()})
+            self.request_id.message_post(body=_("Unloading analysis failed. Production modification required: %s") % self.modification_description)
+        else:
+            self.write({"result": "pass", "evaluated_by": self.env.user.id, "evaluated_on": fields.Datetime.now()})
+            self.request_id._workflow_write({"state": "accepted", "reviewed_by": self.env.user.id, "reviewed_on": fields.Datetime.now(), "modification_description": False})
+            self.request_id.message_post(body=_("Unloading analysis passed. Unloading request automatically approved."))
+        return True
+
+
+class RSDQualityUnloadingAnalysisLine(models.Model):
+    _name = "rsd.quality.unloading.analysis.line"
+    _description = "Unloading Analysis Result"
+    _order = "sequence, id"
+
+    analysis_id = fields.Many2one("rsd.quality.unloading.analysis", required=True, ondelete="cascade")
+    sequence = fields.Integer(default=10)
+    template_line_id = fields.Many2one("rsd.quality.spec.template.line", required=True, ondelete="restrict")
+    name = fields.Char(related="template_line_id.name", store=True)
+    value_type = fields.Selection(related="template_line_id.value_type", store=True)
+    min_value = fields.Float(related="template_line_id.min_value", store=True)
+    max_value = fields.Float(related="template_line_id.max_value", store=True)
+    expected_text = fields.Char(related="template_line_id.expected_text", store=True)
+    uom_id = fields.Many2one(related="template_line_id.uom_id", store=True)
+    required = fields.Boolean(related="template_line_id.required", store=True)
+    result_value = fields.Char()
+    is_pass = fields.Boolean(compute="_compute_is_pass", store=True)
+
+    @api.depends("result_value", "value_type", "min_value", "max_value", "expected_text")
+    def _compute_is_pass(self):
+        for rec in self:
+            value = (rec.result_value or "").strip()
+            if rec.value_type == "number":
+                try:
+                    number = float(value)
+                    rec.is_pass = number >= rec.min_value and (not rec.max_value or number <= rec.max_value)
+                except (TypeError, ValueError):
+                    rec.is_pass = False
+            elif rec.value_type == "yes_no":
+                rec.is_pass = value.lower() in ("yes", "true", "1")
+            else:
+                rec.is_pass = value.casefold() == (rec.expected_text or "").strip().casefold()

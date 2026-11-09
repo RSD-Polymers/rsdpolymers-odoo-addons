@@ -53,16 +53,18 @@
                     <field name="can_review" invisible="1"/>
                     <button name="action_submit" type="object" string="Submit to Chemist"
                             class="btn-primary" invisible="state != 'draft' or not can_submit"/>
-                    <button name="action_accept" type="object" string="Accept"
+                    <button name="action_start_analysis" type="object" string="Start / Continue Analysis"
                             class="btn-primary" invisible="state != 'submitted' or not can_review"/>
                     <button name="action_reject" type="object" string="Reject"
                             class="btn-secondary" invisible="state != 'submitted' or not can_review"/>
+                    <button name="action_complete_modification" type="object" string="Physical Modification Done &amp; Resubmit"
+                            class="btn-primary" invisible="state != 'modification_required' or not can_submit"/>
                     <button name="action_reset_to_draft" type="object" string="Reset to Draft"
                             invisible="state != 'rejected' or not can_submit"/>
                     <button name="action_cancel" type="object" string="Cancel"
                             invisible="state not in ('draft', 'submitted', 'rejected') or not can_submit"/>
                     <field name="state" widget="statusbar"
-                           statusbar_visible="draft,submitted,accepted,rejected,cancelled"/>
+                           statusbar_visible="draft,submitted,modification_required,accepted,rejected,cancelled"/>
                 </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="name"/></h1></div>
@@ -88,6 +90,28 @@
                                readonly="state != 'submitted' or not can_review"
                                invisible="state != 'submitted' and not rejection_reason"/>
                     </group>
+                    <group string="Unloading Analysis">
+                        <field name="analysis_template_id" readonly="state not in ('draft', 'submitted')"/>
+                        <field name="current_analysis_id" readonly="1"/>
+                        <field name="modification_description" readonly="1" invisible="not modification_description"/>
+                        <field name="modification_done_by" readonly="1" invisible="not modification_done_by"/>
+                        <field name="modification_done_on" readonly="1" invisible="not modification_done_on"/>
+                    </group>
+                    <notebook>
+                        <page string="Analysis History">
+                            <field name="analysis_cycle_ids" readonly="1">
+                                <list>
+                                    <field name="cycle_no"/>
+                                    <field name="template_id"/>
+                                    <field name="analysed_by"/>
+                                    <field name="analysed_on"/>
+                                    <field name="result" widget="badge"/>
+                                    <field name="evaluated_by"/>
+                                    <field name="evaluated_on"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                     <group string="Remarks">
                         <field name="remarks" readonly="state != 'draft' or not can_submit" nolabel="1"/>
                     </group>

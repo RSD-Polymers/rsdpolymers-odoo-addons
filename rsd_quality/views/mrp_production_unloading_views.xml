@@ -25,6 +25,24 @@
                         groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_supervisor,rsd_qa_management.group_qa_officer,base.group_system"/>
             </xpath>
 
+            <!-- Performance Test and Internal COA are QC-owned stage tests. -->
+            <xpath expr="//header" position="inside">
+                <button name="action_create_qc_stage_test" type="object" string="Performance Test"
+                        context="{'qc_test_kind': 'performance'}" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_chemist,base.group_system"
+                        invisible="state in ('draft', 'cancel', 'done')"/>
+                <button name="action_create_qc_stage_test" type="object" string="Internal COA"
+                        context="{'qc_test_kind': 'internal_coa'}" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_chemist,base.group_system"
+                        invisible="state in ('draft', 'cancel', 'done')"/>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group string="QC Batch Eligibility" groups="rsd_quality.group_quality_test_user,rsd_quality.group_unloading_request_chemist,base.group_system">
+                    <field name="qc_performance_required"/>
+                    <field name="qc_performance_state"/>
+                    <field name="qc_internal_coa_state"/>
+                    <field name="qc_batch_eligible" widget="boolean_toggle" readonly="1"/>
+                </group>
+            </xpath>
+
             <!-- Request Unloading button -->
             <xpath expr="//header" position="inside">
                 <button name="action_create_unloading_request"
