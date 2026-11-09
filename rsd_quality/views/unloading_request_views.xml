@@ -51,6 +51,8 @@
                 <header>
                     <field name="can_submit" invisible="1"/>
                     <field name="can_review" invisible="1"/>
+                    <field name="can_complete_modification" invisible="1"/>
+                    <field name="is_system_admin" invisible="1"/>
                     <button name="action_submit" type="object" string="Submit to Chemist"
                             class="btn-primary" invisible="state != 'draft' or not can_submit"/>
                     <button name="action_start_analysis" type="object" string="Start / Continue Analysis"
@@ -58,7 +60,7 @@
                     <button name="action_reject" type="object" string="Reject"
                             class="btn-secondary" invisible="state != 'submitted' or not can_review"/>
                     <button name="action_complete_modification" type="object" string="Physical Modification Done &amp; Resubmit"
-                            class="btn-primary" invisible="state != 'modification_required' or not can_submit"/>
+                            class="btn-primary" invisible="state != 'modification_required' or not can_complete_modification"/>
                     <button name="action_reset_to_draft" type="object" string="Reset to Draft"
                             invisible="state != 'rejected' or not can_submit"/>
                     <button name="action_cancel" type="object" string="Cancel"
@@ -70,36 +72,40 @@
                     <div class="oe_title"><h1><field name="name"/></h1></div>
                     <group>
                         <group string="Manufacturing Details">
-                            <field name="production_id" readonly="state != 'draft'"/>
+                            <field name="production_id" readonly="not is_system_admin"/>
                             <field name="product_id"/>
                             <field name="product_qty"/>
                             <field name="product_uom_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group string="Request Details">
-                            <field name="requested_by"/>
-                            <field name="request_date"/>
-                            <field name="reviewed_by" invisible="not reviewed_by"/>
-                            <field name="reviewed_on" invisible="not reviewed_on"/>
+                            <field name="requested_by" readonly="not is_system_admin"/>
+                            <field name="request_date" readonly="not is_system_admin"/>
+                            <field name="reviewed_by" readonly="not is_system_admin" invisible="not reviewed_by"/>
+                            <field name="reviewed_on" readonly="not is_system_admin" invisible="not reviewed_on"/>
                         </group>
                     </group>
                     <group string="Chemist Review">
                         <field name="planned_unloading_datetime"
-                               readonly="state != 'submitted' or not can_review"/>
+                               readonly="(state != 'submitted' or not can_review) and not is_system_admin"/>
                         <field name="rejection_reason"
-                               readonly="state != 'submitted' or not can_review"
+                               readonly="(state != 'submitted' or not can_review) and not is_system_admin"
                                invisible="state != 'submitted' and not rejection_reason"/>
                     </group>
                     <group string="Unloading Analysis">
-                        <field name="analysis_template_id" readonly="state not in ('draft', 'submitted')"/>
+                        <field name="analysis_template_id" readonly="(state not in ('draft', 'submitted') or not can_review) and not is_system_admin"/>
                         <field name="current_analysis_id" readonly="1"/>
-                        <field name="modification_description" readonly="1" invisible="not modification_description"/>
-                        <field name="modification_done_by" readonly="1" invisible="not modification_done_by"/>
-                        <field name="modification_done_on" readonly="1" invisible="not modification_done_on"/>
+                        <field name="modification_description" readonly="not is_system_admin" invisible="not modification_description"/>
+                        <field name="modification_done_description"
+                               readonly="(state != 'modification_required' or not can_complete_modification) and not is_system_admin"
+                               invisible="state != 'modification_required' and not modification_done_description and not is_system_admin"
+                               placeholder="Describe what was physically modified by Production..."/>
+                        <field name="modification_done_by" readonly="not is_system_admin" invisible="not modification_done_by"/>
+                        <field name="modification_done_on" readonly="not is_system_admin" invisible="not modification_done_on"/>
                     </group>
                     <notebook>
                         <page string="Analysis History">
-                            <field name="analysis_cycle_ids" readonly="1">
+                            <field name="analysis_cycle_ids" readonly="not is_system_admin">
                                 <list>
                                     <field name="cycle_no"/>
                                     <field name="template_id"/>
@@ -113,7 +119,7 @@
                         </page>
                     </notebook>
                     <group string="Remarks">
-                        <field name="remarks" readonly="state != 'draft' or not can_submit" nolabel="1"/>
+                        <field name="remarks" readonly="(state != 'draft' or not can_submit) and not is_system_admin" nolabel="1"/>
                     </group>
                 </sheet>
                 <chatter/>

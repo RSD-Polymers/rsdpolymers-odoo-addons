@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Keep the original external ID so the existing database view is updated. -->
     <record id="mrp_production_form_unloading_request" model="ir.ui.view">
         <field name="name">mrp.production.form.rsd.unloading.request</field>
         <field name="model">mrp.production</field>
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
-
             <xpath expr="//header" position="inside">
                 <button name="action_create_unloading_request"
                         type="object"
@@ -14,7 +14,16 @@
                         groups="rsd_quality.group_unloading_request_supervisor,base.group_system"
                         invisible="state in ('draft', 'cancel', 'done')"/>
             </xpath>
-
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_unloading_requests"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-flask"
+                        groups="rsd_quality.group_unloading_request_supervisor,base.group_system,rsd_quality.group_unloading_request_chemist"
+                        invisible="unloading_request_count == 0">
+                    <field name="unloading_request_count" widget="statinfo" string="Unloading Request"/>
+                </button>
+            </xpath>
         </field>
     </record>
 </odoo>

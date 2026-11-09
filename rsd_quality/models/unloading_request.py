@@ -60,10 +60,16 @@ class QualityUnloadingRequest(models.Model):
     analysis_cycle_ids = fields.One2many("rsd.quality.unloading.analysis", "request_id", string="Analysis History", copy=False)
     current_analysis_id = fields.Many2one("rsd.quality.unloading.analysis", compute="_compute_current_analysis", string="Current Analysis")
     modification_description = fields.Text(string="Modification Required")
+    modification_done_description = fields.Text(
+        string="Modification Done Description", tracking=True,
+        help="Record the physical changes actually carried out by Production before resubmitting to QC.",
+    )
     modification_done_by = fields.Many2one("res.users", string="Modification Completed By", readonly=True)
     modification_done_on = fields.Datetime(string="Modification Completed On", readonly=True)
     can_submit = fields.Boolean(compute="_compute_permissions")
     can_review = fields.Boolean(compute="_compute_permissions")
+    can_complete_modification = fields.Boolean(compute="_compute_permissions")
+    is_system_admin = fields.Boolean(compute="_compute_permissions")
 
     @api.depends("analysis_cycle_ids", "analysis_cycle_ids.cycle_no")
     def _compute_current_analysis(self):
@@ -74,12 +80,14 @@ class QualityUnloadingRequest(models.Model):
     @api.depends_context("uid")
     def _compute_permissions(self):
         user = self.env.user
-        is_admin = user.has_group("base.group_system")
+        is_admin = user.has_group("base.group_system") or self.env.uid == 1
         is_supervisor = user.has_group("rsd_quality.group_unloading_request_supervisor")
         is_chemist = user.has_group("rsd_quality.group_unloading_request_chemist")
         for request in self:
             request.can_submit = is_admin or is_supervisor
             request.can_review = is_admin or is_chemist
+            request.can_complete_modification = is_admin or is_supervisor
+            request.is_system_admin = is_admin
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -122,6 +130,21 @@ class QualityUnloadingRequest(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        # System Administrators have full model-level access throughout this workflow.
+        if self.env.user.has_group("base.group_system") or self.env.uid == 1:
+            return super().write(vals)
+
+        is_supervisor = self.env.user.has_group("rsd_quality.group_unloading_request_supervisor")
+        is_chemist = self.env.user.has_group("rsd_quality.group_unloading_request_chemist")
+        allowed_fields = set()
+        if is_supervisor:
+            allowed_fields.update({"remarks", "modification_done_description"})
+        if is_chemist:
+            allowed_fields.update({"planned_unloading_datetime", "rejection_reason", "analysis_template_id"})
+        unexpected_fields = set(vals) - allowed_fields
+        if unexpected_fields:
+            raise AccessError(_("You are not allowed to edit these unloading request fields: %s") % ", ".join(sorted(unexpected_fields)))
+
         protected = {"name", "production_id", "requested_by", "request_date", "state",
                      "reviewed_by", "reviewed_on", "analysis_cycle_ids", "modification_done_by", "modification_done_on"}
         if protected.intersection(vals):
@@ -131,11 +154,21 @@ class QualityUnloadingRequest(models.Model):
             self._check_chemist()
             if any(request.state != "submitted" for request in self):
                 raise UserError(_("The unloading plan and rejection reason can only be entered while awaiting Chemist review."))
+        if "analysis_template_id" in vals:
+            self._check_chemist()
+            if any(request.state not in ("draft", "submitted") for request in self):
+                raise UserError(_("The analysis template can only be selected before or during Chemist review."))
         if "remarks" in vals:
             for request in self:
                 if request.state != "draft":
                     raise UserError(_("Remarks can only be edited while the request is in Draft."))
                 request._check_supervisor()
+
+        if "modification_done_description" in vals:
+            self._check_supervisor()
+            for request in self:
+                if request.state != "modification_required":
+                    raise UserError(_("The physical modification description can only be edited while modification is required."))
         return super().write(vals)
 
     def _workflow_write(self, vals):
@@ -183,8 +216,16 @@ class QualityUnloadingRequest(models.Model):
             request._check_supervisor()
             if request.state != "modification_required":
                 raise UserError(_("No modification is pending for this request."))
-            request._workflow_write({"state": "submitted", "modification_done_by": self.env.user.id, "modification_done_on": fields.Datetime.now()})
-            request.message_post(body=_("Physical modification completed by Production. Request resubmitted to QC for a new analysis cycle."))
+            description = (request.modification_done_description or "").strip()
+            if not description:
+                raise ValidationError(_("Describe the physical modification actually completed before resubmitting to QC."))
+            request._workflow_write({
+                "state": "submitted",
+                "modification_done_description": description,
+                "modification_done_by": self.env.user.id,
+                "modification_done_on": fields.Datetime.now(),
+            })
+            request.message_post(body=_("Physical modification completed by Production. Details: %s. Request resubmitted to QC for a new analysis cycle.") % description)
         return True
 
     def action_accept(self):
@@ -242,12 +283,12 @@ class QualityUnloadingRequest(models.Model):
         return True
 
     def _check_supervisor(self):
-        if not (self.env.user.has_group("base.group_system") or
+        if not (self.env.uid == 1 or self.env.user.has_group("base.group_system") or
                 self.env.user.has_group("rsd_quality.group_unloading_request_supervisor")):
             raise AccessError(_("This action is restricted to Production Supervisors."))
 
     def _check_chemist(self):
-        if not (self.env.user.has_group("base.group_system") or
+        if not (self.env.uid == 1 or self.env.user.has_group("base.group_system") or
                 self.env.user.has_group("rsd_quality.group_unloading_request_chemist")):
             raise AccessError(_("This action is restricted to Production Chemists."))
 
@@ -269,6 +310,16 @@ class RSDQualityUnloadingAnalysis(models.Model):
     modification_description = fields.Text()
     evaluated_by = fields.Many2one("res.users", readonly=True)
     evaluated_on = fields.Datetime(readonly=True)
+    is_system_admin = fields.Boolean(compute="_compute_analysis_permissions")
+    can_edit_analysis = fields.Boolean(compute="_compute_analysis_permissions")
+
+    @api.depends_context("uid")
+    def _compute_analysis_permissions(self):
+        is_admin = self.env.user.has_group("base.group_system") or self.env.uid == 1
+        can_edit = is_admin or self.env.user.has_group("rsd_quality.group_unloading_request_chemist")
+        for rec in self:
+            rec.is_system_admin = is_admin
+            rec.can_edit_analysis = can_edit
 
     @api.depends("request_id.name", "cycle_no")
     def _compute_name(self):

@@ -8,11 +8,13 @@
  <record id="qc_unloading_analysis_view_form" model="ir.ui.view">
   <field name="name">rsd.quality.unloading.analysis.form</field><field name="model">rsd.quality.unloading.analysis</field>
   <field name="arch" type="xml"><form string="Unloading Analysis"><header>
-   <button name="action_evaluate" type="object" string="Evaluate &amp; Submit" class="btn-primary" invisible="result != 'pending'"/>
-   <field name="result" widget="statusbar" statusbar_visible="pending,pass,fail"/>
+   <button name="action_evaluate" type="object" string="Evaluate &amp; Submit" class="btn-primary" invisible="result != 'pending' or not can_edit_analysis"/>
+   <field name="result" widget="statusbar" statusbar_visible="pending,pass,fail" readonly="not is_system_admin"/>
   </header><sheet><group><group><field name="name"/><field name="request_id"/><field name="cycle_no"/><field name="template_id"/></group><group><field name="analysed_by"/><field name="analysed_on"/><field name="evaluated_by"/><field name="evaluated_on"/></group></group>
-   <field name="line_ids" readonly="result != 'pending'"><list editable="bottom"><field name="sequence"/><field name="template_line_id"/><field name="name"/><field name="value_type"/><field name="result_value"/><field name="min_value"/><field name="max_value"/><field name="expected_text"/><field name="uom_id"/><field name="is_pass"/></list></field>
-   <group string="If Analysis Fails"><field name="modification_description" readonly="result != 'pending'" placeholder="Describe the physical modification required from Production..."/></group>
+   <field name="is_system_admin" invisible="1"/>
+   <field name="can_edit_analysis" invisible="1"/>
+   <field name="line_ids" readonly="(result != 'pending' or not can_edit_analysis) and not is_system_admin"><list editable="bottom"><field name="sequence"/><field name="template_line_id"/><field name="name"/><field name="value_type"/><field name="result_value"/><field name="min_value"/><field name="max_value"/><field name="expected_text"/><field name="uom_id"/><field name="is_pass"/></list></field>
+   <group string="If Analysis Fails"><field name="modification_description" readonly="(result != 'pending' or not can_edit_analysis) and not is_system_admin" placeholder="Describe the physical modification required from Production..."/></group>
   </sheet><chatter/></form></field>
  </record>
 
