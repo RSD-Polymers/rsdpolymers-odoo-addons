@@ -13,6 +13,25 @@
                         <field name="allow_production_request_mo_pi"/>
                     </setting>
                 </block>
+                <block title="Output Form Controls" name="rsd_output_form_settings">
+                    <setting id="enable_rm_consumption_variance_tracking"
+                             string="Enable Raw Material Consumption Variance Tracking"
+                             help="Compare planned BoM consumption with actual raw material consumption on the Output Form.">
+                        <field name="enable_rm_consumption_variance_tracking"/>
+                    </setting>
+                    <setting id="require_rm_consumption_variance_reason"
+                             string="Require Reason for Additional Consumption"
+                             help="Require an explanation when actual raw material consumption exceeds planned consumption."
+                             invisible="not enable_rm_consumption_variance_tracking">
+                        <field name="require_rm_consumption_variance_reason"/>
+                    </setting>
+                    <setting id="allow_rm_consumption_variance_reason_breakdown"
+                             string="Allow Quantity-wise Reason Breakdown"
+                             help="Allow additional consumption to be recorded as separate reason and quantity lines."
+                             invisible="not enable_rm_consumption_variance_tracking">
+                        <field name="allow_rm_consumption_variance_reason_breakdown"/>
+                    </setting>
+                </block>
             </xpath>
         </field>
     </record>

@@ -1,7 +1,7 @@
 {
     "name": "RSD Polymer Production",
     'icon': '/rsd_sales/static/description/icon.png',
-    "version": "18.0.1.1",
+    "version": "18.0.1.2",
     "summary": "Production Module Customization",
     'description': """
         This is RSD Polymer Customization module for Sales.
