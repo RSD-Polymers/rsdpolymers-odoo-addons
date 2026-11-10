@@ -1,16 +1,17 @@
 {
     "name": "RSD Polymer Production",
     'icon': '/rsd_sales/static/description/icon.png',
-    "version": "18.0.1.2",
+    "version": "18.0.1.3",
     "summary": "Production Module Customization",
     'description': """
         This is RSD Polymer Customization module for Sales.
         """,
     'author': 'RSD Polymer',
     'website': 'https://www.rsdpolymers.com/',
-    "depends": ["stock", "sale", "account", "rsd_sales", "mrp", "product", "hr", "web_studio"],
+    "depends": ["stock", "sale", "account", "rsd_sales", "mrp", "product", "hr", "web_studio", "rsd_quality"],
     "data": [
         "data/sequence.xml",
+        "views/output_form_views.xml",
         "security/production_request_security.xml",
         "security/ir.model.access.csv",
         "reports/delivery_challan_report.xml",

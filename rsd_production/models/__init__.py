@@ -18,3 +18,6 @@ from . import res_config_settings
 from . import mail_activity
 
 from . import production_request_feedback_wizard
+
+from . import output_form
+from . import stock_move
