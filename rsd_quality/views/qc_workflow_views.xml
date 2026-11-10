@@ -23,8 +23,11 @@
   <field name="model">product.product</field>
   <field name="inherit_id" ref="product.product_normal_form_view"/>
   <field name="arch" type="xml">
-   <xpath expr="//sheet//group" position="inside">
-    <field name="performance_test_policy"/>
+   <!-- Keep the policy in its own labelled section on the Product Variant form. -->
+   <xpath expr="//sheet" position="inside">
+    <group string="Quality Settings" name="rsd_quality_settings">
+     <field name="performance_test_policy" string="Performance Test Policy"/>
+    </group>
    </xpath>
   </field>
  </record>
