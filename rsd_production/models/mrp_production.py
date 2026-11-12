@@ -95,17 +95,31 @@ class MrpProduction(models.Model):
             ('production_id', 'in', self.ids),
             ('state', 'in', ('submitted', 'approved', 'produced')),
         ])
-        if locked_forms and set(vals) - {'message_follower_ids', 'message_partner_ids'}:
-            locked_mo_ids = set(locked_forms.mapped('production_id').ids)
-            internal_completion = all(
-                mo.id not in locked_mo_ids or mo.output_form_completion_in_progress
-                for mo in self
+
+        if locked_forms:
+            # Permit only the QA Verified tag update from the QA verification
+            # workflow. All other MO modifications remain blocked.
+            qa_verification_tag_update = (
+                    set(vals) == {'qa_inspection_tag_ids'}
+                    and self.env.context.get('_qa_mo_verification_tag_update') is True
+                    and self.env.user.has_group('rsd_qa_management.group_qa_manager')
             )
-            if not internal_completion:
-                raise UserError(_(
-                    'This Manufacturing Order is locked by its submitted or approved Output Form. '
-                    'Only a Manufacturing Manager can send the Output Form back to Production.'
-                ))
+
+            if (
+                    set(vals) - {'message_follower_ids', 'message_partner_ids'}
+                    and not qa_verification_tag_update
+            ):
+                locked_mo_ids = set(locked_forms.mapped('production_id').ids)
+                internal_completion = all(
+                    mo.id not in locked_mo_ids or mo.output_form_completion_in_progress
+                    for mo in self
+                )
+
+                if not internal_completion:
+                    raise UserError(_(
+                        'This Manufacturing Order is locked by its submitted or approved Output Form. '
+                        'Only a Manufacturing Manager can send the Output Form back to Production.'
+                    ))
 
         if 'production_request_line_id' in vals:
             for mo in self:

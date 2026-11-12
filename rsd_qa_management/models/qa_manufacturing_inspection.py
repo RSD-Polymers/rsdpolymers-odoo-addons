@@ -249,7 +249,8 @@ class QAManufacturingInspection(models.Model):
                 'verified_on': fields.Datetime.now(),
             })
             rec.production_id.sudo().with_context(
-                _qa_mo_verification_token=_QA_MO_VERIFICATION_TOKEN
+                _qa_mo_verification_token=_QA_MO_VERIFICATION_TOKEN,
+                _qa_mo_verification_tag_update=True,
             ).write({'qa_inspection_tag_ids': [(4, tag.id)]})
         return True
 
