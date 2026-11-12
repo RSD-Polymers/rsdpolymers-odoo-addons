@@ -1,26 +1,31 @@
-// QA verification seal as a non-interactive watermark on verified Manufacturing Orders.
-.o_form_view .o_form_sheet.qa-mo-watermark {
-    position: relative;
+// QA verification seal on verified Manufacturing Orders.
+// The overlay is a direct child of the sheet and remains non-interactive.
+.o_form_view .o_form_sheet.qa-mo-watermark,
+.o_form_view .o_form_sheet_bg.qa-mo-watermark {
+    position: relative !important;
     isolation: isolate;
+}
 
-    > * {
-        position: relative;
-        z-index: 1;
-    }
+.o_form_view .o_form_sheet.qa-mo-watermark > .qa-mo-watermark-overlay,
+.o_form_view .o_form_sheet_bg.qa-mo-watermark > .qa-mo-watermark-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 0 !important;
+    display: block;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    pointer-events: none !important;
+    background-image: url('/rsd_qa_management/static/description/qa_verified_stamp.png');
+    background-repeat: no-repeat;
+    background-position: right 1.5rem top 1.5rem;
+    background-size: 190px 190px;
+    opacity: 0.22;
+}
 
-    > .qa-mo-watermark-overlay {
-        position: absolute !important;
-        inset: 0;
-        z-index: 0 !important;
-        display: block;
-        margin: 0;
-        padding: 0;
-        border: 0;
-        pointer-events: none;
-        background-image: url('/rsd_qa_management/static/description/icon.png');
-        background-repeat: no-repeat;
-        background-position: right 1.5rem top 1.5rem;
-        background-size: 190px 190px;
-        opacity: 0.16;
-    }
+// Keep the sheet's actual fields and buttons above the watermark.
+.o_form_view .o_form_sheet.qa-mo-watermark > :not(.qa-mo-watermark-overlay),
+.o_form_view .o_form_sheet_bg.qa-mo-watermark > :not(.qa-mo-watermark-overlay) {
+    position: relative;
+    z-index: 1;
 }

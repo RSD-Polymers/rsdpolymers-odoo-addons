@@ -14,6 +14,7 @@
                 <attribute name="class" add="qa-mo-watermark" separator=" "/>
             </xpath>
             <xpath expr="//sheet" position="inside">
+                <!-- This field drives the conditional display of the QA stamp. -->
                 <field name="qa_is_verified" invisible="1"/>
                 <div class="qa-mo-watermark-overlay"
                      invisible="not qa_is_verified"
