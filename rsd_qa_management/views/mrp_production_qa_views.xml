@@ -17,7 +17,7 @@
                 </button>
             </xpath>
 
-            <xpath expr="//sheet" position="inside">
+            <xpath expr="//form" position="inside">
                 <field name="qa_is_verified" invisible="1"/>
 
                 <widget name="web_ribbon"
