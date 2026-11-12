@@ -1,29 +1,146 @@
 <odoo>
+
+    <!-- =====================================================
+         OUTPUT FORM SEARCH VIEW
+    ====================================================== -->
+    <record id="view_production_output_form_search" model="ir.ui.view">
+        <field name="name">production.output.form.search</field>
+        <field name="model">production.output.form</field>
+        <field name="arch" type="xml">
+            <search string="Search Output Forms">
+
+                <field name="name" string="Output Form"/>
+                <field name="production_id" string="Manufacturing Order"/>
+                <field name="product_id" string="Product"/>
+                <field name="lot_id" string="Lot/Batch"/>
+
+                <separator/>
+
+                <filter name="filter_draft"
+                        string="Draft"
+                        domain="[('state', '=', 'draft')]"/>
+
+                <filter name="filter_submitted"
+                        string="Submitted"
+                        domain="[('state', '=', 'submitted')]"/>
+
+                <filter name="filter_rejected"
+                        string="Rejected"
+                        domain="[('state', '=', 'rejected')]"/>
+
+                <filter name="filter_approved"
+                        string="Approved"
+                        domain="[('state', '=', 'approved')]"/>
+
+                <filter name="filter_produced"
+                        string="Produced"
+                        domain="[('state', '=', 'produced')]"/>
+
+                <filter name="filter_cancelled"
+                        string="Cancelled"
+                        domain="[('state', '=', 'cancelled')]"/>
+
+                <separator/>
+
+                <group expand="0" string="Group By">
+                    <filter name="group_state"
+                            string="Status"
+                            context="{'group_by': 'state'}"/>
+
+                    <filter name="group_production"
+                            string="Manufacturing Order"
+                            context="{'group_by': 'production_id'}"/>
+
+                    <filter name="group_product"
+                            string="Product"
+                            context="{'group_by': 'product_id'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+
+    <!-- =====================================================
+         OUTPUT FORM LIST VIEW
+    ====================================================== -->
     <record id="view_production_output_form_list" model="ir.ui.view">
         <field name="name">production.output.form.list</field>
         <field name="model">production.output.form</field>
         <field name="arch" type="xml">
-            <list decoration-success="state == 'produced'" decoration-info="state == 'approved'" decoration-warning="state == 'submitted'">
-                <field name="name"/><field name="production_id"/><field name="product_id"/><field name="lot_id"/>
-                <field name="actual_output_qty"/><field name="output_uom_id"/><field name="prepared_by"/><field name="state"/>
+            <list decoration-success="state == 'produced'"
+                  decoration-info="state == 'approved'"
+                  decoration-warning="state == 'submitted'">
+
+                <field name="name"/>
+                <field name="production_id"/>
+                <field name="product_id"/>
+                <field name="lot_id"/>
+                <field name="actual_output_qty"/>
+                <field name="output_uom_id"/>
+                <field name="prepared_by"/>
+                <field name="state"/>
+
             </list>
         </field>
     </record>
+
+
+    <!-- =====================================================
+         OUTPUT FORM FORM VIEW
+    ====================================================== -->
     <record id="view_production_output_form_form" model="ir.ui.view">
         <field name="name">production.output.form.form</field>
         <field name="model">production.output.form</field>
         <field name="arch" type="xml">
+
             <form string="Production Output Form">
+
                 <header>
-                    <button name="action_submit" type="object" string="Submit to Manager" class="btn-primary" invisible="state not in ('draft','rejected')"/>
-                    <button name="action_approve" type="object" string="Approve" class="btn-primary" groups="mrp.group_mrp_manager" invisible="state != 'submitted'"/>
-                    <button name="action_reject" type="object" string="Reject" groups="mrp.group_mrp_manager" invisible="state != 'submitted'"/>
-                    <button name="action_refresh_snapshot" type="object" string="Refresh MO Snapshot" invisible="state not in ('draft','rejected')"/>
-                    <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('draft','rejected')"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved,produced,rejected"/>
+
+                    <button name="action_submit"
+                            type="object"
+                            string="Submit to Manager"
+                            class="btn-primary"
+                            invisible="state not in ('draft','rejected')"/>
+
+                    <button name="action_approve"
+                            type="object"
+                            string="Approve"
+                            class="btn-primary"
+                            groups="mrp.group_mrp_manager"
+                            invisible="state != 'submitted'"/>
+
+                    <button name="action_reject"
+                            type="object"
+                            string="Reject"
+                            groups="mrp.group_mrp_manager"
+                            invisible="state != 'submitted'"/>
+
+                    <button name="action_refresh_snapshot"
+                            type="object"
+                            string="Refresh MO Snapshot"
+                            invisible="state not in ('draft','rejected')"/>
+
+                    <button name="action_cancel"
+                            type="object"
+                            string="Cancel"
+                            invisible="state not in ('draft','rejected')"/>
+
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,submitted,rejected,approved,produced,cancelled"/>
+
                 </header>
+
                 <sheet>
-                    <div class="oe_title"><h1><field name="name"/></h1></div>
+
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+
                     <group>
                         <group>
                             <field name="production_id" readonly="1"/>
@@ -31,6 +148,7 @@
                             <field name="lot_id"/>
                             <field name="production_date"/>
                         </group>
+
                         <group>
                             <field name="planned_output_qty"/>
                             <field name="actual_output_qty"/>
@@ -38,60 +156,197 @@
                             <field name="variance_tracking_enabled" invisible="1"/>
                         </group>
                     </group>
+
                     <notebook>
+
                         <page string="Raw Material Consumption">
+
                             <field name="raw_line_ids" readonly="1">
+
                                 <list create="0" edit="0" delete="0">
-                                    <field name="product_id"/><field name="planned_qty"/><field name="actual_qty"/><field name="variance_qty"/><field name="uom_id"/>
+                                    <field name="product_id"/>
+                                    <field name="planned_qty"/>
+                                    <field name="actual_qty"/>
+                                    <field name="variance_qty"/>
+                                    <field name="uom_id"/>
                                 </list>
+
                             </field>
-                            <group><field name="variance_total"/></group>
-                        </page>
-                        <page string="Additional Consumption Reasons" invisible="not variance_tracking_enabled">
-                            <field name="variance_reason_ids" readonly="state not in ('draft','rejected')">
-                                <list editable="bottom"><field name="product_id"/><field name="quantity"/><field name="uom_id"/><field name="reason"/></list>
-                            </field>
-                        </page>
-                        <page string="Approval &amp; Audit">
+
                             <group>
-                                <field name="prepared_by"/><field name="submitted_by"/><field name="submitted_on"/>
-                                <field name="approved_by"/><field name="approved_on"/><field name="produced_on"/>
+                                <field name="variance_total"/>
+                            </group>
+
+                        </page>
+
+                        <page string="Additional Consumption Reasons"
+                              invisible="not variance_tracking_enabled">
+
+                            <field name="variance_reason_ids"
+                                   readonly="state not in ('draft','rejected')">
+
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="quantity"/>
+                                    <field name="uom_id"/>
+                                    <field name="reason"/>
+                                </list>
+
+                            </field>
+
+                        </page>
+
+                        <page string="Approval &amp; Audit">
+
+                            <group>
+                                <field name="prepared_by"/>
+                                <field name="submitted_by"/>
+                                <field name="submitted_on"/>
+                                <field name="approved_by"/>
+                                <field name="approved_on"/>
+                                <field name="produced_on"/>
                                 <field name="rejection_reason"/>
                             </group>
+
                         </page>
+
                     </notebook>
-                    <group><field name="remarks" placeholder="Production remarks..."/></group>
+
+                    <group>
+                        <field name="remarks"
+                               placeholder="Production remarks..."/>
+                    </group>
+
                     <chatter/>
+
                 </sheet>
+
             </form>
+
         </field>
-    </record>
-    <record id="action_eligible_output_mos_server" model="ir.actions.server">
-        <field name="name">Eligible Manufacturing Orders</field>
-        <field name="model_id" ref="mrp.model_mrp_production"/>
-        <field name="state">code</field>
-        <field name="code">action = env['mrp.production'].action_open_eligible_output_mos()</field>
     </record>
 
+
+    <!-- =====================================================
+         ELIGIBLE MANUFACTURING ORDERS SERVER ACTION
+    ====================================================== -->
+    <record id="action_eligible_output_mos_server" model="ir.actions.server">
+
+        <field name="name">Eligible Manufacturing Orders</field>
+
+        <field name="model_id" ref="mrp.model_mrp_production"/>
+
+        <field name="state">code</field>
+
+        <field name="code">
+action = env['mrp.production'].action_open_eligible_output_mos()
+        </field>
+
+    </record>
+
+
+    <!-- =====================================================
+         OUTPUT FORMS WINDOW ACTION
+    ====================================================== -->
     <record id="action_production_output_forms" model="ir.actions.act_window">
-        <field name="name">Output Forms</field><field name="res_model">production.output.form</field><field name="view_mode">list,form</field>
+
+        <field name="name">Output Forms</field>
+
+        <field name="res_model">production.output.form</field>
+
+        <field name="view_mode">list,form</field>
+
+        <field name="search_view_id"
+               ref="view_production_output_form_search"/>
+
         <field name="context">{'search_default_group_state': 1}</field>
+
     </record>
-    <menuitem id="menu_production_output_forms" name="Output Forms" parent="mrp.menu_mrp_root" action="action_production_output_forms" sequence="85" groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
-    <menuitem id="menu_eligible_output_mos" name="Eligible Manufacturing Orders" parent="menu_production_output_forms" action="action_eligible_output_mos_server" sequence="1" groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
-    <record id="view_mrp_production_form_output_form_button" model="ir.ui.view">
-        <field name="name">mrp.production.form.output.form.button</field><field name="model">mrp.production</field>
+
+
+    <!-- =====================================================
+         OUTPUT FORMS MENUS
+    ====================================================== -->
+    <menuitem id="menu_production_output_forms"
+              name="Output Forms"
+              parent="mrp.menu_mrp_root"
+              action="action_production_output_forms"
+              sequence="85"
+              groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
+
+    <menuitem id="menu_eligible_output_mos"
+              name="Eligible Manufacturing Orders"
+              parent="menu_production_output_forms"
+              action="action_eligible_output_mos_server"
+              sequence="1"
+              groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
+
+
+    <!-- =====================================================
+         MANUFACTURING ORDER CREATE OUTPUT FORM BUTTON
+    ====================================================== -->
+    <record id="view_mrp_production_form_output_form_button"
+            model="ir.ui.view">
+
+        <field name="name">mrp.production.form.output.form.button</field>
+
+        <field name="model">mrp.production</field>
+
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+
         <field name="arch" type="xml">
+
             <xpath expr="//header" position="inside">
-                <button name="action_create_output_form" type="object" string="Create Output Form" class="btn-primary" invisible="not qc_batch_eligible or state not in ('confirmed','progress','to_close')" groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
+
+                <button name="action_create_output_form"
+                        type="object"
+                        string="Create Output Form"
+                        class="btn-primary"
+                        invisible="not qc_batch_eligible or state not in ('confirmed','progress','to_close')"
+                        groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
+
             </xpath>
+
         </field>
+
     </record>
+
+
+    <!-- =====================================================
+         OUTPUT FORM REJECTION WIZARD
+    ====================================================== -->
     <record id="view_output_form_reject_wizard" model="ir.ui.view">
-        <field name="name">production.output.form.reject.wizard.form</field><field name="model">production.output.form.reject.wizard</field>
+
+        <field name="name">production.output.form.reject.wizard.form</field>
+
+        <field name="model">production.output.form.reject.wizard</field>
+
         <field name="arch" type="xml">
-            <form string="Reject Output Form"><group><field name="output_form_id"/><field name="reason" required="1"/></group><footer><button name="action_confirm" type="object" string="Confirm Rejection" class="btn-primary"/><button string="Cancel" special="cancel" class="btn-secondary"/></footer></form>
+
+            <form string="Reject Output Form">
+
+                <group>
+                    <field name="output_form_id"/>
+                    <field name="reason" required="1"/>
+                </group>
+
+                <footer>
+
+                    <button name="action_confirm"
+                            type="object"
+                            string="Confirm Rejection"
+                            class="btn-primary"/>
+
+                    <button string="Cancel"
+                            special="cancel"
+                            class="btn-secondary"/>
+
+                </footer>
+
+            </form>
+
         </field>
+
     </record>
+
 </odoo>
