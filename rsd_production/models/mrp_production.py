@@ -83,16 +83,30 @@ class MrpProduction(models.Model):
                 ) % (line.product_id.display_name, allocated - line.shortage_qty, line.product_uom_id.name))
 
     def write(self, vals):
-        locked = self.env['production.output.form'].sudo().search([
-            ('production_id', 'in', self.ids),
-            ('state', 'in', ['submitted', 'approved', 'produced']),
-        ])
         if 'output_form_completion_in_progress' in vals:
             raise UserError(_('The internal Output Form completion flag cannot be changed manually.'))
-        if locked and set(vals) - {'message_follower_ids', 'message_partner_ids'}:
-            internal_completion = all(mo.output_form_completion_in_progress for mo in self if mo.id in locked.mapped('production_id').ids)
+
+        # Lock the Manufacturing Order while its Output Form is awaiting
+        # approval or has been approved. The lock is released only when the
+        # Manager rejects/sends the form back (state becomes rejected/returned).
+        # Standard Produce All is allowed only during the protected internal
+        # completion transaction started by button_mark_done below.
+        locked_forms = self.env['production.output.form'].sudo().search([
+            ('production_id', 'in', self.ids),
+            ('state', 'in', ('submitted', 'approved', 'produced')),
+        ])
+        if locked_forms and set(vals) - {'message_follower_ids', 'message_partner_ids'}:
+            locked_mo_ids = set(locked_forms.mapped('production_id').ids)
+            internal_completion = all(
+                mo.id not in locked_mo_ids or mo.output_form_completion_in_progress
+                for mo in self
+            )
             if not internal_completion:
-                raise UserError(_('This Manufacturing Order is locked by its submitted or approved Output Form.'))
+                raise UserError(_(
+                    'This Manufacturing Order is locked by its submitted or approved Output Form. '
+                    'Only a Manufacturing Manager can send the Output Form back to Production.'
+                ))
+
         if 'production_request_line_id' in vals:
             for mo in self:
                 if mo.production_request_line_id.id != vals.get('production_request_line_id') and mo.state != 'draft':

@@ -54,6 +54,10 @@ class QAManufacturingInspection(models.Model):
     chemist_approval_reviewed = fields.Boolean(
         string='Chemist Approval Reviewed', tracking=True,
     )
+    output_form_approval_reviewed = fields.Boolean(
+        string='Output Form Approval Reviewed', tracking=True,
+        help='QA confirms that the linked Production Output Form was approved by Manufacturing Management.',
+    )
     qc_results_reviewed = fields.Boolean(string='QC Results Reviewed', tracking=True)
     sample_testing_reviewed = fields.Boolean(
         string='Sample Testing Reviewed', tracking=True,
@@ -121,6 +125,7 @@ class QAManufacturingInspection(models.Model):
         review_fields = {
             'production_records_reviewed',
             'chemist_approval_reviewed',
+            'output_form_approval_reviewed',
             'qc_results_reviewed',
             'sample_testing_reviewed',
             'qc_review_notes',
@@ -201,10 +206,24 @@ class QAManufacturingInspection(models.Model):
                     'Manufacturing Order is produced (Done).'
                 ))
 
+            # Output Forms move from Approved to Produced when the MO is
+            # completed. Approval audit fields are therefore the durable proof
+            # that Manufacturing Management approved the form.
+            output_form = self.env['production.output.form'].sudo().search([
+                ('production_id', '=', rec.production_id.id),
+                ('state', '!=', 'cancelled'),
+            ], order='id desc', limit=1)
+            if not output_form or output_form.state not in ('approved', 'produced') or not output_form.approved_by or not output_form.approved_on:
+                raise UserError(_(
+                    'QA verification is blocked: the Manufacturing Order must have an Output Form '
+                    'approved by Manufacturing Management before QA can verify it.'
+                ))
+
             missing = []
             for field_name, label in [
                 ('production_records_reviewed', _('Production records')),
                 ('chemist_approval_reviewed', _('Production Chemist approval')),
+                ('output_form_approval_reviewed', _('Output Form approval')),
                 ('qc_results_reviewed', _('QC results')),
                 ('sample_testing_reviewed', _('Sample testing')),
             ]:
@@ -672,6 +691,12 @@ class MrpProduction(models.Model):
 
     def write(self, vals):
         verification_write = (self.env.context.get('_qa_mo_verification_token') is _QA_MO_VERIFICATION_TOKEN)
+        is_qa_user = (
+            self.env.user.has_group('rsd_qa_management.group_qa_officer')
+            or self.env.user.has_group('rsd_qa_management.group_qa_manager')
+        )
+        if is_qa_user and not verification_write and set(vals) - {'message_follower_ids', 'message_partner_ids'}:
+            raise UserError(_('QA users have read-only access to Manufacturing Orders. Update the QA Inspection instead.'))
         if not verification_write:
             locked = self.env['qa.manufacturing.inspection'].sudo().search([
                 ('production_id', 'in', self.ids), ('state', '=', 'verified')
@@ -740,9 +765,18 @@ class MrpWorkorder(models.Model):
 
     def write(self, vals):
         verification_write = (self.env.context.get('_qa_mo_verification_token') is _QA_MO_VERIFICATION_TOKEN)
+        is_qa_user = (
+            self.env.user.has_group('rsd_qa_management.group_qa_officer')
+            or self.env.user.has_group('rsd_qa_management.group_qa_manager')
+        )
+        if is_qa_user and not verification_write and set(vals) - {'message_follower_ids', 'message_partner_ids'}:
+            raise UserError(_('QA users have read-only access to Manufacturing Work Orders.'))
         if not verification_write:
+            production_ids = self.mapped('production_id').ids
+
             locked = self.env['qa.manufacturing.inspection'].sudo().search([
-                ('production_id', 'in', self.ids), ('state', '=', 'verified')
+                ('production_id', 'in', production_ids),
+                ('state', '=', 'verified')
             ])
             if locked:
                 raise UserError(_('This Manufacturing Order is locked because its MO Inspection has been QA Verified: %s') % ', '.join(locked.mapped('production_id.display_name')))

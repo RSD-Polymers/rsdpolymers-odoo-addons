@@ -43,6 +43,7 @@
                             <group>
                                 <field name="production_records_reviewed" readonly="state == 'verified'"/>
                                 <field name="chemist_approval_reviewed" readonly="state == 'verified'"/>
+                                <field name="output_form_approval_reviewed" readonly="state == 'verified'"/>
                                 <field name="qc_results_reviewed" readonly="state == 'verified'"/>
                                 <field name="sample_testing_reviewed" readonly="state == 'verified'"/>
                             </group>

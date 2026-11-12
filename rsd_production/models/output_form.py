@@ -37,6 +37,7 @@ class ProductionOutputForm(models.Model):
     produced_on = fields.Datetime(readonly=True)
     variance_total = fields.Float(compute='_compute_variance_total', store=True)
     is_locked = fields.Boolean(compute='_compute_is_locked')
+    qa_verified = fields.Boolean(string='QA Verified', compute='_compute_qa_verified')
 
     @api.depends('raw_line_ids.variance_qty')
     def _compute_variance_total(self):
@@ -47,6 +48,15 @@ class ProductionOutputForm(models.Model):
     def _compute_is_locked(self):
         for rec in self:
             rec.is_locked = rec.state in ('submitted', 'approved', 'produced')
+
+    @api.depends('production_id')
+    def _compute_qa_verified(self):
+        inspection_model = self.env['qa.manufacturing.inspection'].sudo()
+        for rec in self:
+            rec.qa_verified = bool(inspection_model.search_count([
+                ('production_id', '=', rec.production_id.id),
+                ('state', '=', 'verified'),
+            ])) if rec.production_id else False
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -131,7 +141,7 @@ class ProductionOutputForm(models.Model):
                         if explained + 1e-6 < raw_line.variance_qty:
                             raise ValidationError(_('Provide quantity-wise reasons covering the additional consumption of %s.') % raw_line.product_id.display_name)
             super(ProductionOutputForm, rec).write({'state': 'submitted', 'submitted_by': self.env.user.id, 'submitted_on': fields.Datetime.now(), 'rejection_reason': False})
-            rec.message_post(body=_('Output Form submitted for Manager approval. Manufacturing Order is now locked.'))
+            rec.message_post(body=_('Output Form submitted for Manager approval. The Output Form and Manufacturing Order are now locked until Manager rejection or Send Back.'))
         return True
 
     def action_approve(self):
@@ -162,8 +172,11 @@ class ProductionOutputForm(models.Model):
         inspection = self.env['qa.manufacturing.inspection'].sudo().search(
             [('production_id', '=', self.production_id.id)], limit=1
         )
+        # Once QA has verified the inspection, sending back is permanently blocked.
+        if inspection and inspection.state == 'verified':
+            raise UserError(_('This Output Form cannot be sent back because QA has already verified the Manufacturing Order.'))
         # QA must not have started its post-production review. Pending is the
-        # only safe state; rejected/rework/under_review/verified mean QA engaged.
+        # only safe state; rejected/rework/under_review mean QA engaged.
         if inspection and inspection.state != 'pending':
             raise UserError(_(
                 'This Output Form cannot be sent back because QA Inspection is already %s. '
@@ -194,7 +207,7 @@ class ProductionOutputForm(models.Model):
         self._check_coordinator()
         for rec in self:
             if rec.state not in ('draft', 'rejected', 'returned'):
-                raise UserError(_('Only Draft, Rejected or Returned Output Forms can be cancelled.'))
+                raise UserError(_('Only Draft or Rejected Output Forms can be cancelled.'))
             super(ProductionOutputForm, rec).write({'state': 'cancelled'})
         return True
 
@@ -208,7 +221,7 @@ class ProductionOutputForm(models.Model):
 
     def unlink(self):
         if any(rec.state in ('submitted', 'approved', 'produced', 'returned') for rec in self):
-            raise UserError(_('Submitted, approved, produced or returned Output Forms cannot be deleted.'))
+            raise UserError(_('Submitted, approved or produced Output Forms cannot be deleted.'))
         return super().unlink()
 
 

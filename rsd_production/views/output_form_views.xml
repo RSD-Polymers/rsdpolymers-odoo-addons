@@ -125,18 +125,18 @@
                             type="object"
                             string="Send Back to Production"
                             class="btn-secondary"
-                            groups="mrp.group_mrp_manager"
-                            invisible="state not in ('submitted','approved')"/>
+                            groups="mrp.group_mrp_manager,base.group_system"
+                            invisible="state not in ('submitted','approved') or qa_verified"/>
 
                     <button name="action_refresh_snapshot"
                             type="object"
                             string="Refresh MO Snapshot"
-                            invisible="state not in ('draft','rejected','returned')"/>
+                            invisible="state not in ('draft','rejected')"/>
 
                     <button name="action_cancel"
                             type="object"
                             string="Cancel"
-                            invisible="state not in ('draft','rejected','returned')"/>
+                            invisible="state not in ('draft','rejected')"/>
 
                     <field name="state"
                            widget="statusbar"
@@ -145,6 +145,7 @@
                 </header>
 
                 <sheet>
+                    <field name="qa_verified" invisible="1"/>
 
                     <div class="oe_title">
                         <h1>
@@ -228,7 +229,8 @@
 
                     <group>
                         <field name="remarks"
-                               placeholder="Production remarks..."/>
+                               placeholder="Production remarks..."
+                               readonly="state not in ('draft','rejected','returned')"/>
                     </group>
 
                     <chatter/>
@@ -370,7 +372,9 @@ action = env['mrp.production'].action_open_eligible_output_mos()
     </record>
 
 
-    <!-- OUTPUT FORM SEND-BACK WIZARD -->
+    <!-- =====================================================
+         OUTPUT FORM SEND-BACK WIZARD
+    ====================================================== -->
     <record id="view_output_form_return_wizard" model="ir.ui.view">
         <field name="name">production.output.form.return.wizard.form</field>
         <field name="model">production.output.form.return.wizard</field>
@@ -378,11 +382,14 @@ action = env['mrp.production'].action_open_eligible_output_mos()
             <form string="Send Back Output Form">
                 <group>
                     <field name="output_form_id"/>
-                    <field name="reason" required="1" placeholder="Explain what Production must correct..."/>
+                    <field name="reason" required="1"
+                           placeholder="Explain what Production must correct..."/>
                 </group>
                 <footer>
-                    <button name="action_confirm" type="object" string="Confirm Send Back" class="btn-primary"/>
-                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                    <button name="action_confirm" type="object"
+                            string="Confirm Send Back" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"
+                            class="btn-secondary"/>
                 </footer>
             </form>
         </field>
