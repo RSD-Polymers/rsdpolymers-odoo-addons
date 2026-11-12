@@ -6,20 +6,24 @@
         <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_view_qa_inspections" type="object" class="oe_stat_button" icon="fa-shield" groups="rsd_qa_management.group_qa_officer,base.group_system">
-                    <field name="qa_inspection_count" widget="statinfo" string="QA Inspection"/>
+                <button name="action_view_qa_inspections"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-shield"
+                        groups="rsd_qa_management.group_qa_officer,base.group_system">
+                    <field name="qa_inspection_count"
+                           widget="statinfo"
+                           string="QA Inspection"/>
                 </button>
             </xpath>
-            <xpath expr="//sheet" position="attributes">
-                <attribute name="class" add="qa-mo-watermark" separator=" "/>
-            </xpath>
+
             <xpath expr="//sheet" position="inside">
-                <!-- This field drives the conditional display of the QA stamp. -->
                 <field name="qa_is_verified" invisible="1"/>
-                <div class="qa-mo-watermark-overlay"
-                     invisible="not qa_is_verified"
-                     title="Quality Assurance Verified"
-                     aria-label="Quality Assurance Verified"/>
+
+                <widget name="web_ribbon"
+                        title="QA VERIFIED"
+                        bg_color="text-bg-success"
+                        invisible="not qa_is_verified"/>
             </xpath>
         </field>
     </record>
