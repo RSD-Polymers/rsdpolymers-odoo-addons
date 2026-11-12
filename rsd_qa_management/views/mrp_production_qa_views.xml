@@ -17,6 +17,10 @@
                 </button>
             </xpath>
 
+            <xpath expr="//sheet" position="attributes">
+                <attribute name="class" add="qa-mo-watermark" separator=" "/>
+            </xpath>
+
             <xpath expr="//sheet" position="inside">
                 <field name="qa_is_verified" invisible="1"/>
 
