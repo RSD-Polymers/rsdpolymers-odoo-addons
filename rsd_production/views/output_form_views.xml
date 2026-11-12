@@ -270,7 +270,6 @@ action = env['mrp.production'].action_open_eligible_output_mos()
     <menuitem id="menu_production_output_forms"
               name="Output Forms"
               parent="mrp.menu_mrp_root"
-              action="action_production_output_forms"
               sequence="85"
               groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
 
@@ -279,6 +278,13 @@ action = env['mrp.production'].action_open_eligible_output_mos()
               parent="menu_production_output_forms"
               action="action_eligible_output_mos_server"
               sequence="1"
+              groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
+
+    <menuitem id="menu_production_output_form_list"
+              name="Output Form"
+              parent="menu_production_output_forms"
+              action="action_production_output_forms"
+              sequence="2"
               groups="mrp.group_mrp_user,mrp.group_mrp_manager"/>
 
 
