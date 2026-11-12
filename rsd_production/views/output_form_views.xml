@@ -28,6 +28,10 @@
                         string="Rejected"
                         domain="[('state', '=', 'rejected')]"/>
 
+                <filter name="filter_returned"
+                        string="Returned"
+                        domain="[('state', '=', 'returned')]"/>
+
                 <filter name="filter_approved"
                         string="Approved"
                         domain="[('state', '=', 'approved')]"/>
@@ -102,7 +106,7 @@
                             type="object"
                             string="Submit to Manager"
                             class="btn-primary"
-                            invisible="state not in ('draft','rejected')"/>
+                            invisible="state not in ('draft','rejected','returned')"/>
 
                     <button name="action_approve"
                             type="object"
@@ -117,19 +121,26 @@
                             groups="mrp.group_mrp_manager"
                             invisible="state != 'submitted'"/>
 
+                    <button name="action_send_back"
+                            type="object"
+                            string="Send Back to Production"
+                            class="btn-secondary"
+                            groups="mrp.group_mrp_manager"
+                            invisible="state not in ('submitted','approved')"/>
+
                     <button name="action_refresh_snapshot"
                             type="object"
                             string="Refresh MO Snapshot"
-                            invisible="state not in ('draft','rejected')"/>
+                            invisible="state not in ('draft','rejected','returned')"/>
 
                     <button name="action_cancel"
                             type="object"
                             string="Cancel"
-                            invisible="state not in ('draft','rejected')"/>
+                            invisible="state not in ('draft','rejected','returned')"/>
 
                     <field name="state"
                            widget="statusbar"
-                           statusbar_visible="draft,submitted,rejected,approved,produced,cancelled"/>
+                           statusbar_visible="draft,submitted,rejected,returned,approved,produced,cancelled"/>
 
                 </header>
 
@@ -183,7 +194,7 @@
                               invisible="not variance_tracking_enabled">
 
                             <field name="variance_reason_ids"
-                                   readonly="state not in ('draft','rejected')">
+                                   readonly="state not in ('draft','rejected','returned')">
 
                                 <list editable="bottom">
                                     <field name="product_id"/>
@@ -206,6 +217,9 @@
                                 <field name="approved_on"/>
                                 <field name="produced_on"/>
                                 <field name="rejection_reason"/>
+                                <field name="return_reason"/>
+                                <field name="returned_by"/>
+                                <field name="returned_on"/>
                             </group>
 
                         </page>
@@ -353,6 +367,25 @@ action = env['mrp.production'].action_open_eligible_output_mos()
 
         </field>
 
+    </record>
+
+
+    <!-- OUTPUT FORM SEND-BACK WIZARD -->
+    <record id="view_output_form_return_wizard" model="ir.ui.view">
+        <field name="name">production.output.form.return.wizard.form</field>
+        <field name="model">production.output.form.return.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Send Back Output Form">
+                <group>
+                    <field name="output_form_id"/>
+                    <field name="reason" required="1" placeholder="Explain what Production must correct..."/>
+                </group>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirm Send Back" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
     </record>
 
 </odoo>

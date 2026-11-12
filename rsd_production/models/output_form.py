@@ -22,8 +22,11 @@ class ProductionOutputForm(models.Model):
     variance_tracking_enabled = fields.Boolean(readonly=True)
     remarks = fields.Text()
     rejection_reason = fields.Text(readonly=True, tracking=True)
+    return_reason = fields.Text(string='Send Back Reason', readonly=True, tracking=True)
+    returned_by = fields.Many2one('res.users', string='Returned By', readonly=True, tracking=True)
+    returned_on = fields.Datetime(string='Returned On', readonly=True, tracking=True)
     state = fields.Selection([
-        ('draft', 'Draft'), ('submitted', 'Submitted'), ('rejected', 'Rejected'),
+        ('draft', 'Draft'), ('submitted', 'Submitted'), ('rejected', 'Rejected'), ('returned', 'Returned'),
         ('approved', 'Approved'), ('produced', 'Produced'), ('cancelled', 'Cancelled')
     ], default='draft', required=True, tracking=True, index=True)
     prepared_by = fields.Many2one('res.users', default=lambda self: self.env.user, readonly=True)
@@ -101,22 +104,22 @@ class ProductionOutputForm(models.Model):
             'production_id', 'lot_id', 'production_date', 'planned_output_qty',
             'actual_output_qty', 'output_uom_id', 'raw_line_ids', 'state',
             'approved_by', 'approved_on', 'produced_on', 'submitted_by',
-            'submitted_on', 'prepared_by', 'name',
+            'submitted_on', 'prepared_by', 'name', 'return_reason', 'returned_by', 'returned_on',
         }
         for rec in self:
             if rec.state in ('submitted', 'approved', 'produced') and protected.intersection(vals):
                 raise UserError(_('This Output Form is locked. Use the authorized workflow actions.'))
             if 'state' in vals:
                 raise AccessError(_('Output Form status can only be changed through its workflow buttons.'))
-            if rec.state not in ('draft', 'rejected') and any(k in vals for k in ('remarks', 'variance_reason_ids')):
+            if rec.state not in ('draft', 'rejected', 'returned') and any(k in vals for k in ('remarks', 'variance_reason_ids')):
                 raise UserError(_('This Output Form is locked.'))
         return super().write(vals)
 
     def action_submit(self):
         self._check_coordinator()
         for rec in self:
-            if rec.state not in ('draft', 'rejected'):
-                raise UserError(_('Only Draft or Rejected Output Forms can be submitted.'))
+            if rec.state not in ('draft', 'rejected', 'returned'):
+                raise UserError(_('Only Draft, Rejected or Returned Output Forms can be submitted.'))
             rec.production_id._check_output_form_eligibility()
             # Re-capture all values after a rejection so approval applies to the
             # corrected, current MO snapshot rather than the previous submission.
@@ -148,6 +151,33 @@ class ProductionOutputForm(models.Model):
             raise AccessError(_('Only a Manufacturing Manager or System Administrator can reject Output Forms.'))
         return {'type': 'ir.actions.act_window', 'name': _('Reject Output Form'), 'res_model': 'production.output.form.reject.wizard', 'view_mode': 'form', 'target': 'new', 'context': {'default_output_form_id': self.id}}
 
+    def action_send_back(self):
+        self.ensure_one()
+        if not (self.env.user.has_group('mrp.group_mrp_manager') or self.env.user.has_group('base.group_system')):
+            raise AccessError(_('Only a Manufacturing Manager or System Administrator can send back an Output Form.'))
+        if self.state not in ('submitted', 'approved'):
+            raise UserError(_('Only Submitted or Approved Output Forms can be sent back.'))
+        if self.production_id.state == 'done':
+            raise UserError(_('A produced Manufacturing Order cannot be sent back through the Output Form workflow.'))
+        inspection = self.env['qa.manufacturing.inspection'].sudo().search(
+            [('production_id', '=', self.production_id.id)], limit=1
+        )
+        # QA must not have started its post-production review. Pending is the
+        # only safe state; rejected/rework/under_review/verified mean QA engaged.
+        if inspection and inspection.state != 'pending':
+            raise UserError(_(
+                'This Output Form cannot be sent back because QA Inspection is already %s. '
+                'Contact QA to follow the controlled QA workflow.'
+            ) % dict(inspection._fields['state'].selection).get(inspection.state, inspection.state))
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Send Back Output Form'),
+            'res_model': 'production.output.form.return.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_output_form_id': self.id},
+        }
+
     def _mark_produced_after_completion(self):
         """Internal completion hook called only after standard MO completion."""
         if not (self.env.user.has_group('rsd_quality.group_unloading_request_supervisor') or self.env.user.has_group('base.group_system')):
@@ -163,22 +193,22 @@ class ProductionOutputForm(models.Model):
     def action_cancel(self):
         self._check_coordinator()
         for rec in self:
-            if rec.state not in ('draft', 'rejected'):
-                raise UserError(_('Only Draft or Rejected Output Forms can be cancelled.'))
+            if rec.state not in ('draft', 'rejected', 'returned'):
+                raise UserError(_('Only Draft, Rejected or Returned Output Forms can be cancelled.'))
             super(ProductionOutputForm, rec).write({'state': 'cancelled'})
         return True
 
     def action_refresh_snapshot(self):
         self._check_coordinator()
         for rec in self:
-            if rec.state not in ('draft', 'rejected'):
+            if rec.state not in ('draft', 'rejected', 'returned'):
                 raise UserError(_('Snapshot can only be refreshed before submission.'))
             rec.write(self._snapshot_values(rec.production_id))
         return True
 
     def unlink(self):
-        if any(rec.state in ('submitted', 'approved', 'produced') for rec in self):
-            raise UserError(_('Submitted, approved or produced Output Forms cannot be deleted.'))
+        if any(rec.state in ('submitted', 'approved', 'produced', 'returned') for rec in self):
+            raise UserError(_('Submitted, approved, produced or returned Output Forms cannot be deleted.'))
         return super().unlink()
 
 
@@ -199,17 +229,17 @@ class ProductionOutputFormRawLine(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             form = self.env['production.output.form'].browse(vals.get('output_form_id'))
-            if form and form.state not in ('draft', 'rejected'):
+            if form and form.state not in ('draft', 'rejected', 'returned'):
                 raise UserError(_('Raw material snapshots cannot be changed after submission.'))
         return super().create(vals_list)
 
     def write(self, vals):
-        if any(line.output_form_id.state not in ('draft', 'rejected') for line in self):
+        if any(line.output_form_id.state not in ('draft', 'rejected', 'returned') for line in self):
             raise UserError(_('Raw material snapshots cannot be changed after submission.'))
         return super().write(vals)
 
     def unlink(self):
-        if any(line.output_form_id.state not in ('draft', 'rejected') for line in self):
+        if any(line.output_form_id.state not in ('draft', 'rejected', 'returned') for line in self):
             raise UserError(_('Raw material snapshots cannot be deleted after submission.'))
         return super().unlink()
 
@@ -228,17 +258,17 @@ class ProductionOutputFormVarianceReason(models.Model):
     def create(self, vals_list):
         for vals in vals_list:
             form = self.env['production.output.form'].browse(vals.get('output_form_id'))
-            if form and form.state not in ('draft', 'rejected'):
+            if form and form.state not in ('draft', 'rejected', 'returned'):
                 raise UserError(_('Variance reasons cannot be changed after submission.'))
         return super().create(vals_list)
 
     def write(self, vals):
-        if any(line.output_form_id.state not in ('draft', 'rejected') for line in self):
+        if any(line.output_form_id.state not in ('draft', 'rejected', 'returned') for line in self):
             raise UserError(_('Variance reasons cannot be changed after submission.'))
         return super().write(vals)
 
     def unlink(self):
-        if any(line.output_form_id.state not in ('draft', 'rejected') for line in self):
+        if any(line.output_form_id.state not in ('draft', 'rejected', 'returned') for line in self):
             raise UserError(_('Variance reasons cannot be deleted after submission.'))
         return super().unlink()
 
@@ -265,3 +295,53 @@ class ProductionOutputFormRejectWizard(models.TransientModel):
         })
         form.message_post(body=_('Rejected. Reason: %s. Lock released for Coordinator corrections.') % self.reason)
         return {'type': 'ir.actions.act_window', 'res_model': 'production.output.form', 'view_mode': 'form', 'res_id': form.id, 'target': 'current'}
+
+
+class ProductionOutputFormReturnWizard(models.TransientModel):
+    _name = 'production.output.form.return.wizard'
+    _description = 'Send Back Production Output Form'
+
+    output_form_id = fields.Many2one('production.output.form', required=True, readonly=True)
+    reason = fields.Text(string='Reason for Sending Back', required=True)
+
+    def action_confirm(self):
+        self.ensure_one()
+        if not (self.env.user.has_group('mrp.group_mrp_manager') or self.env.user.has_group('base.group_system')):
+            raise AccessError(_('Only a Manufacturing Manager or System Administrator can send back an Output Form.'))
+        reason = (self.reason or '').strip()
+        if not reason:
+            raise ValidationError(_('A reason is required when sending an Output Form back.'))
+        form = self.output_form_id
+        if form.state not in ('submitted', 'approved'):
+            raise UserError(_('Only Submitted or Approved Output Forms can be sent back.'))
+        if form.production_id.state == 'done':
+            raise UserError(_('A produced Manufacturing Order cannot be sent back.'))
+        inspection = self.env['qa.manufacturing.inspection'].sudo().search(
+            [('production_id', '=', form.production_id.id)], limit=1
+        )
+        if inspection and inspection.state != 'pending':
+            raise UserError(_(
+                'QA Inspection has already moved to %s. The Output Form cannot be sent back.'
+            ) % dict(inspection._fields['state'].selection).get(inspection.state, inspection.state))
+        values = {
+            'state': 'returned',
+            'return_reason': reason,
+            'returned_by': self.env.user.id,
+            'returned_on': fields.Datetime.now(),
+            'approved_by': False,
+            'approved_on': False,
+        }
+        # Use the model's workflow-controlled write path; the wizard is the
+        # only exposed transition and validates manager permissions above.
+        super(ProductionOutputForm, form).write(values)
+        form.message_post(body=_(
+            'Output Form sent back to Production by %s. Reason: %s. '
+            'The Manufacturing Order is unlocked for correction.'
+        ) % (self.env.user.display_name, reason))
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'production.output.form',
+            'view_mode': 'form',
+            'res_id': form.id,
+            'target': 'current',
+        }

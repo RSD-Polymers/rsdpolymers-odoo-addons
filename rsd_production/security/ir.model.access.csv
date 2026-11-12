@@ -25,3 +25,5 @@ access_production_output_form_raw_line_manager,access.production.output.form.raw
 access_production_output_form_variance_user,access.production.output.form.variance.user,model_production_output_form_variance_reason,mrp.group_mrp_user,1,1,1,1
 access_production_output_form_variance_manager,access.production.output.form.variance.manager,model_production_output_form_variance_reason,mrp.group_mrp_manager,1,1,1,1
 access_production_output_form_reject_wizard,access.production.output.form.reject.wizard,model_production_output_form_reject_wizard,mrp.group_mrp_manager,1,1,1,1
+access_production_output_form_return_wizard_manager,access.production.output.form.return.wizard.manager,model_production_output_form_return_wizard,mrp.group_mrp_manager,1,1,1,1
+access_production_output_form_return_wizard_system,access.production.output.form.return.wizard.system,model_production_output_form_return_wizard,base.group_system,1,1,1,1
