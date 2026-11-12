@@ -17,17 +17,13 @@
                 </button>
             </xpath>
 
-            <xpath expr="//sheet" position="attributes">
-                <attribute name="class" add="qa-mo-watermark" separator=" "/>
-            </xpath>
-
-            <xpath expr="//sheet" position="inside">
+            <xpath expr="//form" position="inside">
                 <field name="qa_is_verified" invisible="1"/>
 
-                <div class="qa-mo-verified-ribbon"
-                     invisible="not qa_is_verified">
-                    <span>QA VERIFIED</span>
-                </div>
+                <widget name="web_ribbon"
+                        title="QA VERIFIED"
+                        bg_color="text-bg-success"
+                        invisible="not qa_is_verified"/>
             </xpath>
         </field>
     </record>
