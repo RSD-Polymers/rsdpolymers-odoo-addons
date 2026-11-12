@@ -208,7 +208,12 @@ class MrpProductionQCGate(models.Model):
     ], string='Optional Performance Test Decision', default='pending', copy=False, tracking=True)
     qc_performance_test_ids = fields.One2many('rsd.quality.stage.test', 'production_id', domain=[('test_kind', '=', 'performance')])
     qc_quality_check_ids = fields.One2many('quality.check', 'production_id', string='Quality Checks')
-    qc_internal_coa_state = fields.Selection([('pending', 'Pending'), ('passed', 'Passed'), ('failed', 'Failed')], compute='_compute_qc_gate')
+    qc_internal_coa_state = fields.Selection([
+        ('pending', 'Pending'),
+        ('passed', 'Passed'),
+        ('failed', 'Failed'),
+        ('not_required', 'Not Required'),
+    ], compute='_compute_qc_gate')
     qc_performance_state = fields.Selection([('pending', 'Pending'), ('passed', 'Passed'), ('failed', 'Failed'), ('not_required', 'Not Required')], compute='_compute_qc_gate')
     qc_batch_eligible = fields.Boolean(compute='_compute_qc_gate', string='Eligible for Output', store=False)
     qc_unloading_approved = fields.Boolean(compute='_compute_qc_gate', string='Unloading Approved')
@@ -230,6 +235,9 @@ class MrpProductionQCGate(models.Model):
             policy = mo.product_id.performance_test_policy or 'optional'
             if perf:
                 pstate = perf.state
+                # A Mandatory Performance Test can never be waived.
+                if policy == 'mandatory' and pstate == 'not_required':
+                    pstate = 'pending'
             elif policy == 'mandatory':
                 pstate = 'pending'
             elif mo.qc_performance_decision == 'not_required':
@@ -237,6 +245,8 @@ class MrpProductionQCGate(models.Model):
             elif mo.qc_performance_decision == 'required':
                 pstate = 'pending'
             else:
+                # Optional tests remain blocked until the Production Supervisor
+                # explicitly chooses Required or Not Required.
                 pstate = 'pending'
             mo.qc_performance_required = policy == 'mandatory' or mo.qc_performance_decision == 'required'
             mo.qc_performance_state = pstate if pstate in ('passed', 'failed', 'not_required') else 'pending'
@@ -246,7 +256,9 @@ class MrpProductionQCGate(models.Model):
                 ('title', 'ilike', 'Internal QC'),
             ])
             if not internal_points:
-                cstate = 'pending'
+                # No Internal QC Quality Point is configured for this product,
+                # so Internal COA is not applicable to this Manufacturing Order.
+                cstate = 'not_required'
             else:
                 point_states = []
                 for point in internal_points:
@@ -263,7 +275,11 @@ class MrpProductionQCGate(models.Model):
             latest_unloading = mo.unloading_request_ids.sorted(lambda r: (r.request_date, r.id))[-1:]
             unloading_ok = bool(latest_unloading and latest_unloading.state == 'accepted')
             mo.qc_unloading_approved = unloading_ok
-            mo.qc_batch_eligible = unloading_ok and pstate in ('passed', 'not_required') and cstate == 'passed'
+            mo.qc_batch_eligible = (
+                unloading_ok
+                and pstate in ('passed', 'not_required')
+                and cstate in ('passed', 'not_required')
+            )
 
     def _create_mandatory_performance_test(self):
         for mo in self:
