@@ -220,7 +220,7 @@ class MrpProductionQCGate(models.Model):
 
     def _internal_coa_checks(self):
         self.ensure_one()
-        return self.qc_quality_check_ids.sudo().filtered(
+        return self.sudo().qc_quality_check_ids.filtered(
             lambda check: check.product_id == self.product_id
             and check.point_id and 'internal qc' in (check.point_id.title or '').casefold()
         )
@@ -231,7 +231,9 @@ class MrpProductionQCGate(models.Model):
                  'qc_quality_check_ids.product_id')
     def _compute_qc_gate(self):
         for mo in self:
-            perf = mo.qc_performance_test_ids.filtered(lambda t: t.test_kind == 'performance').sorted('id')[-1:]
+            perf = mo.sudo().qc_performance_test_ids.filtered(
+                lambda t: t.test_kind == 'performance'
+            ).sorted('id')[-1:]
             policy = mo.product_id.performance_test_policy or 'optional'
             if perf:
                 pstate = perf.state
@@ -272,7 +274,9 @@ class MrpProductionQCGate(models.Model):
                 else:
                     cstate = 'pending'
             mo.qc_internal_coa_state = cstate
-            latest_unloading = mo.unloading_request_ids.sorted(lambda r: (r.request_date, r.id))[-1:]
+            latest_unloading = mo.sudo().unloading_request_ids.sorted(
+                lambda r: (r.request_date, r.id)
+            )[-1:]
             unloading_ok = bool(latest_unloading and latest_unloading.state == 'accepted')
             mo.qc_unloading_approved = unloading_ok
             mo.qc_batch_eligible = (
