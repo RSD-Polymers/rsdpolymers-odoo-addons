@@ -691,13 +691,26 @@ class MrpProduction(models.Model):
         return super().action_start()
 
     def write(self, vals):
-        verification_write = (self.env.context.get('_qa_mo_verification_token') is _QA_MO_VERIFICATION_TOKEN)
-        is_qa_user = (
-            self.env.user.has_group('rsd_qa_management.group_qa_officer')
-            or self.env.user.has_group('rsd_qa_management.group_qa_manager')
+        verification_write = (
+                self.env.context.get('_qa_mo_verification_token')
+                is _QA_MO_VERIFICATION_TOKEN
         )
-        if is_qa_user and not verification_write and set(vals) - {'message_follower_ids', 'message_partner_ids'}:
-            raise UserError(_('QA users have read-only access to Manufacturing Orders. Update the QA Inspection instead.'))
+        is_system_admin = self.env.user.has_group('base.group_system')
+
+        is_qa_user = (
+                self.env.user.has_group('rsd_qa_management.group_qa_officer')
+                or self.env.user.has_group('rsd_qa_management.group_qa_manager')
+        )
+
+        if (
+                is_qa_user
+                and not is_system_admin
+                and not verification_write
+                and set(vals) - {'message_follower_ids', 'message_partner_ids'}
+        ):
+            raise UserError(
+                _('QA users have read-only access to Manufacturing Orders. Update the QA Inspection instead.')
+            )
         if not verification_write:
             locked = self.env['qa.manufacturing.inspection'].sudo().search([
                 ('production_id', 'in', self.ids), ('state', '=', 'verified')
@@ -766,12 +779,20 @@ class MrpWorkorder(models.Model):
 
     def write(self, vals):
         verification_write = (self.env.context.get('_qa_mo_verification_token') is _QA_MO_VERIFICATION_TOKEN)
+        is_system_admin = self.env.user.has_group('base.group_system')
         is_qa_user = (
             self.env.user.has_group('rsd_qa_management.group_qa_officer')
             or self.env.user.has_group('rsd_qa_management.group_qa_manager')
         )
-        if is_qa_user and not verification_write and set(vals) - {'message_follower_ids', 'message_partner_ids'}:
-            raise UserError(_('QA users have read-only access to Manufacturing Work Orders.'))
+        if (
+                is_qa_user
+                and not is_system_admin
+                and not verification_write
+                and set(vals) - {'message_follower_ids', 'message_partner_ids'}
+        ):
+            raise UserError(
+                _('QA users have read-only access to Manufacturing Work Orders.')
+            )
         if not verification_write:
             production_ids = self.mapped('production_id').ids
 
