@@ -28,6 +28,10 @@ class QualityUnloadingRequest(models.Model):
         "uom.uom", string="Unit of Measure", related="production_id.product_uom_id",
         readonly=True,
     )
+    lot_id = fields.Many2one(
+        "stock.lot", string="Lot Number", related="production_id.lot_producing_id",
+        readonly=True, store=True,
+    )
     company_id = fields.Many2one(
         "res.company", related="production_id.company_id", store=True, readonly=True,
     )
@@ -48,7 +52,7 @@ class QualityUnloadingRequest(models.Model):
         ("cancelled", "Cancelled"),
     ], string="Status", default="draft", required=True, tracking=True, index=True)
     planned_unloading_datetime = fields.Datetime(
-        string="Planned Unloading Date & Time", tracking=True,
+        string="Sample Received", tracking=True,
     )
     reviewed_by = fields.Many2one(
         "res.users", string="Reviewed By", readonly=True, tracking=True,

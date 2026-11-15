@@ -12,9 +12,10 @@
                 <field name="production_id"/>
                 <field name="product_id"/>
                 <field name="product_qty"/>
+                <field name="lot_id"/>
                 <field name="requested_by"/>
                 <field name="request_date"/>
-                <field name="planned_unloading_datetime"/>
+                <field name="planned_unloading_datetime" string="Sample Received"/>
                 <field name="reviewed_by"/>
                 <field name="state" widget="badge"/>
                 <field name="company_id" groups="base.group_multi_company"/>
@@ -76,6 +77,7 @@
                             <field name="product_id"/>
                             <field name="product_qty"/>
                             <field name="product_uom_id"/>
+                            <field name="lot_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group string="Request Details">
@@ -86,7 +88,7 @@
                         </group>
                     </group>
                     <group string="Chemist Review">
-                        <field name="planned_unloading_datetime"
+                        <field name="planned_unloading_datetime" string="Sample Received"
                                readonly="(state != 'submitted' or not can_review) and not is_system_admin"/>
                         <field name="rejection_reason"
                                readonly="(state != 'submitted' or not can_review) and not is_system_admin"

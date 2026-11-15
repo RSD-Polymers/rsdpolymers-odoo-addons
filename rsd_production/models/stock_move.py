@@ -2,24 +2,52 @@ from odoo import api, models, _
 from odoo.exceptions import UserError
 
 
+
 def _assert_output_form_unlocked(env, mo_ids, label):
     mo_ids = list(set(filter(None, mo_ids)))
     if not mo_ids:
         return
+
     forms = env['production.output.form'].sudo().search([
         ('production_id', 'in', mo_ids),
         ('state', 'in', ['submitted', 'approved', 'produced']),
     ])
     if not forms:
         return
-    allow_completion = any(form.production_id.output_form_completion_in_progress for form in forms)
+
+    approved_forms = forms.filtered(
+        lambda form: form.state == 'approved'
+    )
+
+    all_forms_approved = (
+        bool(forms)
+        and len(approved_forms) == len(forms)
+    )
+
+    all_mos_in_completion = (
+        bool(forms)
+        and all(
+            form.production_id.output_form_completion_in_progress
+            for form in forms
+        )
+    )
+
     is_supervisor = (
         env.user.has_group('rsd_quality.group_unloading_request_supervisor')
         or env.user.has_group('base.group_system')
     )
-    approved_forms = forms.filtered(lambda form: form.state == 'approved')
-    if not (allow_completion and is_supervisor and approved_forms and len(approved_forms) == len(forms)):
-        raise UserError(_('%s are locked by a submitted, approved or produced Output Form.') % label)
+
+    if not (
+        all_forms_approved
+        and all_mos_in_completion
+        and is_supervisor
+    ):
+        raise UserError(
+            _('%s are locked by a submitted, approved or produced Output Form.')
+            % label
+        )
+
+
 
 
 class StockMove(models.Model):
