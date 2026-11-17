@@ -62,6 +62,16 @@ class MrpProduction(models.Model):
     )
     production_request_count = fields.Integer(compute="_compute_production_request_count")
 
+    show_create_output_form_button = fields.Boolean(
+        string="Show Create Output Form Button",
+        compute="_compute_output_form_button_visibility",
+    )
+
+    output_form_count = fields.Integer(
+        string="Output Form Count",
+        compute="_compute_output_form_count",
+    )
+
     @api.constrains('production_request_line_id', 'product_id', 'product_qty', 'product_uom_id')
     def _check_production_request_link(self):
         for mo in self:
