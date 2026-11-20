@@ -235,25 +235,56 @@ class RmIssue(models.Model):
             )
 
     def action_submit_production_feedback(self):
+        """Acknowledge RM receipt and submit Production feedback in one step."""
         if not (
             self.env.user.has_group('mrp.group_mrp_user')
             or self.env.user.has_group('base.group_system')
         ):
-            raise UserError(_('Only Production users can submit feedback on Store material issues.'))
+            raise UserError(_('Only Production users can acknowledge RM receipt and submit feedback.'))
+
         for rm in self:
+            # Serialize submissions so two users cannot submit the same feedback.
+            self.env.cr.execute(
+                'SELECT id FROM rm_issue WHERE id = %s FOR UPDATE', (rm.id,)
+            )
+            rm.invalidate_recordset([
+                'state', 'production_acknowledged', 'production_feedback_intime',
+                'production_feedback_correct', 'production_feedback_submitted',
+            ])
+
             if rm.state != 'issued':
-                raise UserError(_('Production feedback can be submitted only after the raw materials are issued.'))
+                raise UserError(_('RM receipt can be acknowledged only after the raw materials are issued.'))
             if rm.production_feedback_submitted:
                 raise UserError(_('Production feedback has already been submitted.'))
             if not rm.production_feedback_intime or not rm.production_feedback_correct:
-                raise UserError(_('Please select Yes or No for both Intime and Correct before submitting feedback.'))
-            rm.write({
+                raise UserError(_(
+                    'Please select Yes or No for both Intime and Correct before '
+                    'acknowledging receipt and submitting feedback.'
+                ))
+
+            now = fields.Datetime.now()
+            values = {
                 'production_feedback_submitted': True,
                 'production_feedback_by': self.env.user.id,
-                'production_feedback_date': fields.Datetime.now(),
-            })
+                'production_feedback_date': now,
+            }
+            # Also acknowledge receipt in the same database transaction.
+            # Preserve the original acknowledgement audit details for legacy records.
+            if not rm.production_acknowledged:
+                values.update({
+                    'production_acknowledged': True,
+                    'production_acknowledged_by': self.env.user.id,
+                    'production_acknowledged_date': now,
+                })
+
+            # Deliberately bypass write() only for this validated, atomic action;
+            # ordinary edits remain subject to the acknowledgement/feedback locks.
+            super(RmIssue, rm).write(values)
             rm.message_post(
-                body=_('Production feedback submitted for RM Issue <b>%s</b>.') % rm.name,
+                body=_(
+                    'Production acknowledged receipt of raw materials and submitted '
+                    'feedback for RM Issue <b>%s</b>.'
+                ) % rm.name,
                 subtype_xmlid='mail.mt_comment',
             )
         return {'type': 'ir.actions.client', 'tag': 'reload'}
@@ -322,11 +353,22 @@ class RmIssue(models.Model):
             'production_feedback_by',
             'production_feedback_date',
         }
+        # Once acknowledged, only the two feedback answers may still be edited
+        # until the combined submission is completed. This also lets legacy
+        # records acknowledged with the old button finish their feedback.
+        editable_feedback_answers = {
+            'production_feedback_intime',
+            'production_feedback_correct',
+        }
         for rm in self:
             if rm.production_acknowledged:
-                raise UserError(
-                    _('This RM Issue has been acknowledged and is locked.')
-                )
+                if not set(vals).issubset(editable_feedback_answers):
+                    raise UserError(
+                        _('This RM Issue has been acknowledged and is locked. '
+                          'Only the pending Production feedback answers can be completed.')
+                    )
+                if rm.production_feedback_submitted:
+                    raise UserError(_('Submitted Production feedback is locked and cannot be changed.'))
         # Preserve the existing protection for manual Internal Transfer linking.
         if (
             'internal_transfer_ref' in vals

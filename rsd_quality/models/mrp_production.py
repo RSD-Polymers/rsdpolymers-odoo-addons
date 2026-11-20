@@ -37,16 +37,19 @@ class MrpProduction(models.Model):
                 is_allowed and not active and production.state not in ("draft", "cancel", "done")
             )
 
-    @api.depends("check_ids", "unloading_request_ids.state")
+    @api.depends("qc_quality_check_ids", "qc_quality_check_ids.quality_request_status", "unloading_request_ids.state")
     @api.depends_context("uid")
     def _compute_quality_request_controls(self):
         is_production_user = self.env.user.has_group("mrp.group_mrp_user")
         for production in self:
             accepted = any(req.state == "accepted" for req in production.unloading_request_ids)
+            checks = production.sudo().qc_quality_check_ids
+            pending_request = checks.filtered(lambda check: check.quality_request_status != "requested")
             production.show_request_quality_button = bool(
                 is_production_user
                 and accepted
-                and not production.sudo().check_ids
+                and checks
+                and pending_request
                 and production.state not in ("draft", "cancel", "done")
             )
 
@@ -59,29 +62,58 @@ class MrpProduction(models.Model):
         self.ensure_one()
         if not self.env.user.has_group("mrp.group_mrp_user"):
             raise AccessError(_("Only Production users can request Quality Checks."))
-        # Serialize concurrent clicks/requests for the same MO.
+
+        # Lock the MO row to prevent two users from submitting the same request.
         self.env.cr.execute("SELECT id FROM mrp_production WHERE id = %s FOR UPDATE", (self.id,))
-        self.invalidate_recordset(["check_ids", "unloading_request_ids"])
+        self.invalidate_recordset(["qc_quality_check_ids", "unloading_request_ids"])
+
         if self.state in ("draft", "cancel", "done"):
             raise UserError(_("Quality Checks can only be requested for an active Manufacturing Order."))
         if not self.unloading_request_ids.filtered(lambda req: req.state == "accepted"):
             raise UserError(_("The Chemist must accept the Unloading Request before Quality Checks can be requested."))
-        if self.sudo().check_ids:
-            raise UserError(_("Quality Checks have already been requested or generated for this Manufacturing Order."))
-        moves = (self.move_raw_ids | self.move_finished_ids).filtered(lambda move: move.state != "cancel")
-        if not moves:
-            raise UserError(_("No active Manufacturing stock moves are available to generate Quality Checks."))
-        moves.with_context(rsd_quality_manual_request=True)._create_quality_checks_for_mo()
-        self.invalidate_recordset(["check_ids"])
-        if not self.sudo().check_ids:
-            raise UserError(_("No Quality Checks were generated. Please verify the applicable Quality Control Points."))
-        self.message_post(body=_("Quality Checks were requested by %s after Unloading Request acceptance.") % self.env.user.display_name)
+
+        checks = self.sudo().qc_quality_check_ids
+        if not checks:
+            raise UserError(_(
+                "No Quality Checks exist for this Manufacturing Order. "
+                "Please confirm that the applicable Quality Control Points are configured "
+                "and that automatic Quality Check generation is enabled."
+            ))
+
+        pending_checks = checks.filtered(lambda check: check.quality_request_status != "requested")
+        if not pending_checks:
+            raise UserError(_("Quality Checks have already been requested for this Manufacturing Order."))
+
+        now = fields.Datetime.now()
+        pending_checks.write({
+            "quality_request_status": "requested",
+            "quality_requested_by": self.env.user.id,
+            "quality_requested_on": now,
+        })
+
+        # Notify all members of the configured Quality Test User group.
+        quality_group = self.env.ref("rsd_quality.group_quality_test_user", raise_if_not_found=False)
+        quality_partners = quality_group.sudo().users.mapped("partner_id") if quality_group else self.env["res.partner"]
+        body = _(
+            "Quality inspection has been requested by %(user)s for Manufacturing Order %(mo)s. "
+            "%(count)s Quality Check(s) are awaiting inspection."
+        ) % {
+            "user": self.env.user.display_name,
+            "mo": self.display_name,
+            "count": len(pending_checks),
+        }
+        self.message_post(
+            body=body,
+            partner_ids=quality_partners.ids,
+            subtype_xmlid="mail.mt_comment",
+        )
+
         return {
             "type": "ir.actions.client",
             "tag": "display_notification",
             "params": {
                 "title": _("Quality Checks Requested"),
-                "message": _("Standard Quality Checks have been generated for this Manufacturing Order."),
+                "message": _("Existing Quality Checks have been marked as Requested and the Quality Team has been notified."),
                 "type": "success",
                 "sticky": False,
             },

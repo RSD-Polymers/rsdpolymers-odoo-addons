@@ -5,6 +5,13 @@ from odoo.exceptions import UserError
 class QualityCheck(models.Model):
     _inherit = 'quality.check'
 
+    quality_request_status = fields.Selection([
+        ('not_requested', 'Not Requested'),
+        ('requested', 'Requested'),
+    ], string='Quality Request Status', default='not_requested', copy=False, tracking=True)
+    quality_requested_by = fields.Many2one('res.users', string='Requested By', readonly=True, copy=False)
+    quality_requested_on = fields.Datetime(string='Requested On', readonly=True, copy=False)
+
     is_quality_dept_user = fields.Boolean(
         compute='_compute_is_quality_dept_user'
     )

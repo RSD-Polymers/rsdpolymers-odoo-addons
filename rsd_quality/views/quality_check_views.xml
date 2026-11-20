@@ -6,6 +6,14 @@
         <field name="inherit_id" ref="quality_control.quality_check_view_form"/>
         <field name="arch" type="xml">
 
+            <xpath expr="//sheet" position="inside">
+                <group string="Production Quality Request" name="production_quality_request">
+                    <field name="quality_request_status" readonly="1"/>
+                    <field name="quality_requested_by" readonly="1"/>
+                    <field name="quality_requested_on" readonly="1"/>
+                </group>
+            </xpath>
+
             <xpath expr="//sheet" position="before">
                 <field name="is_quality_dept_user" invisible="1"/>
             </xpath>

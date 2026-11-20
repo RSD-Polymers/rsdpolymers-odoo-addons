@@ -46,16 +46,9 @@
                             type="object"
                             class="btn-success"
                             invisible="not can_issue_material"/>
-                    <field name="can_acknowledge_production" invisible="1"/>
-                    <button name="action_acknowledge_production"
-                            string="Acknowledge RM Receipt"
-                            type="object"
-                            class="btn-primary"
-                            groups="mrp.group_mrp_user,base.group_system"
-                            invisible="not can_acknowledge_production"/>
                     <field name="can_submit_production_feedback" invisible="1"/>
                     <button name="action_submit_production_feedback"
-                            string="Submit Production Feedback"
+                            string="Acknowledge &amp; Submit Feedback"
                             type="object"
                             class="btn-primary"
                             groups="mrp.group_mrp_user,base.group_system"
@@ -118,10 +111,10 @@
 
                         </page>
 
-                        <page string="Production Feedback"
+                        <page string="Acknowledgement &amp; Production Feedback"
                               invisible="state != 'issued'">
                             <group>
-                                <group string="Feedback on Store"
+                                <group string="Confirm RM Receipt &amp; Feedback on Store"
                                        groups="mrp.group_mrp_user,base.group_system">
                                     <field name="production_feedback_intime"
                                            widget="radio"
