@@ -19,16 +19,11 @@
             <xpath expr="//header" position="inside">
                 <field name="show_request_unloading_button" invisible="1"/>
                 <field name="show_request_quality_button" invisible="1"/>
-                <field name="quality_check_count" invisible="1"/>
                 <button name="action_request_quality" type="object" string="Request Quality"
                         class="btn-primary" groups="mrp.group_mrp_user"
                         invisible="not show_request_quality_button"/>
             </xpath>
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button name="action_view_quality_checks" type="object" class="oe_stat_button"
-                        icon="fa-check-square-o" invisible="quality_check_count == 0">
-                    <field name="quality_check_count" widget="statinfo" string="Quality Checks"/>
-                </button>
                 <button name="action_view_unloading_requests"
                         type="object"
                         class="oe_stat_button"

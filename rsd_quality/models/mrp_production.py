@@ -13,7 +13,6 @@ class MrpProduction(models.Model):
     )
     has_active_unloading_request = fields.Boolean(compute="_compute_unloading_request_controls")
     show_request_unloading_button = fields.Boolean(compute="_compute_unloading_request_controls")
-    quality_check_count = fields.Integer(string="Quality Checks", compute="_compute_quality_check_count")
     show_request_quality_button = fields.Boolean(compute="_compute_quality_request_controls")
 
     @api.depends("unloading_request_ids")
@@ -53,11 +52,6 @@ class MrpProduction(models.Model):
                 and production.state not in ("draft", "cancel", "done")
             )
 
-    @api.depends("check_ids")
-    def _compute_quality_check_count(self):
-        for production in self:
-            production.quality_check_count = len(production.sudo().check_ids)
-
     def action_request_quality(self):
         self.ensure_one()
         if not self.env.user.has_group("mrp.group_mrp_user"):
@@ -91,22 +85,46 @@ class MrpProduction(models.Model):
             "quality_requested_on": now,
         })
 
-        # Notify all members of the configured Quality Test User group.
+        # Create one activity on each Quality Check for every Quality Test User.
+        # Activities are linked to quality.check, so users can open the exact check
+        # directly from My Activities instead of navigating from the MO chatter.
         quality_group = self.env.ref("rsd_quality.group_quality_test_user", raise_if_not_found=False)
-        quality_partners = quality_group.sudo().users.mapped("partner_id") if quality_group else self.env["res.partner"]
-        body = _(
-            "Quality inspection has been requested by %(user)s for Manufacturing Order %(mo)s. "
-            "%(count)s Quality Check(s) are awaiting inspection."
-        ) % {
-            "user": self.env.user.display_name,
-            "mo": self.display_name,
-            "count": len(pending_checks),
-        }
-        self.message_post(
-            body=body,
-            partner_ids=quality_partners.ids,
-            subtype_xmlid="mail.mt_comment",
-        )
+        quality_users = quality_group.sudo().users.filtered(lambda user: user.active) if quality_group else self.env["res.users"]
+        if not quality_users:
+            raise UserError(_(
+                "No active users were found in the Quality Test User group. "
+                "Please assign Quality users before requesting inspection."
+            ))
+
+        activity_type = self.env.ref("mail.mail_activity_data_todo")
+        quality_check_model_id = self.env["ir.model"]._get_id("quality.check")
+        Activity = self.env["mail.activity"].sudo()
+        for check in pending_checks:
+            for quality_user in quality_users:
+                existing_activity = Activity.search([
+                    ("res_model_id", "=", quality_check_model_id),
+                    ("res_id", "=", check.id),
+                    ("user_id", "=", quality_user.id),
+                    ("activity_type_id", "=", activity_type.id),
+                    ("summary", "=", "Perform Quality Inspection"),
+                ], limit=1)
+                if existing_activity:
+                    continue
+                Activity.create({
+                    "activity_type_id": activity_type.id,
+                    "summary": "Perform Quality Inspection",
+                    "note": _(
+                        "Production has requested inspection. Manufacturing Order: %(mo)s. "
+                        "Product: %(product)s. Please open this Quality Check and record the inspection result."
+                    ) % {
+                        "mo": self.display_name,
+                        "product": check.product_id.display_name or "-",
+                    },
+                    "res_model_id": quality_check_model_id,
+                    "res_id": check.id,
+                    "user_id": quality_user.id,
+                    "date_deadline": fields.Date.context_today(self),
+                })
 
         return {
             "type": "ir.actions.client",
@@ -117,18 +135,6 @@ class MrpProduction(models.Model):
                 "type": "success",
                 "sticky": False,
             },
-        }
-
-    def action_view_quality_checks(self):
-        self.ensure_one()
-        return {
-            "type": "ir.actions.act_window",
-            "name": _("Quality Checks"),
-            "res_model": "quality.check",
-            "view_mode": "list,form",
-            "domain": [("production_id", "=", self.id)],
-            "context": {"default_production_id": self.id},
-            "target": "current",
         }
 
     def action_create_unloading_request(self):
