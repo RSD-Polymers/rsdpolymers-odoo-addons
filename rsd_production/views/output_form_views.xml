@@ -316,8 +316,16 @@ action = env['mrp.production'].action_open_eligible_output_mos()
 
         <field name="arch" type="xml">
 
-
-
+            <xpath expr="//header" position="inside">
+                <field name="show_create_output_form_button" invisible="1"/>
+                <field name="output_form_count" invisible="1"/>
+            </xpath>
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_output_forms" type="object" class="oe_stat_button"
+                        icon="fa-file-text-o" invisible="output_form_count == 0">
+                    <field name="output_form_count" widget="statinfo" string="Output Forms"/>
+                </button>
+            </xpath>
             <xpath expr="//header" position="inside">
 
                 <button name="action_create_output_form"
