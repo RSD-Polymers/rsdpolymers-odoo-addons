@@ -41,7 +41,7 @@ class MrpProduction(models.Model):
     def _compute_quality_request_controls(self):
         is_production_user = self.env.user.has_group("mrp.group_mrp_user")
         for production in self:
-            accepted = any(req.state == "accepted" for req in production.unloading_request_ids)
+            accepted = production.is_packing_order or any(req.state == "accepted" for req in production.unloading_request_ids)
             checks = production.sudo().qc_quality_check_ids
             pending_request = checks.filtered(lambda check: check.quality_request_status != "requested")
             production.show_request_quality_button = bool(
@@ -63,7 +63,7 @@ class MrpProduction(models.Model):
 
         if self.state in ("draft", "cancel", "done"):
             raise UserError(_("Quality Checks can only be requested for an active Manufacturing Order."))
-        if not self.unloading_request_ids.filtered(lambda req: req.state == "accepted"):
+        if not self.is_packing_order and not self.unloading_request_ids.filtered(lambda req: req.state == "accepted"):
             raise UserError(_("The Chemist must accept the Unloading Request before Quality Checks can be requested."))
 
         checks = self.sudo().qc_quality_check_ids
@@ -143,6 +143,8 @@ class MrpProduction(models.Model):
         is_supervisor = self.env.user.has_group("rsd_quality.group_unloading_request_supervisor")
         if not (is_admin or is_supervisor):
             raise AccessError(_("Only a Production Supervisor or System Administrator can request unloading."))
+        if self.is_packing_order:
+            raise UserError(_("Unloading Requests are not required for Packing Instructions."))
         if self.state in ("draft", "cancel", "done"):
             raise UserError(_("An unloading request can only be created for a confirmed, active Manufacturing Order."))
         if self.unloading_request_ids.filtered(lambda req: req.state in ("draft", "submitted", "accepted", "modification_required")):

@@ -103,6 +103,7 @@ class MrpProduction(models.Model):
         # completion transaction started by button_mark_done below.
         locked_forms = self.env['production.output.form'].sudo().search([
             ('production_id', 'in', self.ids),
+            ('production_id.is_packing_order', '=', False),
             ('state', 'in', ('submitted', 'approved', 'produced')),
         ])
 
@@ -248,7 +249,8 @@ class MrpProduction(models.Model):
             ])
             valid_state = mo.state in ('confirmed', 'progress', 'to_close')
             mo.show_create_output_form_button = bool(
-                valid_state
+                not mo.is_packing_order
+                and valid_state
                 and not active_form
                 and (is_admin or mo.qc_batch_eligible)
             )
@@ -278,6 +280,8 @@ class MrpProduction(models.Model):
 
     def _check_output_form_eligibility(self):
         self.ensure_one()
+        if self.is_packing_order:
+            raise UserError(_('Output Forms are not required for Packing Instructions.'))
         if self.state not in ('confirmed', 'progress', 'to_close'):
             raise UserError(_('Only confirmed, in-progress or To Close Manufacturing Orders can have an Output Form.'))
         if not getattr(self, 'qc_batch_eligible', False):
@@ -286,6 +290,8 @@ class MrpProduction(models.Model):
 
     def action_create_output_form(self):
         self.ensure_one()
+        if self.is_packing_order:
+            raise UserError(_('Output Forms are not required for Packing Instructions.'))
         if not (self.env.user.has_group('mrp.group_mrp_user') or self.env.user.has_group('mrp.group_mrp_manager') or self.env.user.has_group('base.group_system')):
             raise UserError(_('Only Production users can create an Output Form.'))
         existing = self.env['production.output.form'].search([
@@ -316,6 +322,7 @@ class MrpProduction(models.Model):
         """Open only MOs that currently satisfy all QC gates and have no active form."""
         candidates = self.search([
             ('state', 'in', ('confirmed', 'progress', 'to_close')),
+            ('is_packing_order', '=', False),
         ])
         eligible = candidates.filtered(lambda mo: mo.qc_batch_eligible)
         active_forms = self.env['production.output.form'].sudo().search([
@@ -332,10 +339,15 @@ class MrpProduction(models.Model):
         }
 
     def button_mark_done(self):
+        # Packing Instructions follow the standard MRP completion flow. They do
+        # not require an Output Form, Unloading approval or Performance Test.
+        packing_orders = self.filtered(lambda mo: mo.is_packing_order)
+        normal_orders = self - packing_orders
+
         output_forms = self.env['production.output.form'].sudo().search([
-            ('production_id', 'in', self.ids), ('state', '!=', 'cancelled'),
+            ('production_id', 'in', normal_orders.ids), ('state', '!=', 'cancelled'),
         ])
-        for mo in self:
+        for mo in normal_orders:
             form = output_forms.filtered(lambda item: item.production_id == mo)[:1]
             if not form or form.state != 'approved':
                 raise UserError(_('An approved Output Form is required before Produce All.'))
@@ -347,17 +359,16 @@ class MrpProduction(models.Model):
             ])
             if pending_returns:
                 raise UserError(_('Complete or cancel all Draft/Submitted RM Return requests before using Produce All.'))
-        # Set a protected database flag (not a caller-controlled context key) so
-        # standard stock move validation can run only inside this transaction.
-        for mo in self:
-            super(MrpProduction, mo).write({
-                'output_form_completion_in_progress': True
-            })
+
+        # Keep the protected completion flag only for normal MOs with Output Forms.
+        for mo in normal_orders:
+            super(MrpProduction, mo).write({'output_form_completion_in_progress': True})
         try:
             result = super(MrpProduction, self).button_mark_done()
         finally:
-            for mo in self.filtered(lambda item: item.output_form_completion_in_progress):
+            for mo in normal_orders.filtered(lambda item: item.output_form_completion_in_progress):
                 super(MrpProduction, mo).write({'output_form_completion_in_progress': False})
+
         for form in output_forms.filtered(lambda item: item.state == 'approved' and item.production_id.state == 'done'):
             form.sudo()._mark_produced_after_completion()
             form.message_post(body=_('Manufacturing Order successfully completed through standard Produce All. QA can now proceed with post-production inspection.'))

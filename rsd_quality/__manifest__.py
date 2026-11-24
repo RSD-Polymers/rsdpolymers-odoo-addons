@@ -1,7 +1,7 @@
 {
     'name': 'RSD Quality Customizations',
     'icon': '/rsd_quality/static/description/icon.png',
-    'version': '18.0.1.4.4',
+    'version': '18.0.1.4.5',
     'category': 'Quality/Quality',
     'summary': 'Production unloading requests, Performance Testing and Internal COA',
     'description': """

@@ -119,6 +119,8 @@ class QualityUnloadingRequest(models.Model):
                 production = self.env["mrp.production"].browse(production_id).exists()
                 if not production:
                     raise ValidationError(_("Please select a valid Manufacturing Order."))
+                if production.is_packing_order:
+                    raise ValidationError(_("Unloading Requests are not required for Packing Instructions."))
                 if production.state in ("draft", "cancel", "done"):
                     raise ValidationError(_(
                         "An unloading request can only be created for a confirmed, active Manufacturing Order."

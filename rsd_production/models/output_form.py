@@ -59,6 +59,8 @@ class ProductionOutputForm(models.Model):
                 raise ValidationError(_('Select a valid Manufacturing Order.'))
             self.env.cr.execute("SELECT id FROM mrp_production WHERE id = %s FOR UPDATE", (mo.id,))
             mo.invalidate_recordset()
+            if mo.is_packing_order:
+                raise UserError(_('Output Forms are not required for Packing Instructions.'))
             if mo.state not in ('confirmed', 'progress', 'to_close'):
                 raise UserError(_(
                     'Only confirmed, in-progress or To Close Manufacturing Orders '

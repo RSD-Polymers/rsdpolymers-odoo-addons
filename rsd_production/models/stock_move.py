@@ -10,6 +10,7 @@ def _assert_output_form_unlocked(env, mo_ids, label):
 
     forms = env['production.output.form'].sudo().search([
         ('production_id', 'in', mo_ids),
+        ('production_id.is_packing_order', '=', False),
         ('state', 'in', ['submitted', 'approved', 'produced']),
     ])
     if not forms:

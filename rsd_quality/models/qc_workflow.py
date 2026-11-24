@@ -93,6 +93,8 @@ class RSDQualityStageTest(models.Model):
             prod = self.env['mrp.production'].browse(vals.get('production_id')).exists()
             if not prod:
                 raise ValidationError(_('Select a valid Manufacturing Order.'))
+            if prod.is_packing_order and vals.get('test_kind') == 'performance':
+                raise ValidationError(_('Performance Tests are not required for Packing Instructions.'))
             if vals.get('test_kind') == 'internal_coa':
                 raise ValidationError(_('Internal COA is managed through the existing Odoo Quality Check workflow.'))
             assigned_id = vals.get('assigned_user_id')
@@ -231,6 +233,14 @@ class MrpProductionQCGate(models.Model):
                  'qc_quality_check_ids.product_id')
     def _compute_qc_gate(self):
         for mo in self:
+            if mo.is_packing_order:
+                mo.qc_performance_required = False
+                mo.qc_performance_state = 'not_required'
+                mo.qc_internal_coa_state = 'not_required'
+                mo.qc_unloading_approved = False
+                mo.qc_batch_eligible = False
+                continue
+
             perf = mo.sudo().qc_performance_test_ids.filtered(
                 lambda t: t.test_kind == 'performance'
             ).sorted('id')[-1:]
@@ -287,6 +297,8 @@ class MrpProductionQCGate(models.Model):
 
     def _create_mandatory_performance_test(self):
         for mo in self:
+            if mo.is_packing_order:
+                continue
             if mo.product_id.performance_test_policy != 'mandatory':
                 continue
             existing = mo.qc_performance_test_ids.filtered(lambda t: t.state != 'cancelled')
@@ -306,6 +318,8 @@ class MrpProductionQCGate(models.Model):
         self.ensure_one()
         if not (self.env.user.has_group('rsd_quality.group_unloading_request_supervisor') or self.env.user.has_group('base.group_system')):
             raise AccessError(_('Only the Production Supervisor or System Administrator can decide whether an optional Performance Test is required.'))
+        if self.is_packing_order:
+            raise UserError(_('Performance Tests are not required for Packing Instructions.'))
         if self.product_id.performance_test_policy != 'optional':
             raise UserError(_('This product has a Mandatory Performance Test policy.'))
         if not self.qc_unloading_approved:
@@ -325,6 +339,8 @@ class MrpProductionQCGate(models.Model):
 
     def action_skip_optional_performance_test(self):
         self.ensure_one()
+        if self.is_packing_order:
+            raise UserError(_('Performance Tests are not required for Packing Instructions.'))
         if not (self.env.user.has_group('rsd_quality.group_unloading_request_supervisor') or self.env.user.has_group('base.group_system')):
             raise AccessError(_('Only the Production Supervisor or System Administrator can decide whether an optional Performance Test is required.'))
         if self.product_id.performance_test_policy != 'optional':
