@@ -53,7 +53,14 @@ class RSDApplicationRequest(models.Model):
     def _compute_has_other_parameter(self):
         for rec in self:
             rec.has_other_parameter = 'other' in rec.parameter_ids.mapped('code')
-    inhibition_test_ids = fields.Many2many('rsd.quality.inhibition.test', string='Inhibition Tests')
+
+    inhibition_test_ids = fields.Many2many(
+        'rsd.quality.inhibition.test',
+        relation='rsd_app_request_inhibition_rel',
+        column1='request_id',
+        column2='inhibition_test_id',
+        string='Inhibition Tests',
+    )
     inhibition_snapshot = fields.Text(readonly=True)
     assigned_user_id = fields.Many2one('res.users', string='Application User', tracking=True)
     sample_received_date = fields.Date(tracking=True)
