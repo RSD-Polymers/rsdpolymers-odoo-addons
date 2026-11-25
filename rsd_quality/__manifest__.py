@@ -8,6 +8,7 @@
         - Restricts Quality Checks (Pass/Fail) strictly to the Quality Department.
         - Provides the Production Supervisor to Production Chemist unloading request workflow.
         - Provides product-wise QC specification templates and automatic Performance Test / Internal COA evaluation.
+        - Consolidated R&D Sample Request and single-Experiment review workflow.
         - Uses the QC Performance Test workflow for application/performance testing.
         - Provides administrator-wide unloading workflow access, Production Supervisor read access at every stage, and controlled physical-modification completion with audit details.
     """,
