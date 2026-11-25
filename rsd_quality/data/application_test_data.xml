@@ -1,0 +1,15 @@
+<odoo noupdate="1">
+<record id="application_parameter_inhibition" model="rsd.quality.application.parameter"><field name="name">Inhibition</field><field name="code">inhibition</field><field name="sequence">10</field></record>
+<record id="application_parameter_ard" model="rsd.quality.application.parameter"><field name="name">ARD</field><field name="code">ard</field><field name="sequence">20</field></record>
+<record id="application_parameter_desperation" model="rsd.quality.application.parameter"><field name="name">Desperation</field><field name="code">desperation</field><field name="sequence">30</field></record>
+<record id="application_parameter_soil_stain" model="rsd.quality.application.parameter"><field name="name">Soil Stain Removal</field><field name="code">soil_stain</field><field name="sequence">40</field></record>
+<record id="application_parameter_adw" model="rsd.quality.application.parameter"><field name="name">ADW</field><field name="code">adw</field><field name="sequence">50</field></record>
+<record id="application_parameter_other" model="rsd.quality.application.parameter"><field name="name">Any Other</field><field name="code">other</field><field name="sequence">60</field></record>
+<record id="inhibition_test_1" model="rsd.quality.inhibition.test"><field name="name">Calcium Carbonate Inhibition - 1</field><field name="sequence">10</field><field name="conditions">24 hrs; 55°C; 10 ppm; pH 7.5–8.5; Ca²⁺ as CaCO₃ – 1000 ppm</field></record>
+<record id="inhibition_test_2" model="rsd.quality.inhibition.test"><field name="name">Calcium Carbonate Inhibition - 2</field><field name="sequence">20</field><field name="conditions">10 hrs; 80°C; 10 ppm; pH 7.5–8.5; Ca²⁺ as CaCO₃ – 1000 ppm; HCO₃⁻ – 732 ppm</field></record>
+<record id="inhibition_test_3" model="rsd.quality.inhibition.test"><field name="name">Calcium Carbonate Inhibition - 3</field><field name="sequence">30</field><field name="conditions">10 hrs; 105°C; 10 ppm or as required; pH 7.5–8.5; Ca²⁺ as CaCO₃ – 1000 ppm; HCO₃⁻ – 732 ppm</field></record>
+<record id="inhibition_test_4" model="rsd.quality.inhibition.test"><field name="name">Calcium Carbonate Inhibition - 4</field><field name="sequence">40</field><field name="conditions">5 hrs; 55°C; as required; pH 7.5–8.5; Ca²⁺ as CaCO₃ – 200 ppm</field></record>
+<record id="inhibition_test_5" model="rsd.quality.inhibition.test"><field name="name">Calcium Phosphate Inhibition</field><field name="sequence">50</field><field name="conditions">18 hrs; 70°C; 13 ppm or as required; pH 8.5–8.7; Iron content – 3 ppm</field></record>
+<record id="inhibition_test_6" model="rsd.quality.inhibition.test"><field name="name">Silica Inhibition</field><field name="sequence">60</field><field name="conditions">3 hrs; 70°C; as required; pH 7.8–8.2; Ca²⁺ as CaCO₃ – 180 ppm; Mg as CaCO₃ – 180 ppm; Silica as SiO₂ – 300 ppm; HCO₃⁻ as CaCO₃ – 180 ppm</field></record>
+<record id="inhibition_test_7" model="rsd.quality.inhibition.test"><field name="name">Sulphate Inhibition</field><field name="sequence">70</field><field name="conditions">24 hrs; 55°C; as required; pH 7.5–8.0; Ca²⁺ as CaSO₄ – 6500 ppm</field></record>
+</odoo>

@@ -5,3 +5,5 @@ from . import mrp_production
 
 from . import qc_workflow
 from . import stock_move
+
+from . import application_request

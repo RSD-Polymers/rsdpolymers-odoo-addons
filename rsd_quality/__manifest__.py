@@ -12,9 +12,11 @@
         - Provides administrator-wide unloading workflow access, Production Supervisor read access at every stage, and controlled physical-modification completion with audit details.
     """,
     'author': 'RSD Polymers',
-    'depends': ['quality_mrp', 'quality_control', 'hr', 'mrp', 'mail', 'rsd_qa_management','rsd_sales',],
+    'depends': ['quality_mrp', 'quality_control', 'hr', 'mrp', 'mail', 'rsd_qa_management','rsd_sales', 'rnd_workflow',],
     'data': [
         'data/unloading_request_sequence.xml',
+        'data/application_request_sequence.xml',
+        'security/application_request_security.xml',
         'data/qc_stage_test_sequence.xml',
         'data/testing_sequences.xml',
         'security/security.xml',
@@ -22,6 +24,9 @@
         'views/quality_check_views.xml',
         'views/unloading_request_views.xml',
         'views/testing_views.xml',
+        'data/application_test_data.xml',
+        'views/application_request_views.xml',
+        'views/application_request_menu.xml',
         'views/mrp_production_unloading_views.xml',
         'views/qc_workflow_views.xml',
     ],
