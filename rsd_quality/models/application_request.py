@@ -38,7 +38,14 @@ class RSDApplicationRequest(models.Model):
     sent_by = fields.Char(required=True)
     delivery_mode = fields.Selection([('courier', 'Courier'), ('hand', 'Hand Delivery'), ('transport', 'Transport'), ('other', 'Other')], required=True)
     compare_performance = fields.Text(string='Compare Performance With')
-    parameter_ids = fields.Many2many('rsd.quality.application.parameter', string='Performance Test Parameters', required=True)
+    parameter_ids = fields.Many2many(
+        'rsd.quality.application.parameter',
+        relation='rsd_app_request_parameter_rel',
+        column1='request_id',
+        column2='parameter_id',
+        string='Performance Test Parameters',
+        required=True,
+    )
     other_parameter = fields.Char(string='Other Parameter')
     has_other_parameter = fields.Boolean(compute='_compute_has_other_parameter')
 
