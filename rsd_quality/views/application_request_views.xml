@@ -1,24 +1,251 @@
 <odoo>
- <record id="application_request_list" model="ir.ui.view"><field name="name">application.request.list</field><field name="model">rsd.quality.application.request</field><field name="arch" type="xml"><list><field name="name"/><field name="sample_name"/><field name="requester_id"/><field name="request_date"/><field name="assigned_user_id"/><field name="experiment_reviewer_id"/><field name="state" widget="badge"/></list></field></record>
- <record id="application_request_form" model="ir.ui.view"><field name="name">application.request.form</field><field name="model">rsd.quality.application.request</field><field name="arch" type="xml"><form><header>
- <button name="action_submit_request" type="object" string="Submit Request" class="btn-primary" invisible="state not in ('draft','request_revision')" groups="rnd_workflow.group_rnd_sm,rnd_workflow.group_rnd_owner"/>
- <button name="action_request_review" type="object" string="Review Request" class="btn-primary" invisible="state!='submitted'" groups="rsd_quality.group_application_request_reviewer"/>
- <button name="action_start_experiment" type="object" string="Start Experiment" class="btn-primary" invisible="state!='approved'" groups="rsd_quality.group_application_experiment_user"/>
- <button name="action_resume_experiment" type="object" string="Resume Experiment" class="btn-primary" invisible="state!='experiment' or experiment_id.state!='returned'" groups="rsd_quality.group_application_experiment_user"/>
- <button name="action_submit_experiment" type="object" string="Submit Experiment" class="btn-primary" invisible="state!='experiment' or experiment_id.state!='in_progress'" groups="rsd_quality.group_application_experiment_user"/>
- <button name="action_experiment_review" type="object" string="Review Experiment" class="btn-primary" invisible="state!='experiment_review'" groups="rsd_quality.group_application_experiment_reviewer"/>
- <button name="action_sn_m_close" type="object" string="Close Request" class="btn-primary" invisible="state!='results_sent'" groups="rnd_workflow.group_rnd_sm"/>
- <button name="action_cancel_request" type="object" string="Cancel" invisible="state not in ('draft','submitted','request_revision')" groups="rnd_workflow.group_rnd_sm,rnd_workflow.group_rnd_owner"/>
- <field name="state" widget="statusbar" statusbar_visible="draft,submitted,request_revision,approved,experiment,experiment_review,results_sent,completed"/></header><sheet>
- <div class="oe_title"><h1><field name="name"/></h1></div>
- <group><group><field name="requester_id"/><field name="requester_employee_id"/><field name="department_id"/><field name="designation"/><field name="request_date"/><field name="submitted_on"/></group><group><field name="sample_name"/><field name="batch_no"/><field name="quantity"/><field name="quantity_uom"/><field name="manufacturer_name"/><field name="delivery_mode"/></group></group>
- <group><field name="purpose"/><field name="compare_performance"/></group>
- <notebook><page string="Performance Parameters"><field name="parameter_ids" widget="many2many_tags"/><field name="has_other_parameter" invisible="1"/><field name="other_parameter" invisible="not has_other_parameter"/><field name="inhibition_test_ids" widget="many2many_tags"/><field name="inhibition_snapshot" readonly="1"/></page>
- <page string="Description"><field name="description"/></page><page string="Attachments"><field name="attachment_ids" widget="many2many_binary"/></page>
- <page string="Review &amp; Assignment"><group><field name="request_reviewer_id" readonly="1"/><field name="request_review_feedback" readonly="1"/><field name="assigned_user_id" readonly="1"/><field name="experiment_reviewer_id" readonly="1"/><field name="approved_on"/><field name="final_sent_on"/><field name="closed_on"/></group></page>
- <page string="Experiment" invisible="not experiment_id"><field name="experiment_id" readonly="1"/></page></notebook></sheet><chatter/></form></field></record>
- <record id="application_request_action" model="ir.actions.act_window"><field name="name">R&amp;D Sample Requests</field><field name="res_model">rsd.quality.application.request</field><field name="view_mode">list,form</field></record>
- <record id="application_experiment_form" model="ir.ui.view"><field name="name">application.experiment.form</field><field name="model">rsd.quality.application.experiment</field><field name="arch" type="xml"><form><sheet><group><group><field name="request_id"/><field name="assigned_user_id"/><field name="reviewer_id"/><field name="state"/></group><group><field name="start_date"/><field name="submitted_on"/><field name="reviewed_on"/><field name="sendback_count"/><field name="work_duration_hours"/></group></group><group><field name="description"/><field name="attachment_ids" widget="many2many_binary"/><field name="reviewer_feedback"/></group><field name="work_intervals"><list><field name="start_date"/><field name="end_date"/></list></field></sheet><chatter/></form></field></record>
- <record id="request_review_wizard_form" model="ir.ui.view"><field name="name">application.request.review.wizard.form</field><field name="model">rsd.quality.application.request.review.wizard</field><field name="arch" type="xml"><form><group><field name="request_id"/><field name="decision"/><field name="assigned_user_id" invisible="decision!='approve'"/><field name="reviewer_id" invisible="decision!='approve'"/><field name="feedback" invisible="decision!='return'"/></group><footer><button name="action_confirm" type="object" string="Confirm" class="btn-primary"/><button string="Cancel" special="cancel"/></footer></form></field></record>
- <record id="experiment_review_wizard_form" model="ir.ui.view"><field name="name">application.experiment.review.wizard.form</field><field name="model">rsd.quality.application.experiment.review.wizard</field><field name="arch" type="xml"><form><group><field name="request_id"/><field name="decision"/><field name="feedback" invisible="decision!='return'"/></group><footer><button name="action_confirm" type="object" string="Confirm" class="btn-primary"/><button string="Cancel" special="cancel"/></footer></form></field></record>
+    <record id="application_request_list" model="ir.ui.view">
+        <field name="name">application.request.list</field>
+        <field name="model">rsd.quality.application.request</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="sample_name"/>
+                <field name="requester_id"/>
+                <field name="request_date"/>
+                <field name="assigned_user_id"/>
+                <field name="experiment_reviewer_id"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="application_request_form" model="ir.ui.view">
+        <field name="name">application.request.form</field>
+        <field name="model">rsd.quality.application.request</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit_request"
+                            type="object"
+                            string="Submit Request"
+                            class="btn-primary"
+                            invisible="state not in ('draft','request_revision')"
+                            groups="rnd_workflow.group_rnd_sm,rnd_workflow.group_rnd_owner"/>
+
+                    <button name="action_request_review"
+                            type="object"
+                            string="Review Request"
+                            class="btn-primary"
+                            invisible="state!='submitted'"
+                            groups="rsd_quality.group_application_request_reviewer"/>
+
+                    <button name="action_start_experiment"
+                            type="object"
+                            string="Start Experiment"
+                            class="btn-primary"
+                            invisible="state!='approved'"
+                            groups="rsd_quality.group_application_experiment_user"/>
+
+                    <button name="action_resume_experiment"
+                            type="object"
+                            string="Resume Experiment"
+                            class="btn-primary"
+                            invisible="state!='experiment' or experiment_id.state!='returned'"
+                            groups="rsd_quality.group_application_experiment_user"/>
+
+                    <button name="action_submit_experiment"
+                            type="object"
+                            string="Submit Experiment"
+                            class="btn-primary"
+                            invisible="not can_submit_experiment"
+                            groups="rsd_quality.group_application_experiment_user"/>
+
+                    <button name="action_experiment_review"
+                            type="object"
+                            string="Review Experiment"
+                            class="btn-primary"
+                            invisible="state!='experiment_review'"
+                            groups="rsd_quality.group_application_experiment_reviewer"/>
+
+                    <button name="action_sn_m_close"
+                            type="object"
+                            string="Close Request"
+                            class="btn-primary"
+                            invisible="state!='results_sent'"
+                            groups="rnd_workflow.group_rnd_sm"/>
+
+                    <button name="action_cancel_request"
+                            type="object"
+                            string="Cancel"
+                            invisible="state not in ('draft','submitted','request_revision')"
+                            groups="rnd_workflow.group_rnd_sm,rnd_workflow.group_rnd_owner"/>
+
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,submitted,request_revision,approved,experiment,experiment_review,results_sent,completed"/>
+                </header>
+
+                <sheet>
+                    <field name="can_submit_experiment" invisible="1"/>
+
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="requester_id"/>
+                            <field name="requester_employee_id"/>
+                            <field name="department_id"/>
+                            <field name="designation"/>
+                            <field name="request_date"/>
+                            <field name="submitted_on"/>
+                        </group>
+
+                        <group>
+                            <field name="sample_name"/>
+                            <field name="batch_no"/>
+                            <field name="quantity"/>
+                            <field name="quantity_uom"/>
+                            <field name="manufacturer_name"/>
+                            <field name="delivery_mode"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <field name="purpose"/>
+                        <field name="compare_performance"/>
+                    </group>
+
+                    <notebook>
+                        <page string="Performance Parameters">
+                            <field name="parameter_ids" widget="many2many_tags"/>
+                            <field name="has_other_parameter" invisible="1"/>
+                            <field name="other_parameter" invisible="not has_other_parameter"/>
+                            <field name="inhibition_test_ids" widget="many2many_tags"/>
+                            <field name="inhibition_snapshot" readonly="1"/>
+                        </page>
+
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+
+                        <page string="Attachments">
+                            <field name="attachment_ids" widget="many2many_binary"/>
+                        </page>
+
+                        <page string="Review &amp; Assignment">
+                            <group>
+                                <field name="request_reviewer_id" readonly="1"/>
+                                <field name="request_review_feedback" readonly="1"/>
+                                <field name="assigned_user_id" readonly="1"/>
+                                <field name="experiment_reviewer_id" readonly="1"/>
+                                <field name="approved_on"/>
+                                <field name="final_sent_on"/>
+                                <field name="closed_on"/>
+                            </group>
+                        </page>
+
+                        <page string="Experiment" invisible="not experiment_id">
+                            <field name="experiment_id" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="application_request_action" model="ir.actions.act_window">
+        <field name="name">R&amp;D Sample Requests</field>
+        <field name="res_model">rsd.quality.application.request</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="application_experiment_form" model="ir.ui.view">
+        <field name="name">application.experiment.form</field>
+        <field name="model">rsd.quality.application.experiment</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="request_id"/>
+                            <field name="assigned_user_id"/>
+                            <field name="reviewer_id"/>
+                            <field name="state"/>
+                        </group>
+
+                        <group>
+                            <field name="start_date"/>
+                            <field name="submitted_on"/>
+                            <field name="reviewed_on"/>
+                            <field name="sendback_count"/>
+                            <field name="work_duration_hours"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <field name="description"/>
+                        <field name="attachment_ids" widget="many2many_binary"/>
+                        <field name="reviewer_feedback"/>
+                    </group>
+
+                    <field name="work_intervals">
+                        <list>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                        </list>
+                    </field>
+                </sheet>
+
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="request_review_wizard_form" model="ir.ui.view">
+        <field name="name">application.request.review.wizard.form</field>
+        <field name="model">rsd.quality.application.request.review.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="request_id"/>
+                    <field name="decision"/>
+                    <field name="assigned_user_id" invisible="decision!='approve'"/>
+                    <field name="reviewer_id" invisible="decision!='approve'"/>
+                    <field name="feedback" invisible="decision!='return'"/>
+                </group>
+
+                <footer>
+                    <button name="action_confirm"
+                            type="object"
+                            string="Confirm"
+                            class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="experiment_review_wizard_form" model="ir.ui.view">
+        <field name="name">application.experiment.review.wizard.form</field>
+        <field name="model">rsd.quality.application.experiment.review.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <group>
+                    <field name="request_id"/>
+                    <field name="decision"/>
+                    <field name="feedback" invisible="decision!='return'"/>
+                </group>
+
+                <footer>
+                    <button name="action_confirm"
+                            type="object"
+                            string="Confirm"
+                            class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
 </odoo>

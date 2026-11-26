@@ -50,7 +50,9 @@ class RSDApplicationRequest(models.Model):
         compute='_compute_experiment'
     )
     experiment_count = fields.Integer(compute='_compute_experiment')
-    experiment_count = fields.Integer(compute='_compute_experiment')
+    can_submit_experiment = fields.Boolean(
+        compute='_compute_can_submit_experiment'
+    )
     legacy_attempt_ids = fields.One2many('rsd.quality.application.attempt','request_id', string='Legacy Attempts')
     legacy_current_attempt_id = fields.Many2one('rsd.quality.application.attempt', compute='_compute_legacy_attempt')
     legacy_attempt_count = fields.Integer(compute='_compute_legacy_attempt')
