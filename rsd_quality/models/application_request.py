@@ -29,6 +29,12 @@ class RSDApplicationRequest(models.Model):
     quantity = fields.Float(required=True)
     quantity_uom = fields.Many2one('uom.uom', string='Unit', default=lambda s:s.env.ref('uom.product_uom_kgm', raise_if_not_found=False))
     manufacturer_name = fields.Char()
+    source_of_sample = fields.Char(string='Source of Sample')
+
+    expected_submission_date = fields.Date(
+        string='Expected Experiment Submission Date',
+        tracking=True,
+    )
     purpose = fields.Text(required=True)
     compare_performance = fields.Text(string='Compare Performance With')
     description = fields.Text(string='Description')
@@ -91,12 +97,80 @@ class RSDApplicationRequest(models.Model):
             v['requester_id']=self.env.uid; v['state']='draft'
             if v.get('name','New')=='New': v['name']=self.env['ir.sequence'].next_by_code('rsd.quality.application.request') or 'New'
         return super().create(vals_list)
+
     def write(self, vals):
-        workflow={'state','requester_id','name','submitted_on','approved_on','final_sent_on','closed_on','request_review_feedback','request_reviewer_id','assigned_user_id','experiment_reviewer_id','inhibition_snapshot'}
-        if workflow.intersection(vals): raise UserError(_('Workflow fields are controlled by workflow actions.'))
+        workflow = {
+            'state', 'requester_id', 'name', 'submitted_on',
+            'approved_on', 'final_sent_on', 'closed_on',
+            'request_review_feedback', 'request_reviewer_id',
+            'assigned_user_id', 'experiment_reviewer_id',
+            'inhibition_snapshot',
+        }
+
+        if workflow.intersection(vals):
+            raise UserError(_('Workflow fields are controlled by workflow actions.'))
+
+        # Handle Expected Experiment Submission Date separately
+        if 'expected_submission_date' in vals:
+
+            # Prevent other fields from bypassing normal edit restrictions
+            if set(vals) != {'expected_submission_date'}:
+                raise UserError(
+                    _('Expected submission date must be updated separately from other request fields.')
+                )
+
+            for r in self:
+                if r.state != 'approved':
+                    raise UserError(
+                        _('Expected submission date can only be set after approval and before experiment start.')
+                    )
+
+                if r.assigned_user_id != self.env.user:
+                    raise UserError(
+                        _('Only the assigned Application User can set the expected submission date.')
+                    )
+
+            old_dates = {
+                r.id: r.expected_submission_date
+                for r in self
+            }
+
+            result = super().write(vals)
+
+            for r in self:
+                if (
+                        old_dates[r.id] != r.expected_submission_date
+                        and r.expected_submission_date
+                ):
+                    r._notify(
+                        r.requester_id,
+                        _('Expected Experiment Submission Date'),
+                        _('The expected experiment submission date for %s is %s.')
+                        % (r.name, r.expected_submission_date)
+                    )
+
+                    r.message_post(
+                        body=_('Expected experiment submission date updated to %s.')
+                             % r.expected_submission_date
+                    )
+
+            return result
+
+        # Normal request editing restrictions
         for r in self:
-            if r.state not in ('draft','request_revision') and vals: raise UserError(_('Request details are locked after submission.'))
-            if r.requester_id != self.env.user and not _manager(self.env.user): raise UserError(_('Only the request owner can edit this request.'))
+            if r.state not in ('draft', 'request_revision') and vals:
+                raise UserError(
+                    _('Request details are locked after submission.')
+                )
+
+            if (
+                    r.requester_id != self.env.user
+                    and not _manager(self.env.user)
+            ):
+                raise UserError(
+                    _('Only the request owner can edit this request.')
+                )
+
         return super().write(vals)
     def _wf(self, vals): return super(RSDApplicationRequest,self.sudo()).write(vals)
     def _check_requester(self):
@@ -123,11 +197,29 @@ class RSDApplicationRequest(models.Model):
         self.ensure_one(); self._check_group(REQUEST_REVIEW)
         if self.state!='submitted': raise UserError(_('Only submitted requests can be reviewed.'))
         return {'type':'ir.actions.act_window','res_model':'rsd.quality.application.request.review.wizard','view_mode':'form','target':'new','context':{'default_request_id':self.id}}
+
     def action_start_experiment(self):
-        self.ensure_one(); self._check_group(EXPERIMENT_USER)
-        e=self.experiment_id
-        if self.state!='approved' or not e or e.assigned_user_id!=self.env.user: raise UserError(_('Only the assigned Application User can start this approved Experiment.'))
-        e.action_start(); return True
+        self.ensure_one()
+        self._check_group(EXPERIMENT_USER)
+
+        e = self.experiment_id
+
+        if (
+                self.state != 'approved'
+                or not e
+                or e.assigned_user_id != self.env.user
+        ):
+            raise UserError(
+                _('Only the assigned Application User can start this approved Experiment.')
+            )
+
+        if not self.expected_submission_date:
+            raise UserError(
+                _('Please set the Expected Experiment Submission Date before starting the experiment.')
+            )
+
+        e.action_start()
+        return True
     def action_resume_experiment(self):
         self.ensure_one(); self._check_group(EXPERIMENT_USER); e=self.experiment_id
         if not e or e.assigned_user_id != self.env.user or self.state != 'experiment' or e.state != 'returned': raise UserError(_('Only the assigned Application User can resume a returned Experiment.'))
@@ -155,7 +247,11 @@ class RSDApplicationExperiment(models.Model):
     name=fields.Char(compute='_compute_name',store=True)
     request_id=fields.Many2one('rsd.quality.application.request',required=True,ondelete='cascade',index=True)
     assigned_user_id=fields.Many2one('res.users',required=True,tracking=True)
-    reviewer_id=fields.Many2one('res.users',required=True,tracking=True)
+    reviewer_id = fields.Many2one(
+        'res.users',
+        string='Experiment Reviewer',
+        tracking=True,
+    )
     state=fields.Selection([('assigned','Assigned'),('in_progress','In Progress'),('submitted','Submitted for Review'),('returned','Returned for Rework'),('approved','Approved')],default='assigned',tracking=True)
     start_date=fields.Datetime(readonly=True,tracking=True); submitted_on=fields.Datetime(readonly=True,tracking=True); reviewed_on=fields.Datetime(readonly=True,tracking=True)
     description=fields.Text(string='Test Report / Results',tracking=True)
@@ -191,14 +287,74 @@ class RSDApplicationExperiment(models.Model):
         self.env['rsd.quality.application.experiment.interval'].sudo().create({'experiment_id':self.id,'start_date':now})
         self.request_id._notify(self.request_id.requester_id,_('Experiment Resumed'),_('%s has resumed work on the Experiment.')%self.name)
         return True
-    def action_submit(self):
-        self.ensure_one(); req=self.request_id
-        if self.assigned_user_id!=self.env.user or req.state!='experiment' or self.state not in ('in_progress','returned'): raise UserError(_('Only the assigned Application User can submit an active Experiment.'))
-        if not self.description: raise ValidationError(_('Enter Test Report / Results before submitting.'))
-        now=fields.Datetime.now(); open_interval=self.work_intervals.filtered(lambda i:not i.end_date)[:1]
-        if open_interval: open_interval.sudo().write({'end_date':now})
-        self._wf({'state':'submitted','submitted_on':now}); req._wf({'state':'experiment_review'}); req._notify(self.reviewer_id,_('Experiment Review'),_('%s is submitted and awaiting your review.')%self.name); self.message_post(body=_('Experiment submitted for review.')); return True
 
+    def action_submit(self):
+        self.ensure_one()
+        req = self.request_id
+
+        if (
+                self.assigned_user_id != self.env.user
+                or req.state != 'experiment'
+                or self.state not in ('in_progress', 'returned')
+        ):
+            raise UserError(
+                _('Only the assigned Application User can submit an active Experiment.')
+            )
+
+        if not self.description:
+            raise ValidationError(
+                _('Enter Test Report / Results before submitting.')
+            )
+
+        # Automatically select an active Experiment Reviewer
+        reviewer_group = self.env.ref(EXPERIMENT_REVIEW)
+
+        reviewers = self.env['res.users'].search([
+            ('groups_id', 'in', [reviewer_group.id]),
+            ('active', '=', True),
+        ], order='name,id')
+
+        if not reviewers:
+            raise ValidationError(
+                _('No active Experiment Reviewer found in the Experiment Reviewer group.')
+            )
+
+        reviewer = reviewers[0]
+
+        now = fields.Datetime.now()
+
+        # Close the active work interval
+        open_interval = self.work_intervals.filtered(
+            lambda i: not i.end_date
+        )[:1]
+
+        if open_interval:
+            open_interval.sudo().write({'end_date': now})
+
+        # Assign reviewer only at submission
+        self._wf({
+            'state': 'submitted',
+            'submitted_on': now,
+            'reviewer_id': reviewer.id,
+        })
+
+        req._wf({
+            'state': 'experiment_review',
+            'experiment_reviewer_id': reviewer.id,
+        })
+
+        # Notify the automatically assigned reviewer
+        req._notify(
+            reviewer,
+            _('Experiment Review'),
+            _('%s is submitted and awaiting your review.') % self.name
+        )
+
+        self.message_post(
+            body=_('Experiment submitted for review.')
+        )
+
+        return True
 class RSDApplicationExperimentInterval(models.Model):
     _name='rsd.quality.application.experiment.interval'; _description='Experiment Work Interval'
     experiment_id=fields.Many2one('rsd.quality.application.experiment',required=True,ondelete='cascade')
@@ -225,24 +381,95 @@ class RSDApplicationAttempt(models.Model):
         for a in self: a.name='%s - Legacy Attempt %s'%(a.request_id.name,a.attempt_no)
 
 class RequestReviewWizard(models.TransientModel):
-    _name='rsd.quality.application.request.review.wizard'; _description='Application Request Review Wizard'
-    request_id=fields.Many2one('rsd.quality.application.request',required=True)
-    decision=fields.Selection([('approve','Approve'),('return','Send Back')],required=True)
-    feedback=fields.Text(); assigned_user_id=fields.Many2one('res.users',string='Application User'); reviewer_id=fields.Many2one('res.users',string='Experiment Reviewer')
+    _name = 'rsd.quality.application.request.review.wizard'
+    _description = 'Application Request Review Wizard'
+
+    request_id = fields.Many2one(
+        'rsd.quality.application.request',
+        required=True
+    )
+
+    decision = fields.Selection(
+        [('approve', 'Approve'), ('return', 'Send Back')],
+        required=True
+    )
+
+    feedback = fields.Text()
+
     def action_confirm(self):
-        self.ensure_one(); r=self.request_id; r._check_group(REQUEST_REVIEW)
-        if r.state!='submitted': raise UserError(_('This request is not awaiting Request Review.'))
-        if self.decision=='return' and not self.feedback: raise ValidationError(_('Feedback is required to send the request back.'))
-        if self.decision=='approve':
-            if not self.assigned_user_id or not self.reviewer_id: raise ValidationError(_('Assign both Application User and Experiment Reviewer.'))
-            e=self.env['rsd.quality.application.experiment'].sudo().search([('request_id','=',r.id)],limit=1)
-            if not e: e=self.env['rsd.quality.application.experiment'].sudo().create({'request_id':r.id,'assigned_user_id':self.assigned_user_id.id,'reviewer_id':self.reviewer_id.id})
-            else: e.sudo().write({'assigned_user_id':self.assigned_user_id.id,'reviewer_id':self.reviewer_id.id})
-            r._wf({'state':'approved','approved_on':fields.Datetime.now(),'request_reviewer_id':self.env.user.id,'assigned_user_id':self.assigned_user_id.id,'experiment_reviewer_id':self.reviewer_id.id,'request_review_feedback':False})
-            r._notify(self.assigned_user_id,_('Experiment Assigned'),_('%s has been approved and assigned to you.')%r.name); r._notify(self.reviewer_id,_('Experiment Reviewer Assigned'),_('You are assigned to review the Experiment for %s.')%r.name)
-        else:
-            r._wf({'state':'request_revision','request_review_feedback':self.feedback,'request_reviewer_id':self.env.user.id}); r._notify(r.requester_id,_('Sample Request Returned'),self.feedback)
-        return {'type':'ir.actions.act_window_close'}
+        self.ensure_one()
+        r = self.request_id
+        r._check_group(REQUEST_REVIEW)
+
+        if r.state != 'submitted':
+            raise UserError(_('This request is not awaiting Request Review.'))
+
+        if self.decision == 'return':
+            if not self.feedback:
+                raise ValidationError(
+                    _('Feedback is required to send the request back.')
+                )
+
+            r._wf({
+                'state': 'request_revision',
+                'request_review_feedback': self.feedback,
+                'request_reviewer_id': self.env.user.id,
+            })
+
+            r._notify(
+                r.requester_id,
+                _('Sample Request Returned'),
+                self.feedback
+            )
+
+        elif self.decision == 'approve':
+
+            application_group = self.env.ref(EXPERIMENT_USER)
+
+            application_users = self.env['res.users'].search([
+                ('groups_id', 'in', [application_group.id]),
+                ('active', '=', True),
+            ], order='name,id')
+
+            if not application_users:
+                raise ValidationError(
+                    _('No active Application User found in the Application Experiment User group.')
+                )
+
+            assigned_user = application_users[0]
+
+            e = self.env['rsd.quality.application.experiment'].sudo().search(
+                [('request_id', '=', r.id)],
+                limit=1
+            )
+
+            if not e:
+                e = self.env['rsd.quality.application.experiment'].sudo().create({
+                    'request_id': r.id,
+                    'assigned_user_id': assigned_user.id,
+                })
+            else:
+                e.sudo().write({
+                    'assigned_user_id': assigned_user.id,
+                    'reviewer_id': False,
+                })
+
+            r._wf({
+                'state': 'approved',
+                'approved_on': fields.Datetime.now(),
+                'request_reviewer_id': self.env.user.id,
+                'assigned_user_id': assigned_user.id,
+                'experiment_reviewer_id': False,
+                'request_review_feedback': False,
+            })
+
+            r._notify(
+                assigned_user,
+                _('Experiment Assigned'),
+                _('%s has been approved and assigned to you.') % r.name
+            )
+
+        return {'type': 'ir.actions.act_window_close'}
 
 class ExperimentReviewWizard(models.TransientModel):
     _name='rsd.quality.application.experiment.review.wizard'; _description='Experiment Review Wizard'
