@@ -45,7 +45,11 @@ class RSDApplicationRequest(models.Model):
     proposed_completion_date = fields.Date()
     request_review_feedback = fields.Text(readonly=True, tracking=True)
     state = fields.Selection([('draft','Draft'),('submitted','Submitted'),('request_revision','Request Revision'),('approved','Approved'),('experiment','Experiment In Progress'),('experiment_review','Experiment Review'),('results_sent','Results Sent to SnM'),('completed','Completed'),('cancelled','Cancelled')], default='draft', required=True, tracking=True)
-    experiment_id = fields.Many2one('rsd.quality.application.experiment', compute='_compute_experiment', store=True)
+    experiment_id = fields.Many2one(
+        'rsd.quality.application.experiment',
+        compute='_compute_experiment'
+    )
+    experiment_count = fields.Integer(compute='_compute_experiment')
     experiment_count = fields.Integer(compute='_compute_experiment')
     legacy_attempt_ids = fields.One2many('rsd.quality.application.attempt','request_id', string='Legacy Attempts')
     legacy_current_attempt_id = fields.Many2one('rsd.quality.application.attempt', compute='_compute_legacy_attempt')
@@ -61,9 +65,11 @@ class RSDApplicationRequest(models.Model):
         for r in self: r.has_other_parameter = 'other' in r.parameter_ids.mapped('code')
     @api.depends('experiment_id')
     def _compute_experiment(self):
+        Experiment = self.env['rsd.quality.application.experiment']
         for r in self:
-            e = self.env['rsd.quality.application.experiment'].search([('request_id','=',r.id)], limit=1)
-            r.experiment_id, r.experiment_count = e, bool(e)
+            e = Experiment.search([('request_id', '=', r.id)], limit=1)
+            r.experiment_id = e
+            r.experiment_count = 1 if e else 0
     @api.depends('legacy_attempt_ids.attempt_no')
     def _compute_legacy_attempt(self):
         for r in self:
