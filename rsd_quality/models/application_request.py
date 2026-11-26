@@ -70,6 +70,15 @@ class RSDApplicationRequest(models.Model):
             e = Experiment.search([('request_id', '=', r.id)], limit=1)
             r.experiment_id = e
             r.experiment_count = 1 if e else 0
+
+    @api.depends('state', 'experiment_id.state', 'assigned_user_id')
+    def _compute_can_submit_experiment(self):
+        for r in self:
+            r.can_submit_experiment = (
+                    r.state == 'experiment'
+                    and r.experiment_id.state == 'in_progress'
+                    and r.assigned_user_id == self.env.user
+            )
     @api.depends('legacy_attempt_ids.attempt_no')
     def _compute_legacy_attempt(self):
         for r in self:
