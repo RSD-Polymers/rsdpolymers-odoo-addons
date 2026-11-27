@@ -252,6 +252,33 @@ class RSDApplicationRequest(models.Model):
         self.ensure_one(); self._check_requester()
         if self.state not in ('draft','submitted','request_revision'): raise UserError(_('This request cannot be cancelled now.'))
         self._wf({'state':'cancelled'}); return True
+    def action_create_followup_request(self):
+        self.ensure_one()
+        self._check_requester()
+
+        if self.state != 'results_sent':
+            raise UserError(
+                _('A new Sample Request can only be created after final results are sent to SnM.')
+            )
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('New Sample Request'),
+            'res_model': 'rsd.quality.application.request',
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {
+                'default_sample_name': self.sample_name,
+                'default_batch_no': self.batch_no,
+                'default_quantity': self.quantity,
+                'default_quantity_uom': self.quantity_uom.id,
+                'default_manufacturer_name': self.manufacturer_name,
+                'default_source_of_sample': self.source_of_sample,
+                'default_delivery_mode': self.delivery_mode,
+                'default_attachment_ids': self.attachment_ids.ids,
+                'default_company_id': self.company_id.id,
+            },
+        }
 
 class RSDApplicationExperiment(models.Model):
     _name='rsd.quality.application.experiment'; _description='R&D Application Experiment'; _inherit=['mail.thread','mail.activity.mixin']

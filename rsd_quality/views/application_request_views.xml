@@ -70,6 +70,13 @@
                             invisible="state!='results_sent'"
                             groups="rnd_workflow.group_rnd_sm"/>
 
+                    <button name="action_create_followup_request"
+                            type="object"
+                            string="Create New Request"
+                            class="btn-secondary"
+                            invisible="state!='results_sent'"
+                            groups="rnd_workflow.group_rnd_sm,rnd_workflow.group_rnd_owner"/>
+
                     <button name="action_cancel_request"
                             type="object"
                             string="Cancel"
