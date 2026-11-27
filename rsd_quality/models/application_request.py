@@ -59,6 +59,9 @@ class RSDApplicationRequest(models.Model):
     can_submit_experiment = fields.Boolean(
         compute='_compute_can_submit_experiment'
     )
+    can_resume_experiment = fields.Boolean(
+        compute='_compute_can_resume_experiment'
+    )
     legacy_attempt_ids = fields.One2many('rsd.quality.application.attempt','request_id', string='Legacy Attempts')
     legacy_current_attempt_id = fields.Many2one('rsd.quality.application.attempt', compute='_compute_legacy_attempt')
     legacy_attempt_count = fields.Integer(compute='_compute_legacy_attempt')
@@ -85,6 +88,15 @@ class RSDApplicationRequest(models.Model):
             r.can_submit_experiment = (
                     r.state == 'experiment'
                     and r.experiment_id.state == 'in_progress'
+                    and r.assigned_user_id == self.env.user
+            )
+
+    @api.depends('state', 'experiment_id.state', 'assigned_user_id')
+    def _compute_can_resume_experiment(self):
+        for r in self:
+            r.can_resume_experiment = (
+                    r.state == 'experiment'
+                    and r.experiment_id.state == 'returned'
                     and r.assigned_user_id == self.env.user
             )
     @api.depends('legacy_attempt_ids.attempt_no')

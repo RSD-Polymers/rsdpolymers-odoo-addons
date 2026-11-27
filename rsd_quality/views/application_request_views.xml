@@ -46,7 +46,7 @@
                             type="object"
                             string="Resume Experiment"
                             class="btn-primary"
-                            invisible="state!='experiment' or experiment_id.state!='returned'"
+                            invisible="not can_resume_experiment"
                             groups="rsd_quality.group_application_experiment_user"/>
 
                     <button name="action_submit_experiment"
@@ -83,6 +83,7 @@
 
                 <sheet>
                     <field name="can_submit_experiment" invisible="1"/>
+                    <field name="can_resume_experiment" invisible="1"/>
 
                     <div class="oe_title">
                         <h1>
